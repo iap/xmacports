@@ -1,0 +1,6 @@
+#!/bin/bash
+# Simple MacPorts update script
+echo "Updating MacPorts..."
+sudo port selfupdate
+sudo port upgrade outdated
+echo "Done!"

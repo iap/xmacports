@@ -1,0 +1,33 @@
+# ZSH Local Configuration Example
+# Copy to ~/.zshrc.local and customize
+
+# Personal aliases
+alias myserver='ssh <username>@<hostname>'
+alias myproject='cd ~/projects/<project-name>'
+
+# Personal environment variables
+export PERSONAL_VAR="<value>"
+
+# Custom functions
+connect_server() {
+    ssh <username>@<server-ip> "$@"
+}
+
+# MacBook Air 2017 specific optimizations
+# Uncomment and customize as needed:
+
+# Battery optimization
+# alias sleep='pmset sleepnow'
+# alias battery='pmset -g batt'
+
+# Temperature monitoring
+# alias temp='sudo powermetrics --samplers smc_temp -n 1'
+
+# Memory optimization
+# alias memclean='sudo purge'
+
+# Development environment
+# export PYTHONPATH="$HOME/projects/python:$PYTHONPATH"
+# export GOPATH="$HOME/projects/go"
+
+# Add personal customizations here

@@ -1,0 +1,12 @@
+# Git Local Configuration Example
+# Copy to ~/.gitconfig.local and customize
+
+[user]
+    name = <username>
+    email = <username>@example.tld
+
+[github]
+    user = <username>
+
+[core]
+    # Add any personal preferences here

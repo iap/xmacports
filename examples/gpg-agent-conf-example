@@ -1,0 +1,22 @@
+# GPG Agent Configuration Example
+# Copy to ~/.gnupg/gpg-agent.conf and customize
+
+# Enable SSH support for GPG keys
+enable-ssh-support
+
+# Cache settings for smartcard/YubiKey usage
+default-cache-ttl 28800
+max-cache-ttl 86400
+
+# SSH key cache settings
+default-cache-ttl-ssh 28800
+max-cache-ttl-ssh 86400
+
+# Pinentry program (adjust for macOS)
+pinentry-program /opt/local/bin/pinentry-mac
+
+# Allow preset passphrases
+allow-preset-passphrase
+
+# Disable SSH key generation
+no-allow-external-cache
