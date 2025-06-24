@@ -6,12 +6,12 @@ Host *
     # Use GPG agent for SSH authentication
     IdentityAgent ~/.gnupg/S.gpg-agent.ssh
     
-    # Security settings
+    # Security settings with backward compatibility
     Protocol 2
-    Ciphers chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr
-    MACs hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512
-    KexAlgorithms curve25519-sha256@libssh.org,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512
-    HostKeyAlgorithms ssh-ed25519-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com,ssh-ed25519,ssh-rsa
+    Ciphers aes256-ctr,aes192-ctr,aes128-ctr,chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com
+    MACs hmac-sha2-256,hmac-sha2-512,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
+    KexAlgorithms diffie-hellman-group16-sha512,diffie-hellman-group14-sha256,curve25519-sha256@libssh.org,diffie-hellman-group18-sha512
+    HostKeyAlgorithms ssh-ed25519,ssh-rsa,ssh-ed25519-cert-v01@openssh.com,ssh-rsa-cert-v01@openssh.com
     
     # Connection settings
     ServerAliveInterval 60
