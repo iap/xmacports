@@ -1,0 +1,43 @@
+# Simple Git Config for Terminal Usage
+
+[user]
+    # Personal settings in ~/.gitconfig.local
+
+[core]
+    editor = vim
+    excludesfile = ~/.gitignore_global
+    pager = cat
+
+[color]
+    ui = always
+
+[init]
+    defaultBranch = main
+
+[pull]
+    rebase = false
+
+[push]
+    default = simple
+
+[alias]
+    # Simple commands for terminal usage
+    s = status --porcelain
+    l = log --oneline -10
+    b = branch
+    a = add
+    c = commit -m
+    d = diff
+    
+    # Quick info
+    info = log --oneline -1
+    files = diff --name-only
+    changes = status --porcelain
+    
+    # Safe operations
+    unstage = reset HEAD
+    undo = reset --soft HEAD~1
+
+# Include personal settings
+[include]
+    path = ~/.gitconfig.local
