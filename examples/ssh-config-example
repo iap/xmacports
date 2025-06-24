@@ -1,0 +1,18 @@
+# SSH Configuration Example
+# Copy to ~/.ssh/config and customize
+
+Host <hostname>
+    HostName <server-ip>
+    User <username>
+    Port 22
+    IdentityFile ~/.ssh/id_rsa
+
+Host <alias>
+    HostName example.tld
+    User <username>
+    Port 2222
+
+# Default settings for all hosts
+Host *
+    ServerAliveInterval 60
+    ServerAliveCountMax 3

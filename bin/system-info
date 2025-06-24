@@ -1,0 +1,15 @@
+#!/bin/bash
+# System information script for development environment
+# Follows system rules for minimal, readable output
+
+set -e
+
+echo "=== Development Environment System Information ==="
+echo "Date: $(date)"
+echo "Uptime: $(uptime | awk '{print $3,$4}' | sed 's/,//')"
+echo "Memory: $(vm_stat | grep "Pages free" | awk '{print $3}' | sed 's/\.//')KB free"
+echo "Disk: $(df -h / | tail -1 | awk '{print $4}') available"
+echo "MacPorts: $(port version 2>/dev/null || echo 'Not bootstrapped')"
+echo "Shell: $SHELL"
+echo "Terminal: $TERM"
+echo "GPG Agent: $(pgrep gpg-agent >/dev/null && echo 'Running' || echo 'Not running')"

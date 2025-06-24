@@ -1,0 +1,17 @@
+" XDG-compliant vim configuration
+" This file is sourced when vim is started with XDG_CONFIG_HOME set
+
+" Source the main vimrc
+if filereadable(expand('~/.dotfiles/.vimrc'))
+    source ~/.dotfiles/.vimrc
+endif
+
+" XDG Base Directory overrides
+if exists('$XDG_CONFIG_HOME')
+    set runtimepath^=$XDG_CONFIG_HOME/vim
+    set runtimepath+=$XDG_CONFIG_HOME/vim/after
+endif
+
+if exists('$XDG_DATA_HOME')
+    set runtimepath+=$XDG_DATA_HOME/vim
+endif

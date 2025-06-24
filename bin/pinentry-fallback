@@ -1,0 +1,45 @@
+#!/bin/sh
+# MacPorts pinentry fallback script for secure development environment
+# MacPorts-only approach per system rules - Homebrew disabled
+# Compatible with older macOS versions and different MacPorts configurations
+
+# === MACPORTS PINENTRY OPTIONS ===
+
+# Try MacPorts pinentry-mac (GUI) - current installation location
+if [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ]; then
+    exec "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" "$@"
+fi
+
+# Try MacPorts pinentry-mac (older installation pattern)
+if [ -x "/opt/local/bin/pinentry-mac" ]; then
+    exec "/opt/local/bin/pinentry-mac" "$@"
+fi
+
+# === MACPORTS TERMINAL PINENTRY OPTIONS ===
+
+# Try MacPorts pinentry-curses (terminal-based, always available)
+if [ -x "/opt/local/bin/pinentry-curses" ]; then
+    exec "/opt/local/bin/pinentry-curses" "$@"
+fi
+
+# Try MacPorts pinentry-tty (minimal terminal interface)
+if [ -x "/opt/local/bin/pinentry-tty" ]; then
+    exec "/opt/local/bin/pinentry-tty" "$@"
+fi
+
+# === SYSTEM FALLBACK (legacy macOS) ===
+
+# Try system pinentry (older macOS versions, if available)
+if [ -x "/usr/bin/pinentry" ]; then
+    exec "/usr/bin/pinentry" "$@"
+fi
+
+# === ERROR HANDLING ===
+echo "ERROR: No pinentry program available." >&2
+echo "" >&2
+echo "This dotfiles setup requires MacPorts pinentry." >&2
+echo "Bootstrap with: sudo port install pinentry-mac" >&2
+echo "" >&2
+echo "Note: This setup intentionally avoids Homebrew per system rules." >&2
+echo "For legacy hardware compatibility, MacPorts is preferred." >&2
+exit 1

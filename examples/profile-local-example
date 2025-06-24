@@ -1,0 +1,25 @@
+# ~/.profile.local - Personal shell profile customizations
+# This file is sourced by .profile and applies to all POSIX shells
+
+# Personal environment variables
+# export WORK_DIR="$HOME/Projects/work"
+# export EDITOR="nano"
+
+# Personal PATH additions
+# export PATH="$HOME/bin:$PATH"
+
+# Machine-specific settings
+# export DISPLAY=":0"
+
+# Development environment
+# export NODE_ENV="development"
+# export PYTHONPATH="$HOME/lib/python"
+
+# Personal aliases (shell-agnostic)
+# alias work='cd "$WORK_DIR"'
+# alias ll='ls -la'
+
+# Load local secrets if they exist
+# if [ -f "$HOME/.env.local" ]; then
+#     . "$HOME/.env.local"
+# fi

@@ -1,0 +1,34 @@
+" ~/.vimrc.local - Personal vim customizations
+" This file is sourced by .vimrc for personal settings
+
+" Personal color scheme
+" colorscheme desert
+
+" Personal key mappings
+" nnoremap <leader>t :tabnew<CR>
+
+" Personal settings
+" set mouse=a                   " Enable mouse support
+" set spell                     " Enable spell checking
+
+" Development-specific settings
+" set foldmethod=syntax         " Fold based on syntax
+" set foldlevelstart=1          " Start with folds closed
+
+" Personal abbreviations
+" iabbrev teh the
+" iabbrev seperate separate
+
+" Custom functions
+" function! StripTrailingWhitespace()
+"     let l:save = winsaveview()
+"     keeppatterns %s/\s\+$//e
+"     call winrestview(l:save)
+" endfunction
+" nnoremap <leader>s :call StripTrailingWhitespace()<CR>
+
+" Project-specific settings
+" if getcwd() =~ 'project-name'
+"     set tabstop=2
+"     set shiftwidth=2
+" endif
