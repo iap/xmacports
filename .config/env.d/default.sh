@@ -68,3 +68,4 @@ export FINDOPTS="-type f"
 # Shell session context and cache
 export SHELL_CACHE_DIR="$HOME/.cache/shell"
 mkdir -p "$SHELL_CACHE_DIR"
+mkdir -p "$HOME/.cache/ssh"
