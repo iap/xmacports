@@ -20,3 +20,5 @@
 # Personal information
 personal/
 private/
+# Ignore local configurations
+.config/ssh/config.local
