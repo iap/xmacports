@@ -45,7 +45,7 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case insensitive mat
 # Load local customizations if they exist
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
 
-# Initialize GPG verification on startup (non-blocking) - temporarily disabled for testing
-# if [[ -n "$DOTFILES_LOG_DIR" ]] && declare -f verify_gpg_ssh >/dev/null; then
-#     verify_gpg_ssh &
-# fi
+# Initialize GPG verification on startup (non-blocking)
+if [[ -n "$DOTFILES_LOG_DIR" ]] && declare -f verify_gpg_ssh >/dev/null; then
+    verify_gpg_ssh &
+fi

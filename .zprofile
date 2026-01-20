@@ -23,3 +23,12 @@ if command -v gpgconf >/dev/null 2>&1; then
         gpg-agent --daemon --enable-ssh-support --write-env-file "$HOME/.gpg-agent-info" >/dev/null 2>&1 || true
     fi
 fi
+
+##
+# MacPorts Installer addition - automatically configured
+##
+
+# MacPorts Installer addition on 2026-01-21_at_02:00:01: adding an appropriate PATH variable for use with MacPorts.
+export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
+# Finished adapting your PATH environment variable for use with MacPorts.
+

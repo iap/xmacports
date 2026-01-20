@@ -27,6 +27,7 @@ backup_and_link() {
 backup_and_link "$HOME/.dotfiles/.profile" "$HOME/.profile"
 backup_and_link "$HOME/.dotfiles/.zprofile" "$HOME/.zprofile"
 backup_and_link "$HOME/.dotfiles/.zshrc" "$HOME/.zshrc"
+backup_and_link "$HOME/.dotfiles/.bashrc" "$HOME/.bashrc"
 backup_and_link "$HOME/.dotfiles/.gitconfig" "$HOME/.gitconfig"
 backup_and_link "$HOME/.dotfiles/.gitignore_global" "$HOME/.gitignore_global"
 
