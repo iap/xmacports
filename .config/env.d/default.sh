@@ -9,9 +9,13 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # MacPorts PATH - essential for package management
-# Use dynamic MacPorts prefix detection
-MACPORTS_PREFIX="${MACPORTS_PREFIX:-$(command -v port 2>/dev/null | sed 's|/bin/port||' || echo '/opt/local')}"
-export PATH="$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$HOME/bin:$HOME/.local/bin:$PATH"
+# Use dynamic MacPorts prefix detection with fallback
+if command -v port >/dev/null 2>&1; then
+    MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
+else
+    MACPORTS_PREFIX="/opt/local"
+fi
+export PATH="$MACPORTS_PREFIX/libexec/gnubin:$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$HOME/bin:$HOME/.local/bin:$PATH"
 
 # Basic environment optimized for development
 export EDITOR="vim"
@@ -23,8 +27,8 @@ export LC_ALL="en_US.UTF-8"
 export MAKEFLAGS="-j$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 
 # GPG-SSH integration
-export SSH_AUTH_SOCK="$HOME/.gnupg/S.gpg-agent.ssh"
-export GPG_TTY="$(tty 2>/dev/null || echo /dev/tty)"
+export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "$HOME/.gnupg/S.gpg-agent.ssh")"
+export GPG_TTY="$(tty 2>/dev/null || echo "$TTY")"
 
 # MacPorts build environment
 export CPPFLAGS="-I$MACPORTS_PREFIX/include"
@@ -38,7 +42,7 @@ mkdir -p "$DOTFILES_LOG_DIR"
 export HISTFILE="${XDG_STATE_HOME}/zsh/history"
 export HISTSIZE=10000
 export SAVEHIST=10000
-mkdir -p "$(dirname "$HISTFILE")"
+[[ ! -d "$(dirname "$HISTFILE")" ]] && mkdir -p "$(dirname "$HISTFILE")"
 
 # Minimal setup - no external auto-suggestions
 # Testing pushclean alias from gitconfig.local

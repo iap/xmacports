@@ -8,11 +8,19 @@ GREEN='%F{green}'
 CYAN='%F{cyan}'
 YELLOW='%F{yellow}'
 RESET='%f'
-# Git info function (clean, no conflicts)
+# Git info function (clean, no conflicts) with caching
 git_info() {
+    # Cache git status for performance
+    local cache_file="$SHELL_CACHE_DIR/git_status_$$"
+    local cache_timeout=5
+    
+    if [[ -f "$cache_file" && $(($(date +%s) - $(stat -c %Y "$cache_file" 2>/dev/null || stat -f %m "$cache_file" 2>/dev/null || echo 0))) -lt $cache_timeout ]]; then
+        cat "$cache_file" 2>/dev/null && return
+    fi
+    
     git rev-parse --git-dir >/dev/null 2>&1 || return
     
-    local branch=$(git branch --show-current 2>/dev/null)
+    local branch="$(git branch --show-current 2>/dev/null)"
     [[ -z "$branch" ]] && return
     
     # Check for changes
@@ -20,7 +28,8 @@ git_info() {
     git diff --quiet 2>/dev/null || mark="±"
     [[ -z "$mark" ]] && { git diff --cached --quiet 2>/dev/null || mark="+"; }
     
-    echo " ${YELLOW}(${branch}${mark})${RESET}"
+    local result=" ${YELLOW}(${branch}${mark})${RESET}"
+    echo "$result" | tee "$cache_file" 2>/dev/null
 }
 
 # Short pwd function
@@ -74,7 +83,7 @@ work_context() {
     echo "Files in directory: $(ls -1 | wc -l | tr -d ' ')"
     if git rev-parse --git-dir > /dev/null 2>&1; then
         echo "Git branch: $(git branch --show-current 2>/dev/null)"
-        local changes=$(git status --porcelain | wc -l | tr -d ' ')
+        local changes="$(git status --porcelain | wc -l | tr -d ' ')"
         echo "Git changes: $changes"
     fi
 }
