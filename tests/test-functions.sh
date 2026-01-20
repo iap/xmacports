@@ -245,7 +245,11 @@ echo "Success rate: $(( PASSED * 100 / TOTAL ))%"
 
 # Clean up
 cd "$HOME"
-rm -rf "$TEST_DIR"
+if [[ -n "$TEST_DIR" && "$TEST_DIR" =~ ^/tmp/dotfiles_test_ ]]; then
+    rm -rf "$TEST_DIR"
+else
+    echo "⚠️  Skipping cleanup: invalid TEST_DIR '$TEST_DIR'"
+fi
 
 if [[ $FAILED -eq 0 ]]; then
     echo -e "\n🎉 All tests passed!"

@@ -13,6 +13,7 @@ bootstrap:
 
 # Remove dotfiles symlinks
 clean:
+	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
 	@echo "Removing dotfiles symlinks..."
 	@rm -f "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config"
 	@echo "✅ Dotfiles removed"

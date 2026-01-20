@@ -63,7 +63,7 @@ showfile() {
         echo "Usage: showfile <filename>"
         return 1
     fi
-    echo "FILE: $file ($(stat -f %z "$file" 2>/dev/null || echo '?') bytes)"
+    echo "FILE: $file ($(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null || echo '?') bytes)"
     cat "$file"
 }
 
@@ -81,7 +81,7 @@ gitstat() {
     echo "REPO: $(basename $(git rev-parse --show-toplevel))"
     echo "BRANCH: $(git branch --show-current)"
     echo "CHANGES: $(git status --porcelain | wc -l | tr -d ' ')"
-    [[ $(git status --porcelain | wc -l | tr -d ' ') -gt 0 ]] && git status --porcelain | head -5
+    [[ "$(git status --porcelain | wc -l | tr -d ' ')" -gt 0 ]] && git status --porcelain | head -5
 }
 
 # System environment info
