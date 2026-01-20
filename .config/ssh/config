@@ -1,6 +1,9 @@
 # SSH configuration for development environment
 # GPG-based authentication with security optimizations
 
+# Include local server configurations (not in public dotfiles)
+Include ~/.dotfiles/.config/ssh/config.local
+
 # Global defaults
 Host *
     # Use GPG agent for SSH authentication
@@ -41,11 +44,7 @@ Host *
     ForwardX11Trusted no
 
 # Example host configurations (customize as needed)
-# Host example.tld
-#     HostName example.tld
-#     User <username>
-#     Port 22
-#     IdentitiesOnly yes
+# Add server-specific configs to config.local instead
 
 # Host git-server
 #     HostName git.example.tld

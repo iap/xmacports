@@ -92,14 +92,8 @@ envinfo() {
     echo "GIT: $(git --version 2>/dev/null | cut -d' ' -f3 || echo 'not bootstrapped')"
 }
 
-# Help for enhanced commands
-enhanced_help() {
-    echo "Enhanced Commands:"
-    echo "  context     - Directory and git info"
-    echo "  showfile    - Display file content"
-    echo "  findfile    - Find files by pattern"
-    echo "  gitstat     - Git repository status"
-    echo "  envinfo     - System info"
-    echo "  where       - Location (alias)"
-    echo "  status      - Full status (alias)"
+# GPG unlock helper
+unlock_gpg() {
+    echo "Unlocking GPG key..."
+    echo "test" | gpg --clearsign >/dev/null 2>&1 && echo "✅ GPG key unlocked" || echo "❌ Failed to unlock"
 }
