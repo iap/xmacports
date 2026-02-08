@@ -2,7 +2,7 @@
 # GPG-based authentication with security optimizations
 
 # Include local server configurations (not in public dotfiles)
-Include ~/.dotfiles/.config/ssh/config.local
+Include ~/.ssh/config.local
 
 # Global defaults
 Host *

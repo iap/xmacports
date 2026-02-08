@@ -63,7 +63,7 @@ showfile() {
         echo "Usage: showfile <filename>"
         return 1
     fi
-    echo "FILE: $file ($(stat -c %s "$file" 2>/dev/null || stat -f %z "$file" 2>/dev/null || echo '?') bytes)"
+    echo "FILE: $file ($(stat -f %z "$file" 2>/dev/null || echo '?') bytes)"
     cat "$file"
 }
 
