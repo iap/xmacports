@@ -9,13 +9,34 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # MacPorts PATH - essential for package management
-# Use dynamic MacPorts prefix detection with fallback
-if command -v port >/dev/null 2>&1; then
-    MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
-else
-    MACPORTS_PREFIX="/opt/local"
+# Guard against multiple loads
+if [[ -z "$DOTFILES_ENV_LOADED" ]]; then
+    export DOTFILES_ENV_LOADED=1
+    
+    # Use dynamic MacPorts prefix detection with fallback
+    if command -v port >/dev/null 2>&1; then
+        MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
+    else
+        MACPORTS_PREFIX="/opt/local"
+    fi
+
+    # Clean PATH to avoid duplicates
+    PATH_CLEAN="$MACPORTS_PREFIX/libexec/gnubin:$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$HOME/bin:$HOME/.local/bin"
+    
+    # Add Foundry (Ethereum development toolkit)
+    if [[ -d "$HOME/.config/.foundry/bin" ]]; then
+        PATH_CLEAN="$PATH_CLEAN:$HOME/.config/.foundry/bin"
+    fi
+    
+    # Add system paths, removing duplicates
+    for dir in /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
+        case ":$PATH_CLEAN:" in
+            *":$dir:"*) ;;
+            *) PATH_CLEAN="$PATH_CLEAN:$dir" ;;
+        esac
+    done
+    export PATH="$PATH_CLEAN"
 fi
-export PATH="$MACPORTS_PREFIX/libexec/gnubin:$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$HOME/bin:$HOME/.local/bin:$PATH"
 
 # Basic environment optimized for development
 export EDITOR="vim"
@@ -28,7 +49,7 @@ export MAKEFLAGS="-j$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 
 # GPG-SSH integration
 export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "$HOME/.gnupg/S.gpg-agent.ssh")"
-export GPG_TTY="$(tty 2>/dev/null || echo "$TTY")"
+export GPG_TTY="$(tty)"
 
 # MacPorts build environment
 export CPPFLAGS="-I$MACPORTS_PREFIX/include"
@@ -49,7 +70,24 @@ export SAVEHIST=10000
 
 # Friendly settings
 # Make output more structured and readable
-export GREP_OPTIONS="--color=auto"
+# Enhanced grep with color
+alias grep='grep --color=auto'
+alias egrep='egrep --color=auto'
+alias fgrep='fgrep --color=auto'
+
+# Enhanced ls with color (GNU ls from MacPorts)
+alias ls='ls --color=auto'
+alias ll='ls -alF --color=auto'
+alias la='ls -A --color=auto'
+alias l='ls -CF --color=auto'
+
+# Color support for various tools
+export CLICOLOR=1
+export LSCOLORS="ExGxBxDxCxEgEdxbxgxcxd"
+export LS_COLORS="di=1;34:ln=1;36:so=1;31:pi=1;33:ex=1;32:bd=1;34;46:cd=1;34;43:su=1;37;41:sg=1;30;43:tw=1;30;42:ow=1;34;43"
+
+# Tree colors (if installed)
+export TREE_COLORS="di=1;34:ln=1;36:so=1;31:pi=1;33:ex=1;32:bd=1;34;46:cd=1;34;43"
 export LESS="-R -X -F"
 export PAGER="less"
 
