@@ -30,6 +30,10 @@ setopt CORRECT              # Spell correction for commands
 setopt COMPLETE_IN_WORD     # Complete from both ends of word
 setopt ALWAYS_TO_END        # Move cursor to end after completion
 
+# Color support for ZSH
+setopt PROMPT_SUBST         # Enable prompt substitution
+autoload -U colors && colors  # Load color support
+
 # Disable unwanted features for performance
 unsetopt BEEP               # No beeping
 unsetopt FLOW_CONTROL       # Disable start/stop characters
@@ -47,5 +51,6 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case insensitive mat
 
 # Initialize GPG verification on startup (non-blocking)
 if [[ -n "$DOTFILES_LOG_DIR" ]] && declare -f verify_gpg_ssh >/dev/null; then
-    verify_gpg_ssh &
+    verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
+    disown
 fi
