@@ -23,7 +23,7 @@ brew() {
 # Enhanced commands with structured output for better automation and scripting
 # Context and status
 alias where='echo "DIR: $(basename $(pwd))" && echo "PATH: $(pwd)" && echo "FILES: $(ls -1 | wc -l | tr -d " ")"'
-alias status='echo "PWD: $(pwd)" && echo "USER: $USER" && echo "DATE: $(date +"%Y-%m-%d %H:%M:%S")" && if git rev-parse --git-dir >/dev/null 2>&1; then echo "GIT: $(git branch --show-current) ($(git status --porcelain | wc -l | tr -d " ") changes)"; fi'
+alias status='echo "PWD: $(pwd)" && echo "DATE: $(date +"%Y-%m-%d %H:%M:%S")" && if git rev-parse --git-dir >/dev/null 2>&1; then echo "GIT: $(git branch --show-current) ($(git status --porcelain | wc -l | tr -d " ") changes)"; fi'
 
 # File operations
 alias lsf='ls -1'  # Simple file listing

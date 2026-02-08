@@ -49,7 +49,6 @@ battery_status() {
 # Core context information
 context() {
     echo "DIR: $(pwd)"
-    echo "USER: $USER"
     echo "FILES: $(ls -1 | wc -l | tr -d ' ')"
     if git rev-parse --git-dir > /dev/null 2>&1; then
         echo "GIT: $(git branch --show-current) ($(git status --porcelain | wc -l | tr -d ' ') changes)"

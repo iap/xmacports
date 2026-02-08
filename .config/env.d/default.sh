@@ -15,9 +15,9 @@ if [[ -z "$DOTFILES_ENV_LOADED" ]]; then
     
     # Use dynamic MacPorts prefix detection with fallback
     if command -v port >/dev/null 2>&1; then
-        MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
+        export MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
     else
-        MACPORTS_PREFIX="/opt/local"
+        export MACPORTS_PREFIX="/opt/local"
     fi
 
     # Clean PATH to avoid duplicates
@@ -36,6 +36,10 @@ if [[ -z "$DOTFILES_ENV_LOADED" ]]; then
         esac
     done
     export PATH="$PATH_CLEAN"
+    unset PATH_CLEAN
+else
+    # Ensure MACPORTS_PREFIX is available even when guard prevents reload
+    export MACPORTS_PREFIX="${MACPORTS_PREFIX:-/opt/local}"
 fi
 
 # Basic environment optimized for development
@@ -57,13 +61,17 @@ export LDFLAGS="-L$MACPORTS_PREFIX/lib"
 
 # Logging directory
 export DOTFILES_LOG_DIR="$HOME/.logs"
-mkdir -p "$DOTFILES_LOG_DIR"
 
 # History configuration
 export HISTFILE="${XDG_STATE_HOME}/zsh/history"
 export HISTSIZE=10000
 export SAVEHIST=10000
-[[ ! -d "$(dirname "$HISTFILE")" ]] && mkdir -p "$(dirname "$HISTFILE")"
+
+# Create required directories (only once per session)
+if [[ -z "$DOTFILES_DIRS_CREATED" ]]; then
+    export DOTFILES_DIRS_CREATED=1
+    mkdir -p "$DOTFILES_LOG_DIR" "$(dirname "$HISTFILE")" "$SHELL_CACHE_DIR" "$HOME/.cache/ssh"
+fi
 
 # Minimal setup - no external auto-suggestions
 # Testing pushclean alias from gitconfig.local
@@ -91,6 +99,10 @@ export TREE_COLORS="di=1;34:ln=1;36:so=1;31:pi=1;33:ex=1;32:bd=1;34;46:cd=1;34;4
 export LESS="-R -X -F"
 export PAGER="less"
 
+# Secure network tool defaults
+alias curl='curl --proto =https --tlsv1.2'
+alias wget='wget --secure-protocol=TLSv1_2 --https-only'
+
 # Enhanced prompt and output settings
 export COLUMNS=${COLUMNS:-80}
 export LINES=${LINES:-24}
@@ -103,7 +115,11 @@ export GIT_PS1_SHOWUNTRACKEDFILES=1
 # Enhanced find and grep defaults
 export FINDOPTS="-type f"
 
+# Disable telemetry for common tools
+export DOTNET_CLI_TELEMETRY_OPTOUT=1
+export HOMEBREW_NO_ANALYTICS=1
+export NEXT_TELEMETRY_DISABLED=1
+export DO_NOT_TRACK=1
+
 # Shell session context and cache
 export SHELL_CACHE_DIR="$HOME/.cache/shell"
-mkdir -p "$SHELL_CACHE_DIR"
-mkdir -p "$HOME/.cache/ssh"
