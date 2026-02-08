@@ -1,0 +1,4 @@
+# NPM privacy configuration
+fund=false
+audit=false
+update-notifier=false
