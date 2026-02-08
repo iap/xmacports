@@ -2,8 +2,8 @@
 # ZSH Profile - Login shell initialization
 # Single entry point for all shell configurations per system rules
 
-# Load environment configuration first
-if [[ -f "$HOME/.dotfiles/.config/env.d/default.sh" ]]; then
+# Load environment configuration first (only if not already loaded)
+if [[ -z "$DOTFILES_ENV_LOADED" && -f "$HOME/.dotfiles/.config/env.d/default.sh" ]]; then
     source "$HOME/.dotfiles/.config/env.d/default.sh"
 fi
 
@@ -24,11 +24,6 @@ if command -v gpgconf >/dev/null 2>&1; then
     fi
 fi
 
-##
-# MacPorts Installer addition - automatically configured
-##
-
-# MacPorts Installer addition on 2026-01-21_at_02:00:01: adding an appropriate PATH variable for use with MacPorts.
-export PATH="/opt/local/bin:/opt/local/sbin:$PATH"
-# Finished adapting your PATH environment variable for use with MacPorts.
+# Note: MacPorts PATH is handled by centralized environment configuration
+# The MacPorts installer addition below is redundant and should be removed
 
