@@ -36,8 +36,8 @@ Host *
     ControlPath ~/.cache/ssh/master-%r@%h:%p
     ControlPersist 10m
     
-    # Forward GPG agent to remote hosts
-    ForwardAgent yes
+    # Forward GPG agent to remote hosts (disabled by default for security)
+    ForwardAgent no
     
     # Disable X11 forwarding by default
     ForwardX11 no

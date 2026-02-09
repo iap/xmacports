@@ -76,7 +76,7 @@ if [ -f "$HOME/.bashrc.local" ]; then
     source "$HOME/.bashrc.local"
 fi
 
-# Cargo environment (if exists)
-if [ -f "$HOME/.cargo/env" ]; then
+# Cargo environment (only if not already loaded from .profile)
+if [[ -z "$CARGO_HOME" && -f "$HOME/.cargo/env" ]]; then
     source "$HOME/.cargo/env"
 fi
