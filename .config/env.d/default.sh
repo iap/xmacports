@@ -70,11 +70,12 @@ export SAVEHIST=10000
 # Create required directories (only once per session)
 if [[ -z "$DOTFILES_DIRS_CREATED" ]]; then
     export DOTFILES_DIRS_CREATED=1
-    mkdir -p "$DOTFILES_LOG_DIR" "$(dirname "$HISTFILE")" "$SHELL_CACHE_DIR" "$HOME/.cache/ssh"
+    # Create directories with validation and secure permissions
+    [[ -n "$DOTFILES_LOG_DIR" ]] && mkdir -p "$DOTFILES_LOG_DIR" && chmod 700 "$DOTFILES_LOG_DIR"
+    [[ -n "$HISTFILE" ]] && mkdir -p "$(dirname "$HISTFILE")" && chmod 700 "$(dirname "$HISTFILE")"
+    [[ -n "$SHELL_CACHE_DIR" ]] && mkdir -p "$SHELL_CACHE_DIR" && chmod 700 "$SHELL_CACHE_DIR"
+    mkdir -p "$HOME/.cache/ssh" && chmod 700 "$HOME/.cache/ssh"
 fi
-
-# Minimal setup - no external auto-suggestions
-# Testing pushclean alias from gitconfig.local
 
 # Friendly settings
 # Make output more structured and readable
@@ -115,11 +116,19 @@ export GIT_PS1_SHOWUNTRACKEDFILES=1
 # Enhanced find and grep defaults
 export FINDOPTS="-type f"
 
+# Security hardening
+umask 077  # Files: 600, Dirs: 700
+
 # Disable telemetry for common tools
 export DOTNET_CLI_TELEMETRY_OPTOUT=1
 export HOMEBREW_NO_ANALYTICS=1
 export NEXT_TELEMETRY_DISABLED=1
 export DO_NOT_TRACK=1
+
+# Additional privacy protection
+export DISABLE_TELEMETRY=1
+export NO_UPDATE_NOTIFIER=1
+export ADBLOCK=1
 
 # Shell session context and cache
 export SHELL_CACHE_DIR="$HOME/.cache/shell"
