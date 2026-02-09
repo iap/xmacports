@@ -96,3 +96,22 @@ unlock_gpg() {
     echo "Unlocking GPG key..."
     echo "test" | gpg --clearsign >/dev/null 2>&1 && echo "✅ GPG key unlocked" || echo "❌ Failed to unlock"
 }
+
+# Privacy and security functions
+randomize_mac() {
+    local interface="${1:-en0}"
+    if [[ $EUID -eq 0 ]]; then
+        local new_mac=$(openssl rand -hex 6 | sed 's/\(..\)/\1:/g; s/.$//')
+        ifconfig "$interface" ether "$new_mac"
+        echo "MAC randomized: $new_mac"
+    else
+        echo "Requires sudo: sudo randomize_mac"
+    fi
+}
+
+check_privacy() {
+    echo "WiFi MAC: $(ifconfig en0 2>/dev/null | grep ether | awk '{print $2}' || echo 'N/A')"
+    echo "Private Address: $(system_profiler SPAirPortDataType 2>/dev/null | grep -q "Private" && echo "Enabled" || echo "Check System Settings")"
+    echo "Telemetry Blocking: $(env | grep -c "TELEMETRY\|DO_NOT_TRACK\|ANALYTICS" || echo "0") variables set"
+    echo "Network Connections: $(lsof -i | wc -l | tr -d ' ') active"
+}
