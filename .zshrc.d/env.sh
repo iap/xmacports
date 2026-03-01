@@ -2,8 +2,8 @@
 # Environment configuration loader
 # Sources centralized environment configuration
 
-# Load centralized environment configuration
-if [[ -f "$HOME/.dotfiles/.config/env.d/default.sh" ]]; then
+# Load centralized environment configuration (avoid duplicate loads)
+if [[ -z "$DOTFILES_ENV_LOADED" && -f "$HOME/.dotfiles/.config/env.d/default.sh" ]]; then
     source "$HOME/.dotfiles/.config/env.d/default.sh"
 fi
 
@@ -13,5 +13,4 @@ if [[ -d "${XDG_CONFIG_HOME}/env.d" ]]; then
         [[ -f "$env_file" ]] && source "$env_file"
     done
 fi
-
 
