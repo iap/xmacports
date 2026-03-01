@@ -8,7 +8,8 @@ Host <hostname>
     IdentityFile ~/.ssh/id_rsa
 
     UserKnownHostsFile ~/.ssh/known_hosts
-    StrictHostKeyChecking yes
+    StrictHostKeyChecking ask
+    ForwardAgent no
 
 Host <alias>
     HostName example.tld
