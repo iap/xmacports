@@ -28,6 +28,7 @@ Host *
     KbdInteractiveAuthentication no
     
     # Host key verification
+    UserKnownHostsFile ~/.ssh/known_hosts
     StrictHostKeyChecking ask
     VerifyHostKeyDNS yes
     

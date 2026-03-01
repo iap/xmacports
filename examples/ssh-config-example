@@ -7,6 +7,9 @@ Host <hostname>
     Port 22
     IdentityFile ~/.ssh/id_rsa
 
+    UserKnownHostsFile ~/.ssh/known_hosts
+    StrictHostKeyChecking yes
+
 Host <alias>
     HostName example.tld
     User <username>

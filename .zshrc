@@ -54,3 +54,16 @@ if [[ -n "$DOTFILES_LOG_DIR" ]] && declare -f verify_gpg_ssh >/dev/null; then
     verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
     disown
 fi
+
+# BEGIN SCARB COMPLETIONS
+_scarb() {
+  if ! scarb completions zsh >/dev/null 2>&1; then
+    return 0
+  fi
+  eval "$(scarb completions zsh)"
+  _scarb "$@"
+}
+autoload -Uz compinit && compinit
+compdef _scarb scarb
+
+# END SCARB COMPLETIONS
