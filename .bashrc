@@ -16,11 +16,6 @@ if [ -f "$HOME/.profile" ]; then
     source "$HOME/.profile"
 fi
 
-# Load centralized environment
-if [ -f "$HOME/.dotfiles/.config/env.d/default.sh" ]; then
-    source "$HOME/.dotfiles/.config/env.d/default.sh"
-fi
-
 # Bash-specific settings
 set -o vi
 export HISTCONTROL=ignoredups:erasedups

@@ -8,20 +8,30 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-# MacPorts PATH - essential for package management
+# Platform detection helpers
+is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
+is_linux() { [[ "$(uname -s)" == "Linux" ]]; }
+has_cmd() { command -v "$1" >/dev/null 2>&1; }
+
+# MacPorts PATH - essential for package management (macOS)
 # Guard against multiple loads
 if [[ -z "$DOTFILES_ENV_LOADED" ]]; then
     export DOTFILES_ENV_LOADED=1
     
-    # Use dynamic MacPorts prefix detection with fallback
-    if command -v port >/dev/null 2>&1; then
-        export MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
-    else
-        export MACPORTS_PREFIX="/opt/local"
+    # Use dynamic MacPorts prefix detection with fallback (macOS only)
+    if is_macos; then
+        if has_cmd port; then
+            export MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
+        else
+            export MACPORTS_PREFIX="/opt/local"
+        fi
     fi
 
     # Clean PATH to avoid duplicates
-    PATH_CLEAN="$MACPORTS_PREFIX/libexec/gnubin:$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$HOME/bin:$HOME/.local/bin"
+    PATH_CLEAN="$HOME/bin:$HOME/.local/bin"
+    if is_macos && [[ -n "$MACPORTS_PREFIX" ]]; then
+        PATH_CLEAN="$MACPORTS_PREFIX/libexec/gnubin:$MACPORTS_PREFIX/bin:$MACPORTS_PREFIX/sbin:$PATH_CLEAN"
+    fi
     
     # Add Foundry (Ethereum development toolkit)
     if [[ -d "$HOME/.config/.foundry/bin" ]]; then
@@ -38,8 +48,10 @@ if [[ -z "$DOTFILES_ENV_LOADED" ]]; then
     export PATH="$PATH_CLEAN"
     unset PATH_CLEAN
 else
-    # Ensure MACPORTS_PREFIX is available even when guard prevents reload
-    export MACPORTS_PREFIX="${MACPORTS_PREFIX:-/opt/local}"
+    # Ensure MACPORTS_PREFIX is available even when guard prevents reload (macOS only)
+    if is_macos; then
+        export MACPORTS_PREFIX="${MACPORTS_PREFIX:-/opt/local}"
+    fi
 fi
 
 # Basic environment optimized for development
@@ -51,13 +63,25 @@ export LC_ALL="en_US.UTF-8"
 # Performance optimization for efficient builds
 export MAKEFLAGS="-j$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 
-# GPG-SSH integration
-export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "$HOME/.gnupg/S.gpg-agent.ssh")"
-export GPG_TTY="$(tty)"
+# GPG-SSH integration (cross-platform)
+if has_cmd gpgconf; then
+    export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "$HOME/.gnupg/S.gpg-agent.ssh")"
+    export GPG_TTY="$(tty 2>/dev/null || echo /dev/tty)"
+    gpgconf --launch gpg-agent
+fi
 
-# MacPorts build environment
-export CPPFLAGS="-I$MACPORTS_PREFIX/include"
-export LDFLAGS="-L$MACPORTS_PREFIX/lib"
+# MacPorts build environment (macOS)
+if is_macos && [[ -n "$MACPORTS_PREFIX" ]]; then
+    export CPPFLAGS="-I$MACPORTS_PREFIX/include"
+    export LDFLAGS="-L$MACPORTS_PREFIX/lib"
+fi
+
+# libusb runtime path for Foundry (MacPorts)
+if is_macos; then
+    if [[ -d "/opt/local/lib" ]]; then
+        export DYLD_LIBRARY_PATH="/opt/local/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
+    fi
+fi
 
 # Logging directory
 export DOTFILES_LOG_DIR="$HOME/.logs"
@@ -66,6 +90,9 @@ export DOTFILES_LOG_DIR="$HOME/.logs"
 export HISTFILE="${XDG_STATE_HOME}/zsh/history"
 export HISTSIZE=10000
 export SAVEHIST=10000
+
+# Shell session context and cache
+export SHELL_CACHE_DIR="$HOME/.cache/shell"
 
 # Create required directories (only once per session)
 if [[ -z "$DOTFILES_DIRS_CREATED" ]]; then
@@ -79,16 +106,19 @@ fi
 
 # Friendly settings
 # Make output more structured and readable
-# Enhanced grep with color
-alias grep='grep --color=auto'
-alias egrep='egrep --color=auto'
-alias fgrep='fgrep --color=auto'
 
-# Enhanced ls with color (GNU ls from MacPorts)
-alias ls='ls --color=auto'
-alias ll='ls -alF --color=auto'
-alias la='ls -A --color=auto'
-alias l='ls -CF --color=auto'
+# Enhanced ls with color (GNU ls from MacPorts when available; BSD fallback)
+if ls --color=auto >/dev/null 2>&1; then
+    alias ls='ls --color=auto'
+    alias ll='ls -alF --color=auto'
+    alias la='ls -A --color=auto'
+    alias l='ls -CF --color=auto'
+else
+    alias ls='ls -G'
+    alias ll='ls -alFG'
+    alias la='ls -AG'
+    alias l='ls -CFG'
+fi
 
 # Color support for various tools
 export CLICOLOR=1
@@ -130,5 +160,11 @@ export DISABLE_TELEMETRY=1
 export NO_UPDATE_NOTIFIER=1
 export ADBLOCK=1
 
-# Shell session context and cache
-export SHELL_CACHE_DIR="$HOME/.cache/shell"
+# grep color compatibility (GNU/BSD)
+if grep --color=auto "" /dev/null >/dev/null 2>&1; then
+    alias grep='grep --color=auto'
+    alias egrep='egrep --color=auto'
+    alias fgrep='fgrep --color=auto'
+else
+    alias grep='grep -G --color=auto'
+fi
