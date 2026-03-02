@@ -1,0 +1,37 @@
+#!/bin/sh
+# Block committing obvious secrets and private keys
+
+set -e
+
+reject() {
+  echo "ERROR: $1" >&2
+  exit 1
+}
+
+# Only scan staged files (added/modified)
+staged_files=$(git diff --cached --name-only --diff-filter=ACM)
+[ -z "$staged_files" ] && exit 0
+
+# Block common private key files by name
+for f in $staged_files; do
+  case "$f" in
+    *.key|*.pem|*.p12|*.pfx|*.kdb|*.keystore|*.jks)
+      reject "Possible private key/keystore detected: $f";;
+    id_rsa|id_dsa|id_ecdsa|id_ed25519|id_ed25519_sk|id_rsa_*|id_ecdsa_*|id_dsa_*)
+      reject "SSH private key detected: $f";;
+    *.env|.env|.env.*|*secret*|*secrets*)
+      reject "Potential secrets file detected: $f";;
+  esac
+ done
+
+# Block PEM/OPENSSH private key content
+if git diff --cached --unified=0 | grep -E "BEGIN (OPENSSH|RSA|DSA|EC|PRIVATE) KEY" >/dev/null; then
+  reject "Private key content detected in staged diff"
+fi
+
+# Block common API token patterns (best-effort)
+if git diff --cached --unified=0 | grep -E "(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|AIzaSy[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{80,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk-[0-9A-Za-z]{20,})" >/dev/null; then
+  reject "Possible API token detected in staged diff"
+fi
+
+exit 0

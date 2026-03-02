@@ -54,6 +54,11 @@ cp examples/profile-local-example "$HOME/.profile.local"
 cp examples/forward-local-example "$HOME/.forward.local"
 ```
 
+## Security
+
+This repo includes a local `pre-commit` hook that blocks common secrets and private keys.
+Bootstrap configures `core.hooksPath` to use `.githooks/`.
+
 Replace `<placeholder>` values with your information.
 
 ## What's Included
