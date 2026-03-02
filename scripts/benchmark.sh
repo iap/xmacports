@@ -9,9 +9,9 @@ echo "Benchmark"
 # Run 5 tests
 total=0
 for i in {1..5}; do
-    time_result=$(time (zsh -i -c 'exit') 2>&1 | grep real | awk '{print $2}')
-    echo "Test $i: $time_result"
-    # Convert to milliseconds for averaging (simplified)
+  time_result=$(time (zsh -i -c 'exit') 2>&1 | grep real | awk '{print $2}')
+  echo "Test $i: $time_result"
+  # Convert to milliseconds for averaging (simplified)
 done
 
 echo ""

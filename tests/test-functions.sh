@@ -26,17 +26,17 @@ FAILED=0
 TOTAL=0
 
 test_result() {
-    local test_name="$1"
-    local result="$2"
-    TOTAL=$((TOTAL + 1))
-    
-    if [[ "$result" == "0" ]]; then
-        echo "✅ PASS: $test_name"
-        PASSED=$((PASSED + 1))
-    else
-        echo "❌ FAIL: $test_name"
-        FAILED=$((FAILED + 1))
-    fi
+  local test_name="$1"
+  local result="$2"
+  TOTAL=$((TOTAL + 1))
+
+  if [[ "$result" == "0" ]]; then
+    echo "✅ PASS: $test_name"
+    PASSED=$((PASSED + 1))
+  else
+    echo "❌ FAIL: $test_name"
+    FAILED=$((FAILED + 1))
+  fi
 }
 
 echo "1. Testing utility functions from functions.sh"
@@ -72,7 +72,7 @@ echo ""
 echo "Testing verify_gpg_ssh function..."
 verify_gpg_ssh > /dev/null 2>&1
 gpg_result=$?
-test_result "verify_gpg_ssh runs without errors" 0  # Always pass since it's just checking execution
+test_result "verify_gpg_ssh runs without errors" 0 # Always pass since it's just checking execution
 
 echo -e "\n4. Testing system monitoring functions"
 echo ""
@@ -81,23 +81,23 @@ echo ""
 echo "Testing temp_check function..."
 # Check if powermetrics is available without running sudo
 if command -v powermetrics > /dev/null 2>&1; then
-    # Just test that the function exists and doesn't crash
-    if command -v gtimeout >/dev/null 2>&1; then
-        temp_output=$(gtimeout 2 temp_check 2>&1 || echo "timeout")
-    else
-        temp_output=$(temp_check 2>&1 || echo "no-timeout")
-    fi
-    [[ -n "$temp_output" ]]  # Just check if it produces some output
-    test_result "temp_check executes (may require sudo)" $?
+  # Just test that the function exists and doesn't crash
+  if command -v gtimeout > /dev/null 2>&1; then
+    temp_output=$(gtimeout 2 temp_check 2>&1 || echo "timeout")
+  else
+    temp_output=$(temp_check 2>&1 || echo "no-timeout")
+  fi
+  [[ -n "$temp_output" ]] # Just check if it produces some output
+  test_result "temp_check executes (may require sudo)" $?
 else
-    echo "powermetrics not available"
-    test_result "temp_check handles missing powermetrics" 0
+  echo "powermetrics not available"
+  test_result "temp_check handles missing powermetrics" 0
 fi
 
 # Test battery status
 echo "Testing battery_status function..."
 battery_output=$(battery_status 2>&1)
-[[ -n "$battery_output" ]]  # Just check if it produces some output
+[[ -n "$battery_output" ]] # Just check if it produces some output
 test_result "battery_status produces output" $?
 
 echo -e "\n5. Testing prompt functions from prompt.sh"
@@ -112,25 +112,25 @@ git config user.email "test@example.com" > /dev/null 2>&1
 
 # Test git_info function (need to load it first)
 if command -v zsh > /dev/null 2>&1; then
-    echo "Testing git_info function with zsh..."
-    git_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; git_info' 2>/dev/null || echo "no-git-info")
-    [[ -n "$git_output" ]]
-    test_result "git_info function executes" $?
-    
-    # Test short_pwd function
-    echo "Testing short_pwd function with zsh..."
-    pwd_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; short_pwd' 2>/dev/null || echo "no-pwd-info")
-    [[ -n "$pwd_output" ]]
-    test_result "short_pwd function executes" $?
-    
-    # Test build_prompt function
-    echo "Testing build_prompt function with zsh..."
-    prompt_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; build_prompt' 2>/dev/null || echo "no-prompt")
-    [[ -n "$prompt_output" ]]
-    test_result "build_prompt function executes" $?
+  echo "Testing git_info function with zsh..."
+  git_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; git_info' 2> /dev/null || echo "no-git-info")
+  [[ -n "$git_output" ]]
+  test_result "git_info function executes" $?
+
+  # Test short_pwd function
+  echo "Testing short_pwd function with zsh..."
+  pwd_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; short_pwd' 2> /dev/null || echo "no-pwd-info")
+  [[ -n "$pwd_output" ]]
+  test_result "short_pwd function executes" $?
+
+  # Test build_prompt function
+  echo "Testing build_prompt function with zsh..."
+  prompt_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; build_prompt' 2> /dev/null || echo "no-prompt")
+  [[ -n "$prompt_output" ]]
+  test_result "build_prompt function executes" $?
 else
-    echo "ZSH not available, skipping prompt function tests"
-    test_result "ZSH prompt functions (skipped - no zsh)" 0
+  echo "ZSH not available, skipping prompt function tests"
+  test_result "ZSH prompt functions (skipped - no zsh)" 0
 fi
 
 cd ..
@@ -140,14 +140,17 @@ echo ""
 
 # Test timeout functions with very short timeouts
 echo "Testing timeout_prompt with immediate timeout..."
-result=$(echo "" | timeout_prompt "Test prompt" 1 "default_value" 2>/dev/null)
+result=$(echo "" | timeout_prompt "Test prompt" 1 "default_value" 2> /dev/null)
 [[ "$result" == "default_value" ]]
 test_result "timeout_prompt returns default on timeout" $?
 
 echo "Testing timeout_confirm with immediate timeout..."
 # Use a more controlled test that won't hang
-result=$(echo "n" | bash -c 'source "$HOME/.dotfiles/scripts/timeout_prompt.sh"; timeout_confirm "Test confirm" 1 "n"' 2>/dev/null; echo $?)
-[[ "$result" == "1" ]]  # Should return 1 (false) for "n" response
+result=$(
+  echo "n" | bash -c 'source "$HOME/.dotfiles/scripts/timeout_prompt.sh"; timeout_confirm "Test confirm" 1 "n"' 2> /dev/null
+  echo $?
+)
+[[ "$result" == "1" ]] # Should return 1 (false) for "n" response
 test_result "timeout_confirm returns correct default" $?
 
 echo -e "\n7. Testing bash functions"
@@ -155,12 +158,12 @@ echo ""
 
 # Basic bash integration test
 if command -v bash > /dev/null 2>&1; then
-    echo "Testing bash integration..."
-    bash -c 'source "$HOME/.dotfiles/.bashrc"; echo "bash ok"' >/dev/null 2>&1
-    test_result "bash config loads" $?
+  echo "Testing bash integration..."
+  bash -c 'source "$HOME/.dotfiles/.bashrc"; echo "bash ok"' > /dev/null 2>&1
+  test_result "bash config loads" $?
 else
-    echo "Bash not available, skipping bash tests"
-    test_result "Bash functions (skipped - no bash)" 0
+  echo "Bash not available, skipping bash tests"
+  test_result "Bash functions (skipped - no bash)" 0
 fi
 
 echo -e "\n8. Testing Makefile functions"
@@ -202,20 +205,20 @@ echo -e "\nTEST SUMMARY"
 echo "Total tests: $TOTAL"
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"
-echo "Success rate: $(( PASSED * 100 / TOTAL ))%"
+echo "Success rate: $((PASSED * 100 / TOTAL))%"
 
 # Clean up
 cd "$HOME"
 if [[ -n "$TEST_DIR" && "$TEST_DIR" =~ ^$HOME/.cache/dotfiles-test- ]]; then
-    rm -rf "$TEST_DIR"
+  rm -rf "$TEST_DIR"
 else
-    echo "⚠️  Skipping cleanup: invalid TEST_DIR '$TEST_DIR'"
+  echo "⚠️  Skipping cleanup: invalid TEST_DIR '$TEST_DIR'"
 fi
 
 if [[ $FAILED -eq 0 ]]; then
-    echo -e "\n🎉 All tests passed!"
-    exit 0
+  echo -e "\n🎉 All tests passed!"
+  exit 0
 else
-    echo -e "\n⚠️  Some tests failed. Check the output above."
-    exit 1
+  echo -e "\n⚠️  Some tests failed. Check the output above."
+  exit 1
 fi
