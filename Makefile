@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-.PHONY: bootstrap clean status test audit help
+.PHONY: bootstrap clean status test audit lint shellcheck help
 
 # Default target
 all: bootstrap
@@ -261,6 +261,15 @@ test:
 	@echo "Testing configurations..."
 	@zsh -n .zshrc && echo "✅ ZSH syntax OK" || echo "❌ ZSH syntax error"
 	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
+
+# Shellcheck (lint shell scripts)
+shellcheck:
+	@echo "Running shellcheck..."
+	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install with: sudo port install shellcheck"; exit 1; }
+	@./scripts/shellcheck.sh
+
+# Lint (alias)
+lint: shellcheck
 
 # Run comprehensive test suite
 test-all:
