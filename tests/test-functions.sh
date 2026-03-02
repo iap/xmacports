@@ -4,7 +4,7 @@
 
 set -e
 
-echo "=== Dotfiles Function Testing Suite ==="
+echo "Dotfiles Function Testing Suite"
 echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting comprehensive function tests"
 echo
 
@@ -40,7 +40,7 @@ test_result() {
 }
 
 echo "1. Testing utility functions from functions.sh"
-echo "============================================="
+echo ""
 
 # Test mkcd function
 echo "Testing mkcd function..."
@@ -73,7 +73,7 @@ extract nonexistent.tar.gz 2>/dev/null
 test_result "extract handles nonexistent files gracefully" $?
 
 echo -e "\n2. Testing logging functions"
-echo "============================"
+echo ""
 
 # Test logging functions (check if they produce output)
 echo "Testing log_info function..."
@@ -100,7 +100,7 @@ else
 fi
 
 echo -e "\n3. Testing GPG verification function"
-echo "===================================="
+echo ""
 
 # Test GPG verification (non-destructive)
 echo "Testing verify_gpg_ssh function..."
@@ -109,7 +109,7 @@ gpg_result=$?
 test_result "verify_gpg_ssh runs without errors" 0  # Always pass since it's just checking execution
 
 echo -e "\n4. Testing system monitoring functions"
-echo "======================================"
+echo ""
 
 # Test temperature check (may not work on all systems)
 echo "Testing temp_check function..."
@@ -131,7 +131,7 @@ battery_output=$(battery_status 2>&1)
 test_result "battery_status produces output" $?
 
 echo -e "\n5. Testing prompt functions from prompt.sh"
-echo "=========================================="
+echo ""
 
 # Source the prompt functions (they may be in ZSH format)
 # Create a temporary git repo for testing git functions
@@ -166,7 +166,7 @@ fi
 cd ..
 
 echo -e "\n6. Testing timeout prompt functions"
-echo "==================================="
+echo ""
 
 # Test timeout functions with very short timeouts
 echo "Testing timeout_prompt with immediate timeout..."
@@ -181,7 +181,7 @@ result=$(echo "n" | bash -c 'source "$HOME/.dotfiles/scripts/timeout_prompt.sh";
 test_result "timeout_confirm returns correct default" $?
 
 echo -e "\n7. Testing bash functions"
-echo "========================"
+echo ""
 
 # Test bash git_branch function
 if command -v bash > /dev/null 2>&1; then
@@ -202,7 +202,7 @@ else
 fi
 
 echo -e "\n8. Testing Makefile functions"
-echo "============================="
+echo ""
 
 cd "$HOME/.dotfiles"
 
@@ -224,7 +224,7 @@ make test > /dev/null 2>&1
 test_result "Makefile test target works" $?
 
 echo -e "\n9. Testing aliases functionality"
-echo "==============================="
+echo ""
 
 # Test if brew protection alias works
 cd "$TEST_DIR"
@@ -236,8 +236,7 @@ brew_output=$(brew 2>&1 || true)
 [[ "$brew_output" =~ "Use MacPorts instead" ]]
 test_result "brew protection alias works" $?
 
-echo -e "\n=== TEST SUMMARY ==="
-echo "===================="
+echo -e "\nTEST SUMMARY"
 echo "Total tests: $TOTAL"
 echo "Passed: $PASSED"
 echo "Failed: $FAILED"

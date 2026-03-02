@@ -3,7 +3,7 @@
 
 source "$(dirname "$0")/../scripts/timeout_prompt.sh"
 
-echo "=== Timeout Prompt Examples ==="
+echo "Timeout Prompt Examples"
 
 # Example 1: Basic usage with auto-timeout
 echo "1. Auto-timeout example (will timeout in 2 seconds):"

@@ -4,7 +4,7 @@
 
 set -e
 
-echo "=== Development Environment System Information ==="
+echo "Development Environment System Information"
 echo "Date: $(date)"
 echo "Uptime: $(uptime | awk '{print $3,$4}' | sed 's/,//')"
 echo "Memory: $(vm_stat | grep "Pages free" | awk '{print $3}' | sed 's/\.//')KB free"

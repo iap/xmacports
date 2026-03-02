@@ -15,7 +15,7 @@ log_action() {
     echo "[$timestamp] $action: $file" | tee -a "$CLEANUP_LOG"
 }
 
-echo "=== ZSH Files Cleanup for Development Environment ==="
+echo "ZSH Files Cleanup for Development Environment"
 echo "This will remove unused .zsh files while preserving essential ones"
 echo
 

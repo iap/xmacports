@@ -3,7 +3,7 @@
 # MacPorts-only approach per system rules - Homebrew disabled
 # Compatible with older macOS versions and different MacPorts configurations
 
-# === MACPORTS PINENTRY OPTIONS ===
+# MacPorts pinentry options
 
 # Try MacPorts pinentry-mac (GUI) - current installation location
 if [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ]; then
@@ -15,7 +15,7 @@ if [ -x "/opt/local/bin/pinentry-mac" ]; then
     exec "/opt/local/bin/pinentry-mac" "$@"
 fi
 
-# === MACPORTS TERMINAL PINENTRY OPTIONS ===
+# MacPorts terminal pinentry options
 
 # Try MacPorts pinentry-curses (terminal-based, always available)
 if [ -x "/opt/local/bin/pinentry-curses" ]; then
@@ -27,14 +27,14 @@ if [ -x "/opt/local/bin/pinentry-tty" ]; then
     exec "/opt/local/bin/pinentry-tty" "$@"
 fi
 
-# === SYSTEM FALLBACK (legacy macOS) ===
+# System fallback (legacy macOS)
 
 # Try system pinentry (older macOS versions, if available)
 if [ -x "/usr/bin/pinentry" ]; then
     exec "/usr/bin/pinentry" "$@"
 fi
 
-# === ERROR HANDLING ===
+# Error handling
 echo "ERROR: No pinentry program available." >&2
 echo "" >&2
 echo "This dotfiles setup requires MacPorts pinentry." >&2

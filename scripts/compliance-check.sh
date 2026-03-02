@@ -14,7 +14,7 @@ log_check() {
     echo "[$timestamp] $status: $message" | tee -a "$COMPLIANCE_LOG"
 }
 
-echo "=== System Rules Compliance Check ==="
+echo "System Rules Compliance Check"
 
 # Check required shell profiles
 for profile in .profile .bashrc .zshrc .zprofile; do
