@@ -1,7 +1,7 @@
 #!/bin/bash
 # Demonstrate the lightweight PS1 prompt
 
-echo "=== Lightweight PS1 Prompt Demo ==="
+echo "Lightweight PS1 Prompt Demo"
 echo
 
 # Source the prompt

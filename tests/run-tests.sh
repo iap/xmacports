@@ -7,7 +7,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_ROOT="$(dirname "$SCRIPT_DIR")"
 
-echo "=== Dotfiles Test Runner ==="
+echo "Dotfiles Test Runner"
 echo "Project root: $DOTFILES_ROOT"
 echo "Test directory: $SCRIPT_DIR"
 echo
@@ -91,17 +91,17 @@ main() {
             fi
             
             echo "1. Configuration Tests"
-            echo "====================="
+            echo ""
             run_config_tests
             echo
             
             echo "2. Compliance Tests"
-            echo "=================="
+            echo ""
             run_compliance_tests
             echo
             
             echo "3. Function Tests"
-            echo "================="
+            echo ""
             run_function_tests
             
             echo

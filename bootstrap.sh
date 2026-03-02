@@ -5,6 +5,43 @@ set -e
 
 echo "Bootstrapping dotfiles for MacBook Air 2017..."
 
+# Platform check (macOS-only workflow)
+if [[ "$(uname -s)" != "Darwin" ]]; then
+    echo "⚠️  This bootstrap is optimized for macOS with MacPorts."
+    echo "Proceeding anyway, but some steps may not apply."
+else
+    # Xcode Command Line Tools
+    if ! xcode-select -p >/dev/null 2>&1; then
+        echo "Xcode Command Line Tools not found. Installing..."
+        xcode-select --install
+    fi
+
+    # MacPorts
+    if ! command -v port >/dev/null 2>&1; then
+        echo "MacPorts not found."
+        echo "Install from: https://www.macports.org/install.php"
+        echo "After install, run: sudo port selfupdate"
+    else
+        # Coreutils
+        if ! port installed coreutils 2>/dev/null | grep -q "coreutils"; then
+            echo "Installing coreutils via MacPorts..."
+            sudo port selfupdate
+            sudo port install coreutils
+        fi
+    fi
+fi
+
+# Dependency checks (warn only)
+if ! command -v port >/dev/null 2>&1; then
+    echo "⚠️  MacPorts (port) not found. Install MacPorts before using this setup."
+fi
+if ! command -v gpgconf >/dev/null 2>&1; then
+    echo "⚠️  gpgconf not found. Install GnuPG (gnupg2) for GPG/SSH integration."
+fi
+if ! command -v pinentry-mac >/dev/null 2>&1 && ! command -v pinentry-curses >/dev/null 2>&1; then
+    echo "⚠️  pinentry not found. Install pinentry-mac (or pinentry-curses) via MacPorts."
+fi
+
 # Create backup directory
 BACKUP_DIR="$HOME/.dotfiles-backup-$(date +%Y%m%d_%H%M%S)"
 mkdir -p "$BACKUP_DIR"
@@ -14,11 +51,19 @@ backup_and_link() {
     local source="$1"
     local target="$2"
     
-    if [[ -e "$target" && ! -L "$target" ]]; then
+    if [[ -e "$target" || -L "$target" ]]; then
+        if [[ -L "$target" ]]; then
+            local current
+            current="$(readlink "$target")"
+            if [[ "$current" == "$source" ]]; then
+                echo "Link already correct: $target -> $source"
+                return 0
+            fi
+        fi
         echo "Backing up existing $target"
         mv "$target" "$BACKUP_DIR/"
     fi
-    
+
     echo "Linking $target -> $source"
     ln -sf "$source" "$target"
 }
