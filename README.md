@@ -51,6 +51,7 @@ make help       # Show commands
 # Copy templates and edit
 cp examples/gitconfig-local-example "$HOME/.gitconfig.local"
 cp examples/profile-local-example "$HOME/.profile.local"
+cp examples/forward-local-example "$HOME/.forward.local"
 ```
 
 Replace `<placeholder>` values with your information.
