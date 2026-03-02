@@ -10,6 +10,27 @@ if [[ "$(uname -s)" != "Darwin" ]]; then
     echo "⚠️  This bootstrap is optimized for macOS with MacPorts."
     echo "Proceeding anyway, but some steps may not apply."
 else
+    # macOS version check (minimum 10.15)
+    MACOS_VERSION="$(sw_vers -productVersion 2>/dev/null || echo 0)"
+    MIN_MACOS_VERSION="10.15"
+    version_ge() {
+        local a="$1" b="$2"
+        local IFS=.
+        local i
+        local -a av=($a) bv=($b)
+        for ((i=${#av[@]}; i<${#bv[@]}; i++)); do av[i]=0; done
+        for ((i=0; i<${#av[@]}; i++)); do
+            [[ -z ${bv[i]} ]] && bv[i]=0
+            if ((10#${av[i]} > 10#${bv[i]})); then return 0; fi
+            if ((10#${av[i]} < 10#${bv[i]})); then return 1; fi
+        done
+        return 0
+    }
+    if ! version_ge "$MACOS_VERSION" "$MIN_MACOS_VERSION"; then
+        echo "⚠️  macOS $MACOS_VERSION detected (minimum supported $MIN_MACOS_VERSION)."
+        echo "Proceeding, but some features may not work."
+    fi
+
     # Xcode Command Line Tools
     if ! xcode-select -p >/dev/null 2>&1; then
         echo "Xcode Command Line Tools not found. Installing..."
