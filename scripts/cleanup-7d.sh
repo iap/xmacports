@@ -19,11 +19,23 @@ log() {
 
 log "Starting cleanup (cutoff epoch: $CUTOFF)"
 
+# Safety guard: never operate outside HOME
+safe_under_home() {
+  case "$1" in
+    "$HOME"/*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 # Dotfiles backups
 find "$HOME" -maxdepth 1 -type d -name ".dotfiles-backup-*" -mtime +7 -print0 |
   while IFS= read -r -d '' d; do
-    log "Removing backup dir: $d"
-    rm -rf "$d"
+    if safe_under_home "$d"; then
+      log "Removing backup dir: $d"
+      rm -rf "$d"
+    else
+      log "Skipping unexpected path: $d"
+    fi
   done
 
 # Logs
@@ -31,8 +43,12 @@ for d in "$HOME/.logs" "$LOG_DIR"; do
   if [ -d "$d" ]; then
     find "$d" -type f -mtime +7 -print0 |
       while IFS= read -r -d '' f; do
-        log "Removing log: $f"
-        rm -f "$f"
+        if safe_under_home "$f"; then
+          log "Removing log: $f"
+          rm -f "$f"
+        else
+          log "Skipping unexpected path: $f"
+        fi
       done
   fi
 done
