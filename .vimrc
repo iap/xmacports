@@ -143,3 +143,8 @@ endif
 if filereadable(expand('$HOME/.vimrc.local'))
     source $HOME/.vimrc.local
 endif
+
+" Optional privacy overrides (XDG)
+if exists('$XDG_CONFIG_HOME') && filereadable(expand('$XDG_CONFIG_HOME/vim/privacy.vim'))
+    source $XDG_CONFIG_HOME/vim/privacy.vim
+endif

@@ -11,7 +11,7 @@ make bootstrap
 
 ### Prerequisites
 ```bash
-sudo port install git zsh vim fzf bat ripgrep nano
+sudo port install git zsh nano fzf bat ripgrep
 ```
 
 ## Commands
@@ -90,6 +90,25 @@ make audit
 make test
 ```
 
+### Verification
+```bash
+# Verify GPG is reading the correct config
+gpg --verbose --list-keys 2>&1 | grep -i 'gpg.conf'
+
+# Verify keyserver setting from gpgconf
+gpgconf --list-options gpg | grep -E 'keyserver|keyserver-options'
+
+# Confirm Foundry wrapper scopes DYLD_LIBRARY_PATH
+echo "${DYLD_LIBRARY_PATH:-<unset>}"
+$HOME/.dotfiles/bin/with-foundry-libs env | grep '^DYLD_LIBRARY_PATH='
+```
+
+### Tooling Note
+These commands use `grep` by default. If you prefer `rg` (ripgrep), install it with:
+```bash
+sudo port install ripgrep
+```
+
 ### Logs
 Check `$HOME/.cache/logs/` for error logs.
 
@@ -103,5 +122,5 @@ make bootstrap
 
 - macOS with MacPorts
 - ZSH or Bash
-- Git, Vim, basic Unix tools
+- Git, Nano, basic Unix tools
 - No Homebrew (conflicts with MacPorts)

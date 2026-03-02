@@ -4,7 +4,7 @@
     # Personal settings in ~/.gitconfig.local
 
 [core]
-    editor = vim
+    editor = nano
     excludesfile = ~/.gitignore_global
     pager = cat
 
