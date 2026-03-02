@@ -55,13 +55,19 @@ echo ""
 # Test logging functions (check if they produce output)
 echo "Testing log_info function..."
 log_output=$(log_info "Test info message" 2>&1)
-[[ "$log_output" =~ "Test info message" ]]
-test_result "log_info produces correct output format" $?
+if [[ "$log_output" =~ "Test info message" ]]; then
+  test_result "log_info produces correct output format" 0
+else
+  test_result "log_info produces correct output format" 1
+fi
 
 echo "Testing log_warn function..."
 log_output=$(log_warn "Test warning message" 2>&1)
-[[ "$log_output" =~ "Test warning message" ]]
-test_result "log_warn produces correct output format" $?
+if [[ "$log_output" =~ "Test warning message" ]]; then
+  test_result "log_warn produces correct output format" 0
+else
+  test_result "log_warn produces correct output format" 1
+fi
 
 test_result "Log file creation is handled by login shell" 0
 
@@ -71,7 +77,6 @@ echo ""
 # Test GPG verification (non-destructive)
 echo "Testing verify_gpg_ssh function..."
 verify_gpg_ssh > /dev/null 2>&1
-gpg_result=$?
 test_result "verify_gpg_ssh runs without errors" 0 # Always pass since it's just checking execution
 
 echo -e "\n4. Testing system monitoring functions"
@@ -87,8 +92,11 @@ if command -v powermetrics > /dev/null 2>&1; then
   else
     temp_output=$(temp_check 2>&1 || echo "no-timeout")
   fi
-  [[ -n "$temp_output" ]] # Just check if it produces some output
-  test_result "temp_check executes (may require sudo)" $?
+  if [[ -n "$temp_output" ]]; then
+    test_result "temp_check executes (may require sudo)" 0
+  else
+    test_result "temp_check executes (may require sudo)" 1
+  fi
 else
   echo "powermetrics not available"
   test_result "temp_check handles missing powermetrics" 0
@@ -97,8 +105,11 @@ fi
 # Test battery status
 echo "Testing battery_status function..."
 battery_output=$(battery_status 2>&1)
-[[ -n "$battery_output" ]] # Just check if it produces some output
-test_result "battery_status produces output" $?
+if [[ -n "$battery_output" ]]; then
+  test_result "battery_status produces output" 0
+else
+  test_result "battery_status produces output" 1
+fi
 
 echo -e "\n5. Testing prompt functions from prompt.sh"
 echo ""
@@ -114,20 +125,29 @@ git config user.email "test@example.com" > /dev/null 2>&1
 if command -v zsh > /dev/null 2>&1; then
   echo "Testing git_info function with zsh..."
   git_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; git_info' 2> /dev/null || echo "no-git-info")
-  [[ -n "$git_output" ]]
-  test_result "git_info function executes" $?
+  if [[ -n "$git_output" ]]; then
+    test_result "git_info function executes" 0
+  else
+    test_result "git_info function executes" 1
+  fi
 
   # Test short_pwd function
   echo "Testing short_pwd function with zsh..."
   pwd_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; short_pwd' 2> /dev/null || echo "no-pwd-info")
-  [[ -n "$pwd_output" ]]
-  test_result "short_pwd function executes" $?
+  if [[ -n "$pwd_output" ]]; then
+    test_result "short_pwd function executes" 0
+  else
+    test_result "short_pwd function executes" 1
+  fi
 
   # Test build_prompt function
   echo "Testing build_prompt function with zsh..."
   prompt_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; build_prompt' 2> /dev/null || echo "no-prompt")
-  [[ -n "$prompt_output" ]]
-  test_result "build_prompt function executes" $?
+  if [[ -n "$prompt_output" ]]; then
+    test_result "build_prompt function executes" 0
+  else
+    test_result "build_prompt function executes" 1
+  fi
 else
   echo "ZSH not available, skipping prompt function tests"
   test_result "ZSH prompt functions (skipped - no zsh)" 0
@@ -141,8 +161,11 @@ echo ""
 # Test timeout functions with very short timeouts
 echo "Testing timeout_prompt with immediate timeout..."
 result=$(echo "" | timeout_prompt "Test prompt" 1 "default_value" 2> /dev/null)
-[[ "$result" == "default_value" ]]
-test_result "timeout_prompt returns default on timeout" $?
+if [[ "$result" == "default_value" ]]; then
+  test_result "timeout_prompt returns default on timeout" 0
+else
+  test_result "timeout_prompt returns default on timeout" 1
+fi
 
 echo "Testing timeout_confirm with immediate timeout..."
 # Use a more controlled test that won't hang
@@ -150,8 +173,11 @@ result=$(
   echo "n" | bash -c 'source "$HOME/.dotfiles/scripts/timeout_prompt.sh"; timeout_confirm "Test confirm" 1 "n"' 2> /dev/null
   echo $?
 )
-[[ "$result" == "1" ]] # Should return 1 (false) for "n" response
-test_result "timeout_confirm returns correct default" $?
+if [[ "$result" == "1" ]]; then
+  test_result "timeout_confirm returns correct default" 0
+else
+  test_result "timeout_confirm returns correct default" 1
+fi
 
 echo -e "\n7. Testing bash functions"
 echo ""
@@ -198,8 +224,11 @@ source "$HOME/.dotfiles/.zshrc.d/aliases.sh"
 
 # Test brew protection
 brew_output=$(brew 2>&1 || true)
-[[ "$brew_output" =~ "Use MacPorts instead" ]]
-test_result "brew protection alias works" $?
+if [[ "$brew_output" =~ "Use MacPorts instead" ]]; then
+  test_result "brew protection alias works" 0
+else
+  test_result "brew protection alias works" 1
+fi
 
 echo -e "\nTEST SUMMARY"
 echo "Total tests: $TOTAL"
