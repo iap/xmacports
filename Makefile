@@ -150,6 +150,25 @@ audit:
 	echo "User security directories:"; \
 	ssh_dir="$$HOME/.ssh"; \
 	gnupg_dir="$$HOME/.gnupg"; \
+	dotfiles_dir="$$HOME/.dotfiles"; \
+	if [ -d "$$dotfiles_dir" ]; then \
+		owner=$$(stat -c %U "$$dotfiles_dir" 2>/dev/null || stat -f %Su "$$dotfiles_dir" 2>/dev/null || echo unknown); \
+		group_write=""; other_write=""; \
+		perm=$$(eval "$$perm_of_cmd \"$$dotfiles_dir\"" 2>/dev/null || true); \
+		case "$$perm" in \
+			*?*?2|*?*?6) other_write="yes" ;; \
+		esac; \
+		case "$$perm" in \
+			*2?*|*6?*) group_write="yes" ;; \
+		esac; \
+		if [ "$$owner" = "$$USER" ] && [ "$$group_write" != "yes" ] && [ "$$other_write" != "yes" ]; then \
+			echo "✅ $$dotfiles_dir owned by $$USER and not group/world-writable"; \
+		else \
+			echo "⚠️  $$dotfiles_dir ownership/perms ($$owner, $$perm) should be owned by $$USER and not group/world-writable"; \
+		fi; \
+	else \
+		echo "⚠️  $$dotfiles_dir missing"; \
+	fi; \
 	if [ -d "$$ssh_dir" ]; then \
 		p=$$(eval "$$perm_of_cmd \"$$ssh_dir\"" 2>/dev/null || true); \
 		if [ "$$p" = "700" ]; then \
