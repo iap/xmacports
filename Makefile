@@ -1,7 +1,9 @@
 # Simple Makefile for dotfiles management
 # MacBook Air 2017 optimized
 
-.PHONY: bootstrap clean status test help
+SHELL := /bin/bash
+
+.PHONY: bootstrap clean status test audit help
 
 # Default target
 all: bootstrap
@@ -15,13 +17,23 @@ bootstrap:
 clean:
 	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
 	@echo "Removing dotfiles symlinks..."
-	@rm -f "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config"
+	@for f in "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config"; do \
+		if [ -L "$$f" ]; then \
+			target=$$(readlink "$$f"); \
+			case "$$target" in \
+				"$$HOME/.dotfiles"/*) rm -f "$$f" ;; \
+				*) echo "Skipping $$f (not linked to dotfiles)";; \
+			esac; \
+		else \
+			echo "Skipping $$f (not a symlink)"; \
+		fi; \
+	done
 	@echo "✅ Dotfiles removed"
 
 # Show installation status
 status:
 	@echo "Dotfiles Status:"
-	@echo "================"
+	@echo ""
 	@if [ -L "$$HOME/.profile" ]; then echo "✅ $$HOME/.profile -> $$(readlink "$$HOME/.profile")"; else echo "❌ $$HOME/.profile not linked"; fi
 	@if [ -L "$$HOME/.zprofile" ]; then echo "✅ $$HOME/.zprofile -> $$(readlink "$$HOME/.zprofile")"; else echo "❌ $$HOME/.zprofile not linked"; fi
 	@if [ -L "$$HOME/.zshrc" ]; then echo "✅ $$HOME/.zshrc -> $$(readlink "$$HOME/.zshrc")"; else echo "❌ $$HOME/.zshrc not linked"; fi
@@ -32,6 +44,197 @@ status:
 	@if [ -L "$$HOME/.gnupg/gpg-agent.conf" ]; then echo "✅ $$HOME/.gnupg/gpg-agent.conf -> $$(readlink "$$HOME/.gnupg/gpg-agent.conf")"; else echo "❌ $$HOME/.gnupg/gpg-agent.conf not linked"; fi
 	@if [ -L "$$HOME/.vimrc" ]; then echo "✅ $$HOME/.vimrc -> $$(readlink "$$HOME/.vimrc")"; else echo "❌ $$HOME/.vimrc not linked"; fi
 	@if [ -L "$$HOME/.ssh/config" ]; then echo "✅ $$HOME/.ssh/config -> $$(readlink "$$HOME/.ssh/config")"; else echo "❌ $$HOME/.ssh/config not linked"; fi
+
+# Check compliance (includes home directory permissions)
+audit:
+	@set -e; \
+	echo "Dotfiles Audit:"; \
+	echo ""; \
+	if stat --version >/dev/null 2>&1; then \
+		perm_of_cmd='stat -c %a'; \
+	else \
+		perm_of_cmd='stat -f %Lp'; \
+	fi; \
+	home_perms=$$(eval "$$perm_of_cmd \"$$HOME\"" 2>/dev/null || true); \
+	if [ "$$home_perms" = "711" ]; then \
+		echo "✅ Home permissions: 711"; \
+	else \
+		echo "⚠️  Home permissions: $${home_perms:-unknown} (expected 711)"; \
+	fi; \
+	echo ""; \
+	echo "Directory permissions (expect 755):"; \
+	find . -maxdepth 2 -type d ! -path "./.git*" -print0 | while IFS= read -r -d '' d; do \
+		p=$$(eval "$$perm_of_cmd \"$$d\"" 2>/dev/null || true); \
+		if [ "$$p" = "755" ]; then \
+			printf "✅ %s %s\n" "$$p" "$$d"; \
+		else \
+			printf "⚠️  %s %s (expected 755)\n" "$${p:-unknown}" "$$d"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Executable scripts (expect +x):"; \
+	for f in bootstrap.sh bin/* scripts/*.sh tests/*.sh examples/*.sh; do \
+		[ -e "$$f" ] || continue; \
+		if [ -x "$$f" ]; then \
+			echo "✅ $$f"; \
+		else \
+			echo "⚠️  $$f (not executable)"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Non-executable configs (should not be +x):"; \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .zshrc.d/*.sh; do \
+		[ -e "$$f" ] || continue; \
+		if [ -x "$$f" ]; then \
+			echo "⚠️  $$f (executable)"; \
+		fi; \
+	done; \
+	find .config -type f -name "*.sh" -print0 | while IFS= read -r -d '' f; do \
+		if [ -x "$$f" ]; then \
+			echo "⚠️  $$f (executable)"; \
+		fi; \
+	done; \
+	find .config -type f -name "*.conf" -print0 | while IFS= read -r -d '' f; do \
+		if [ -x "$$f" ]; then \
+			echo "⚠️  $$f (executable)"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Config file permissions (expect 644):"; \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .env.mk MANUAL.md README.md .zshrc.d/*.sh; do \
+		[ -e "$$f" ] || continue; \
+		case "$$f" in \
+			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
+		esac; \
+		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+		if [ "$$p" = "644" ]; then \
+			printf "✅ %s %s\n" "$$p" "$$f"; \
+		else \
+			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
+		fi; \
+	done; \
+	find .config -type f -name "*.sh" -print0 | while IFS= read -r -d '' f; do \
+		case "$$f" in \
+			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
+		esac; \
+		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+		if [ "$$p" = "644" ]; then \
+			printf "✅ %s %s\n" "$$p" "$$f"; \
+		else \
+			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
+		fi; \
+	done; \
+	find .config -type f -name "*.conf" -print0 | while IFS= read -r -d '' f; do \
+		case "$$f" in \
+			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
+		esac; \
+		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+		if [ "$$p" = "644" ]; then \
+			printf "✅ %s %s\n" "$$p" "$$f"; \
+		else \
+			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "Sensitive config permissions (expect 600):"; \
+	for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do \
+		[ -e "$$f" ] || continue; \
+		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+		if [ "$$p" = "600" ]; then \
+			printf "✅ %s %s\n" "$$p" "$$f"; \
+		else \
+			printf "⚠️  %s %s (expected 600)\n" "$${p:-unknown}" "$$f"; \
+		fi; \
+	done; \
+	echo ""; \
+	echo "User security directories:"; \
+	ssh_dir="$$HOME/.ssh"; \
+	gnupg_dir="$$HOME/.gnupg"; \
+	if [ -d "$$ssh_dir" ]; then \
+		p=$$(eval "$$perm_of_cmd \"$$ssh_dir\"" 2>/dev/null || true); \
+		if [ "$$p" = "700" ]; then \
+			echo "✅ $$ssh_dir 700"; \
+		else \
+			echo "⚠️  $$ssh_dir $${p:-unknown} (expected 700)"; \
+		fi; \
+		for f in "$$ssh_dir"/config "$$ssh_dir"/config.local; do \
+			[ -e "$$f" ] || continue; \
+			if [ -L "$$f" ]; then \
+				target=$$(readlink "$$f"); \
+				case "$$target" in /*) ;; *) target="$$(cd "$$(dirname "$$f")" && echo "$$PWD/$$target")";; esac; \
+				p=$$(eval "$$perm_of_cmd \"$$target\"" 2>/dev/null || true); \
+				if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
+					echo "✅ $$f -> $$target $$p"; \
+				else \
+					echo "⚠️  $$f -> $$target $${p:-unknown} (expected 600 or 644)"; \
+				fi; \
+			else \
+				p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+				if [ "$$p" = "600" ]; then \
+					echo "✅ $$f 600"; \
+				else \
+					echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
+				fi; \
+			fi; \
+		done; \
+		for f in "$$ssh_dir"/known_hosts "$$ssh_dir"/known_hosts*; do \
+			[ -e "$$f" ] || continue; \
+			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+			if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
+				echo "✅ $$f $$p"; \
+			else \
+				echo "⚠️  $$f $${p:-unknown} (expected 600 or 644)"; \
+			fi; \
+		done; \
+		for f in "$$ssh_dir"/*.pub; do \
+			[ -e "$$f" ] || continue; \
+			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+			if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
+				echo "✅ $$f $$p"; \
+			else \
+				echo "⚠️  $$f $${p:-unknown} (expected 600 or 644)"; \
+			fi; \
+		done; \
+		for f in "$$ssh_dir"/id_* "$$ssh_dir"/*_rsa "$$ssh_dir"/*_ed25519 "$$ssh_dir"/*_ecdsa; do \
+			[ -e "$$f" ] || continue; \
+			case "$$f" in *.pub) continue ;; esac; \
+			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+			if [ "$$p" = "600" ]; then \
+				echo "✅ $$f 600"; \
+			else \
+				echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
+			fi; \
+		done; \
+	else \
+		echo "⚠️  $$ssh_dir missing"; \
+	fi; \
+	if [ -d "$$gnupg_dir" ]; then \
+		p=$$(eval "$$perm_of_cmd \"$$gnupg_dir\"" 2>/dev/null || true); \
+		if [ "$$p" = "700" ]; then \
+			echo "✅ $$gnupg_dir 700"; \
+		else \
+			echo "⚠️  $$gnupg_dir $${p:-unknown} (expected 700)"; \
+		fi; \
+		if [ -f "$$gnupg_dir/pubring.kbx" ]; then \
+			p=$$(eval "$$perm_of_cmd \"$$gnupg_dir/pubring.kbx\"" 2>/dev/null || true); \
+			if [ "$$p" = "644" ]; then \
+				echo "✅ $$gnupg_dir/pubring.kbx 644"; \
+			else \
+				echo "⚠️  $$gnupg_dir/pubring.kbx $${p:-unknown} (expected 644)"; \
+			fi; \
+		fi; \
+		find "$$gnupg_dir" -maxdepth 1 -type f | while IFS= read -r f; do \
+			[ "$$f" = "$$gnupg_dir/pubring.kbx" ] && continue; \
+			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
+			if [ "$$p" = "600" ]; then \
+				echo "✅ $$f 600"; \
+			else \
+				echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
+			fi; \
+		done; \
+	else \
+		echo "⚠️  $$gnupg_dir missing"; \
+	fi
 
 # Test configuration syntax
 test:

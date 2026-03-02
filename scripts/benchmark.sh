@@ -4,7 +4,7 @@
 set -e
 
 echo "Benchmarking ZSH startup time..."
-echo "================================"
+echo "Benchmark"
 
 # Run 5 tests
 total=0
@@ -14,6 +14,6 @@ for i in {1..5}; do
     # Convert to milliseconds for averaging (simplified)
 done
 
-echo "================================"
+echo ""
 echo "Average startup time calculated above"
 echo "Target: <100ms for optimal performance"

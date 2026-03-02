@@ -48,7 +48,7 @@ timeout_confirm() {
 
 # Test function
 test_prompts() {
-    echo "=== Testing Simple Timeout Prompts ==="
+    echo "Testing Simple Timeout Prompts"
     
     echo "1. Basic prompt (3s timeout):"
     result=$(timeout_prompt "Enter value" 3 "test")
