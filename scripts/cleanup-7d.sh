@@ -42,6 +42,7 @@ ZSH_HISTORY="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 if [ -f "$ZSH_HISTORY" ]; then
   if grep -qE '^: [0-9]+' "$ZSH_HISTORY"; then
     log "Pruning ZSH history: $ZSH_HISTORY"
+    tmpfile="$(mktemp "${ZSH_HISTORY}.tmp.XXXXXX")"
     awk -v cutoff="$CUTOFF" '
       /^: [0-9]+:/ {
         split($2, a, ":");
@@ -50,8 +51,8 @@ if [ -f "$ZSH_HISTORY" ]; then
         next
       }
       { if (keep) print }
-    ' "$ZSH_HISTORY" > "$ZSH_HISTORY.tmp"
-    mv "$ZSH_HISTORY.tmp" "$ZSH_HISTORY"
+    ' "$ZSH_HISTORY" > "$tmpfile"
+    mv "$tmpfile" "$ZSH_HISTORY"
   else
     log "Skipping ZSH history prune (no timestamps): $ZSH_HISTORY"
   fi
@@ -64,11 +65,12 @@ BASH_HISTORY="${HISTFILE:-$HOME/.bash_history}"
 if [ -f "$BASH_HISTORY" ]; then
   if grep -qE '^#[0-9]+' "$BASH_HISTORY"; then
     log "Pruning Bash history: $BASH_HISTORY"
+    tmpfile="$(mktemp "${BASH_HISTORY}.tmp.XXXXXX")"
     awk -v cutoff="$CUTOFF" '
       /^#[0-9]+$/ { ts = substr($0,2) + 0; keep = (ts >= cutoff); if (keep) print; next }
       { if (keep) print }
-    ' "$BASH_HISTORY" > "$BASH_HISTORY.tmp"
-    mv "$BASH_HISTORY.tmp" "$BASH_HISTORY"
+    ' "$BASH_HISTORY" > "$tmpfile"
+    mv "$tmpfile" "$BASH_HISTORY"
   else
     log "Skipping Bash history prune (no timestamps): $BASH_HISTORY"
   fi
