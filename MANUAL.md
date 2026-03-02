@@ -21,6 +21,8 @@ make bootstrap    # Bootstrap dotfiles
 make test         # Test configurations
 make status       # Show status
 make audit        # Check compliance
+make shellcheck   # Lint shell scripts
+make shfmt        # Format shell scripts
 make clean        # Remove dotfiles
 make help         # Show all commands
 ```

@@ -42,6 +42,8 @@ make bootstrap  # Bootstrap dotfiles
 make status     # Check status
 make test       # Test configs
 make clean      # Remove links
+make shellcheck # Lint shell scripts
+make shfmt      # Format shell scripts
 make help       # Show commands
 ```
 
