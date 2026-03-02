@@ -1,0 +1,3 @@
+# Mail forwarder (local include)
+# Create ~/.forward.local with your private destinations.
+:include:~/.forward.local
