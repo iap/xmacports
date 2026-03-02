@@ -7,31 +7,31 @@
 
 # Try MacPorts pinentry-mac (GUI) - current installation location
 if [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ]; then
-    exec "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" "$@"
+  exec "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" "$@"
 fi
 
 # Try MacPorts pinentry-mac (older installation pattern)
 if [ -x "/opt/local/bin/pinentry-mac" ]; then
-    exec "/opt/local/bin/pinentry-mac" "$@"
+  exec "/opt/local/bin/pinentry-mac" "$@"
 fi
 
 # MacPorts terminal pinentry options
 
 # Try MacPorts pinentry-curses (terminal-based, always available)
 if [ -x "/opt/local/bin/pinentry-curses" ]; then
-    exec "/opt/local/bin/pinentry-curses" "$@"
+  exec "/opt/local/bin/pinentry-curses" "$@"
 fi
 
 # Try MacPorts pinentry-tty (minimal terminal interface)
 if [ -x "/opt/local/bin/pinentry-tty" ]; then
-    exec "/opt/local/bin/pinentry-tty" "$@"
+  exec "/opt/local/bin/pinentry-tty" "$@"
 fi
 
 # System fallback (legacy macOS)
 
 # Try system pinentry (older macOS versions, if available)
 if [ -x "/usr/bin/pinentry" ]; then
-    exec "/usr/bin/pinentry" "$@"
+  exec "/usr/bin/pinentry" "$@"
 fi
 
 # Error handling
