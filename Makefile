@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-.PHONY: bootstrap clean status test audit lint shellcheck help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt help
 
 # Default target
 all: bootstrap
@@ -267,6 +267,21 @@ shellcheck:
 	@echo "Running shellcheck..."
 	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install with: sudo port install shellcheck"; exit 1; }
 	@./scripts/shellcheck.sh
+
+# shfmt (format shell scripts)
+shfmt:
+	@echo "Running shfmt..."
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
+	@./scripts/shfmt.sh
+
+# shfmt check (no changes)
+shfmt-check:
+	@echo "Running shfmt check..."
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
+	@./scripts/shfmt.sh --check
+
+# Format (alias)
+fmt: shfmt
 
 # Lint (alias)
 lint: shellcheck
