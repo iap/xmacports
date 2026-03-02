@@ -8,10 +8,11 @@ COMPLIANCE_LOG="$HOME/.cache/logs/compliance-$(date +%Y-%m-%d).log"
 mkdir -p "$(dirname "$COMPLIANCE_LOG")"
 
 log_check() {
-  local status="$1"
-  local message="$2"
-  local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-  echo "[$timestamp] $status: $message" | tee -a "$COMPLIANCE_LOG"
+    local status="$1"
+    local message="$2"
+    local timestamp
+    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $status: $message" | tee -a "$COMPLIANCE_LOG"
 }
 
 echo "System Rules Compliance Check"
