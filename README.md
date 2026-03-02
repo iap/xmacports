@@ -27,7 +27,7 @@ Homebrew has shifted focus to newer hardware and dropped support for older syste
 
 ```bash
 # Install prerequisites for this project
-sudo port install git zsh nano gnupg2 pinentry-mac
+sudo port install git zsh nano gnupg2 pinentry-mac shellcheck shfmt
 
 # Clone and bootstrap dotfiles
 git clone <repository-url> "$HOME/.dotfiles"

@@ -11,7 +11,7 @@ make bootstrap
 
 ### Prerequisites
 ```bash
-sudo port install git zsh nano fzf bat ripgrep
+sudo port install git zsh nano fzf bat ripgrep shellcheck shfmt
 ```
 
 ## Commands
