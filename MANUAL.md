@@ -23,6 +23,7 @@ make status       # Show status
 make audit        # Check compliance
 make shellcheck   # Lint shell scripts
 make shfmt        # Format shell scripts
+make check        # Run shfmt-check and shellcheck
 make schedule-cleanup   # Schedule cleanup job (launchd/cron)
 make unschedule-cleanup # Remove cleanup job
 make clean        # Remove dotfiles
