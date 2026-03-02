@@ -15,10 +15,21 @@
 *secret*
 *token*
 *credential*
-*key*
+*.key
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+id_ed25519_sk
+*_key
+*_rsa
+*_dsa
+*_ecdsa
+*_ed25519
+*.pem
+*.p12
+*.pfx
 
 # Personal information
 personal/
 private/
-# Ignore local configurations
-.config/ssh/config.local
