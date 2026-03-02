@@ -17,7 +17,7 @@ bootstrap:
 clean:
 	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
 	@echo "Removing dotfiles symlinks..."
-	@for f in "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config"; do \
+	@for f in "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
 		if [ -L "$$f" ]; then \
 			target=$$(readlink "$$f"); \
 			case "$$target" in \
@@ -40,6 +40,7 @@ status:
 	@if [ -L "$$HOME/.bashrc" ]; then echo "✅ $$HOME/.bashrc -> $$(readlink "$$HOME/.bashrc")"; else echo "❌ $$HOME/.bashrc not linked"; fi
 	@if [ -L "$$HOME/.gitconfig" ]; then echo "✅ $$HOME/.gitconfig -> $$(readlink "$$HOME/.gitconfig")"; else echo "❌ $$HOME/.gitconfig not linked"; fi
 	@if [ -L "$$HOME/.gitignore_global" ]; then echo "✅ $$HOME/.gitignore_global -> $$(readlink "$$HOME/.gitignore_global")"; else echo "❌ $$HOME/.gitignore_global not linked"; fi
+	@if [ -L "$$HOME/.forward" ]; then echo "✅ $$HOME/.forward -> $$(readlink "$$HOME/.forward")"; else echo "❌ $$HOME/.forward not linked"; fi
 	@if [ -L "$$HOME/.gnupg/gpg.conf" ]; then echo "✅ $$HOME/.gnupg/gpg.conf -> $$(readlink "$$HOME/.gnupg/gpg.conf")"; else echo "❌ $$HOME/.gnupg/gpg.conf not linked"; fi
 	@if [ -L "$$HOME/.gnupg/gpg-agent.conf" ]; then echo "✅ $$HOME/.gnupg/gpg-agent.conf -> $$(readlink "$$HOME/.gnupg/gpg-agent.conf")"; else echo "❌ $$HOME/.gnupg/gpg-agent.conf not linked"; fi
 	@if [ -L "$$HOME/.vimrc" ]; then echo "✅ $$HOME/.vimrc -> $$(readlink "$$HOME/.vimrc")"; else echo "❌ $$HOME/.vimrc not linked"; fi
@@ -83,7 +84,7 @@ audit:
 	done; \
 	echo ""; \
 	echo "Non-executable configs (should not be +x):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .zshrc.d/*.sh; do \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh; do \
 		[ -e "$$f" ] || continue; \
 		if [ -x "$$f" ]; then \
 			echo "⚠️  $$f (executable)"; \
@@ -101,7 +102,7 @@ audit:
 	done; \
 	echo ""; \
 	echo "Config file permissions (expect 644):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .env.mk MANUAL.md README.md .zshrc.d/*.sh; do \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh; do \
 		[ -e "$$f" ] || continue; \
 		case "$$f" in \
 			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \

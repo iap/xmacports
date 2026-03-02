@@ -32,6 +32,7 @@ make help         # Show all commands
 # Copy examples and edit
 cp examples/profile-local-example "$HOME/.profile.local"
 cp examples/gitconfig-local-example "$HOME/.gitconfig.local"
+cp examples/forward-local-example "$HOME/.forward.local"
 ```
 
 ### Environment Variables

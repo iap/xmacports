@@ -96,6 +96,7 @@ backup_and_link "$HOME/.dotfiles/.zshrc" "$HOME/.zshrc"
 backup_and_link "$HOME/.dotfiles/.bashrc" "$HOME/.bashrc"
 backup_and_link "$HOME/.dotfiles/.gitconfig" "$HOME/.gitconfig"
 backup_and_link "$HOME/.dotfiles/.gitignore_global" "$HOME/.gitignore_global"
+backup_and_link "$HOME/.dotfiles/.forward" "$HOME/.forward"
 
 # Create directories if they don't exist
 mkdir -p "$HOME/bin"
@@ -128,4 +129,8 @@ fi
 
 if [[ ! -f "$HOME/.gitconfig.local" ]]; then
 echo "💡 Consider creating $HOME/.gitconfig.local with your git user info"
+fi
+
+if [[ ! -f "$HOME/.forward.local" ]]; then
+echo "💡 Consider creating $HOME/.forward.local for private mail forwarding"
 fi
