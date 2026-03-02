@@ -55,8 +55,8 @@ else
 fi
 
 # Basic environment optimized for development
-export EDITOR="vim"
-export VISUAL="vim"
+export EDITOR="nano"
+export VISUAL="nano"
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
@@ -77,11 +77,7 @@ if is_macos && [[ -n "$MACPORTS_PREFIX" ]]; then
 fi
 
 # libusb runtime path for Foundry (MacPorts)
-if is_macos; then
-    if [[ -d "/opt/local/lib" ]]; then
-        export DYLD_LIBRARY_PATH="/opt/local/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}"
-    fi
-fi
+# Avoid global DYLD_LIBRARY_PATH; use per-command wrappers in shell functions.
 
 # Logging directory
 export DOTFILES_LOG_DIR="$HOME/.logs"

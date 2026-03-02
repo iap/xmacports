@@ -1,4 +1,4 @@
-# Vim privacy settings - disable telemetry and data collection
+" Vim privacy settings - disable telemetry and data collection
 set nobackup
 set nowritebackup
 set noswapfile
