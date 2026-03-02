@@ -97,6 +97,19 @@ unlock_gpg() {
     echo "test" | gpg --clearsign >/dev/null 2>&1 && echo "✅ GPG key unlocked" || echo "❌ Failed to unlock"
 }
 
+# Foundry wrappers to scope DYLD_LIBRARY_PATH (macOS/MacPorts)
+_with_foundry_libs() {
+    if [[ -x "$HOME/.dotfiles/bin/with-foundry-libs" ]]; then
+        "$HOME/.dotfiles/bin/with-foundry-libs" "$@"
+    else
+        "$@"
+    fi
+}
+
+forge() { _with_foundry_libs command forge "$@"; }
+cast() { _with_foundry_libs command cast "$@"; }
+anvil() { _with_foundry_libs command anvil "$@"; }
+
 # Privacy and security functions
 randomize_mac() {
     local interface="${1:-en0}"

@@ -66,6 +66,19 @@ if [[ -t 1 ]]; then
     export PS1
 fi
 
+# Foundry wrappers to scope DYLD_LIBRARY_PATH (macOS/MacPorts)
+_with_foundry_libs() {
+    if [[ -x "$HOME/.dotfiles/bin/with-foundry-libs" ]]; then
+        "$HOME/.dotfiles/bin/with-foundry-libs" "$@"
+    else
+        "$@"
+    fi
+}
+
+forge() { _with_foundry_libs command forge "$@"; }
+cast() { _with_foundry_libs command cast "$@"; }
+anvil() { _with_foundry_libs command anvil "$@"; }
+
 # Load local bash customizations
 if [ -f "$HOME/.bashrc.local" ]; then
     source "$HOME/.bashrc.local"

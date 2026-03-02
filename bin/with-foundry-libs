@@ -1,0 +1,8 @@
+#!/bin/sh
+# Run a command with MacPorts lib path scoped for Foundry (macOS).
+
+if [ -d "/opt/local/lib" ]; then
+  DYLD_LIBRARY_PATH="/opt/local/lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" "$@"
+else
+  "$@"
+fi
