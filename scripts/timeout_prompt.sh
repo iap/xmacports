@@ -14,7 +14,7 @@ timeout_prompt() {
 
   echo -n "$prompt (timeout: ${timeout}s, default: $default): " >&2
 
-    if read -r -t "$timeout" response 2> /dev/null; then
+  if read -r -t "$timeout" response 2> /dev/null; then
     if [[ -n "$response" ]]; then
       echo "$response"
     else

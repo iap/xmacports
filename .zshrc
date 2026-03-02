@@ -26,6 +26,7 @@ setopt HIST_SAVE_NO_DUPS    # Don't write duplicate entries
 setopt HIST_VERIFY          # Show command with history expansion before running
 setopt INC_APPEND_HISTORY   # Write history incrementally
 setopt SHARE_HISTORY        # Share history between sessions
+setopt EXTENDED_HISTORY     # Store timestamps for time-based pruning
 setopt CORRECT              # Spell correction for commands
 setopt COMPLETE_IN_WORD     # Complete from both ends of word
 setopt ALWAYS_TO_END        # Move cursor to end after completion
