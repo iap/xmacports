@@ -12,6 +12,18 @@ reject() {
 staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 [ -z "$staged_files" ] && exit 0
 
+# Run format/lint (best-effort)
+if command -v shfmt >/dev/null 2>&1; then
+  if ! make shfmt-check >/dev/null 2>&1; then
+    reject "shfmt check failed. Run: make shfmt"
+  fi
+fi
+if command -v shellcheck >/dev/null 2>&1; then
+  if ! make shellcheck >/dev/null 2>&1; then
+    reject "shellcheck failed. Run: make shellcheck"
+  fi
+fi
+
 # Block common private key files by name
 for f in $staged_files; do
   case "$f" in
