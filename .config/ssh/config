@@ -34,7 +34,7 @@ Host *
     
     # Connection multiplexing for performance
     ControlMaster auto
-    ControlPath ~/.cache/ssh/master-%r@%h:%p-%C
+    ControlPath ~/.cache/ssh/cm-%C
     ControlPersist 10m
     
     # Forward GPG agent to remote hosts (disabled by default for security)
