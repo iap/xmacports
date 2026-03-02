@@ -122,6 +122,11 @@ echo "✅ Dotfiles bootstrapped successfully!"
 echo "📁 Backup created at: $BACKUP_DIR"
 echo "🔄 Restart your shell or run: source ~/.zshrc"
 
+# Configure repo-local git hooks (if in repo)
+if [[ -d "$HOME/.dotfiles/.githooks" ]]; then
+    git -C "$HOME/.dotfiles" config core.hooksPath .githooks
+fi
+
 # Check if local config files exist
 if [[ ! -f "$HOME/.zshrc.local" ]]; then
 echo "💡 Consider creating $HOME/.zshrc.local for personal customizations"

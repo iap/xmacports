@@ -73,6 +73,7 @@ $HOME/project (main±) ❯            # Git dirty
 - Secure file permissions
 - No secrets in repo
 - Audit logging
+ - Pre-commit hook blocks common secrets and private keys
 
 ## Troubleshooting
 
