@@ -23,6 +23,8 @@ make status       # Show status
 make audit        # Check compliance
 make shellcheck   # Lint shell scripts
 make shfmt        # Format shell scripts
+make schedule-cleanup   # Schedule cleanup job (launchd/cron)
+make unschedule-cleanup # Remove cleanup job
 make clean        # Remove dotfiles
 make help         # Show all commands
 ```
@@ -76,6 +78,10 @@ $HOME/project (main±) ❯            # Git dirty
 - No secrets in repo
 - Audit logging
  - Pre-commit hook blocks common secrets and private keys
+
+### Cleanup
+- Optional scheduled cleanup (launchd on macOS, cron on Linux)
+- Shell history pruning uses timestamps (ZSH `EXTENDED_HISTORY`, Bash `HISTTIMEFORMAT`)
 
 ## Troubleshooting
 

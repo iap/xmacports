@@ -19,6 +19,7 @@ fi
 # Bash-specific settings
 set -o vi
 export HISTCONTROL=ignoredups:erasedups
+export HISTTIMEFORMAT="%s "
 export HISTSIZE=10000
 export HISTFILESIZE=10000
 
