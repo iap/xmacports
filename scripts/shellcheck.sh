@@ -22,7 +22,7 @@ files=(
 
 shell_for() {
   case "$1" in
-    bin/pinentry-fallback|bin/with-foundry-libs)
+    bin/pinentry-fallback | bin/with-foundry-libs)
       echo sh
       ;;
     *)
