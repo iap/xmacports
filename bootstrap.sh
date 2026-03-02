@@ -13,11 +13,12 @@ else
   # macOS version check (minimum 10.15)
   MACOS_VERSION="$(sw_vers -productVersion 2> /dev/null || echo 0)"
   MIN_MACOS_VERSION="10.15"
-  version_ge() {
-    local a="$1" b="$2"
-    local IFS=.
-    local i
-    local -a av=($a) bv=($b)
+    version_ge() {
+        local a="$1" b="$2"
+        local i
+        local -a av bv
+        IFS='.' read -r -a av <<<"$a"
+        IFS='.' read -r -a bv <<<"$b"
     for ((i = ${#av[@]}; i < ${#bv[@]}; i++)); do av[i]=0; done
     for ((i = 0; i < ${#av[@]}; i++)); do
       [[ -z ${bv[i]} ]] && bv[i]=0
