@@ -3,7 +3,7 @@
 
 SHELL := /bin/bash
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt schedule-cleanup unschedule-cleanup help
 
 # Default target
 all: bootstrap
@@ -282,6 +282,14 @@ shfmt-check:
 
 # Format (alias)
 fmt: shfmt
+
+# Schedule cleanup (launchd/cron)
+schedule-cleanup:
+	@./scripts/install-cleanup-job.sh
+
+# Unschedule cleanup
+unschedule-cleanup:
+	@./scripts/uninstall-cleanup-job.sh
 
 # Lint (alias)
 lint: shellcheck

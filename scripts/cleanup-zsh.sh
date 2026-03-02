@@ -9,11 +9,11 @@ CLEANUP_LOG="$HOME/.cache/logs/zsh-cleanup-$(date +%Y-%m-%d).log"
 mkdir -p "$(dirname "$CLEANUP_LOG")"
 
 log_action() {
-    local action="$1"
-    local file="$2"
-    local timestamp
-    timestamp=$(date '+%Y-%m-%d %H:%M:%S')
-    echo "[$timestamp] $action: $file" | tee -a "$CLEANUP_LOG"
+  local action="$1"
+  local file="$2"
+  local timestamp
+  timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "[$timestamp] $action: $file" | tee -a "$CLEANUP_LOG"
 }
 
 echo "ZSH Files Cleanup for Development Environment"

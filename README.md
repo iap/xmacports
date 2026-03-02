@@ -44,8 +44,12 @@ make test       # Test configs
 make clean      # Remove links
 make shellcheck # Lint shell scripts
 make shfmt      # Format shell scripts
+make schedule-cleanup   # Schedule cleanup job (launchd/cron)
+make unschedule-cleanup # Remove cleanup job
 make help       # Show commands
 ```
+
+Note: cleanup history pruning relies on timestamps (ZSH `EXTENDED_HISTORY`, Bash `HISTTIMEFORMAT`).
 
 ## Customization
 
