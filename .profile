@@ -2,9 +2,12 @@
 # Central base configuration for all shells
 # Required by system rules - loaded by all POSIX-compliant shells
 
-# Source centralized environment if available (only if not already loaded)
-if [ -z "$DOTFILES_ENV_LOADED" ] && [ -f "$HOME/.dotfiles/.config/env.d/default.sh" ]; then
-    . "$HOME/.dotfiles/.config/env.d/default.sh"
+# Source centralized environment if available.
+# default.sh uses bash/zsh features, so only source it from compatible shells.
+if [ -f "$HOME/.dotfiles/.config/env.d/default.sh" ]; then
+    if [ -n "${BASH_VERSION:-}" ] || [ -n "${ZSH_VERSION:-}" ]; then
+        . "$HOME/.dotfiles/.config/env.d/default.sh"
+    fi
 fi
 
 # Load local profile customizations

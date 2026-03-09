@@ -50,10 +50,12 @@ zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}' # Case insensitive mat
 # Load local customizations if they exist
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
 
-# Initialize GPG verification on startup (non-blocking)
-if [[ -n "$DOTFILES_LOG_DIR" ]] && declare -f verify_gpg_ssh >/dev/null; then
-    verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
-    disown
+# Initialize GPG verification on startup (non-blocking) only when log dir is writable.
+if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; then
+    if mkdir -p "$DOTFILES_LOG_DIR" 2>/dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
+        verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
+        disown
+    fi
 fi
 
 # BEGIN SCARB COMPLETIONS
