@@ -14,6 +14,12 @@ for config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
     [[ -f "$config_file" ]] && source "$config_file"
 done
 
+# ZSH history file (ZSH-only; kept here, not in shared default.sh)
+HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
+HISTSIZE=10000
+SAVEHIST=10000
+[[ -d "$(dirname "$HISTFILE")" ]] || { mkdir -p "$(dirname "$HISTFILE")" && chmod 700 "$(dirname "$HISTFILE")"; }
+
 # ZSH-specific options for optimal performance
 setopt AUTO_CD              # Change directory without 'cd'
 setopt EXTENDED_GLOB        # Extended globbing patterns
@@ -33,15 +39,17 @@ setopt ALWAYS_TO_END        # Move cursor to end after completion
 
 # Color support for ZSH
 setopt PROMPT_SUBST         # Enable prompt substitution
-autoload -U colors && colors  # Load color support
 
 # Disable unwanted features for performance
 unsetopt BEEP               # No beeping
 unsetopt FLOW_CONTROL       # Disable start/stop characters
 
-# Load completion system (simplified for reliability)
+# Load completion system
 autoload -Uz compinit
-compinit -C
+_zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
+mkdir -p "${_zcompdump:h}"
+compinit -C -d "$_zcompdump"
+unset _zcompdump
 
 # Basic completion styling
 zstyle ':completion:*' menu select
@@ -60,9 +68,14 @@ fi
 
 # BEGIN SCARB COMPLETIONS
 if command -v scarb >/dev/null 2>&1; then
-    eval "$(scarb completions zsh 2>/dev/null)"
-    if typeset -f _scarb >/dev/null 2>&1; then
-        compdef _scarb scarb
+    _scarb_cache="${XDG_CACHE_HOME:-$HOME/.cache}/shell/scarb-completions.zsh"
+    _scarb_bin="$(command -v scarb)"
+    _scarb_bin_mtime="$(stat -c %Y "$_scarb_bin" 2>/dev/null || /usr/bin/stat -f %m "$_scarb_bin" 2>/dev/null || echo 0)"
+    _scarb_cache_mtime="$(stat -c %Y "$_scarb_cache" 2>/dev/null || /usr/bin/stat -f %m "$_scarb_cache" 2>/dev/null || echo 0)"
+    if [[ ! -f "$_scarb_cache" || "$_scarb_bin_mtime" -gt "$_scarb_cache_mtime" ]]; then
+        scarb completions zsh 2>/dev/null >| "$_scarb_cache"
     fi
+    source "$_scarb_cache" 2>/dev/null
+    unset _scarb_cache _scarb_bin _scarb_bin_mtime _scarb_cache_mtime
 fi
 # END SCARB COMPLETIONS

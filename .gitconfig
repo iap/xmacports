@@ -9,7 +9,22 @@
     pager = cat
 
 [color]
-    ui = always
+    ui = auto
+
+[color "status"]
+    added     = green bold
+    changed   = yellow bold
+    untracked = red bold
+
+[color "diff"]
+    old        = red bold
+    new        = green bold
+    frag       = cyan bold
+    whitespace = red reverse
+
+[color "branch"]
+    current = cyan bold
+    remote  = yellow
 
 [init]
     defaultBranch = main

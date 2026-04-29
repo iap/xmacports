@@ -1,6 +1,4 @@
-" Vim privacy settings - disable telemetry and data collection
-set nobackup
-set nowritebackup
-set noswapfile
+" Vim privacy settings - suppress viminfo leakage only
+" backup, swapfile, undofile, and history are managed by .vimrc
 set viminfo=""
-set history=0
+set noswapfile
