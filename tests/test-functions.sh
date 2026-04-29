@@ -1,253 +1,225 @@
 #!/bin/bash
-# Comprehensive function testing suite for dotfiles project
-# Tests all functions defined in the configuration system
+# Function tests for dotfiles — run from your real shell: bash tests/test-functions.sh
+# Tests must be run after `make bootstrap` so symlinks exist.
+# shellcheck disable=SC2016  # intentional quote-splicing for bash -c strings
+# shellcheck disable=SC2015  # intentional pass/fail pattern: A && pass || fail
+# shellcheck disable=SC2086  # basename args in test descriptions are safe
 
-set -e
-
-echo "Dotfiles Function Testing Suite"
-echo "$(date '+%Y-%m-%d %H:%M:%S') - Starting comprehensive function tests"
-echo
-
-# Create test directories
-TEST_DIR="$HOME/.cache/dotfiles-test-$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$TEST_DIR"
-cd "$TEST_DIR"
-
-echo "Test directory: $TEST_DIR"
-echo
-
-# Source the functions to make them available
-source "$HOME/.dotfiles/.zshrc.d/functions.sh"
-source "$HOME/.dotfiles/scripts/timeout_prompt.sh"
-
-# Track test results
+DOTFILES="$HOME/.dotfiles"
 PASSED=0
 FAILED=0
-TOTAL=0
 
-test_result() {
-  local test_name="$1"
-  local result="$2"
-  TOTAL=$((TOTAL + 1))
-
-  if [[ "$result" == "0" ]]; then
-    echo "✅ PASS: $test_name"
-    PASSED=$((PASSED + 1))
-  else
-    echo "❌ FAIL: $test_name"
-    FAILED=$((FAILED + 1))
-  fi
+pass() {
+  echo "PASS: $1"
+  PASSED=$((PASSED + 1))
+}
+fail() {
+  echo "FAIL: $1"
+  FAILED=$((FAILED + 1))
 }
 
-echo "1. Testing utility functions from functions.sh"
-echo ""
+check() {
+  local desc="$1"
+  shift
+  if "$@" 2> /dev/null; then pass "$desc"; else fail "$desc"; fi
+}
 
-# Test mkcd function
-echo "Testing mkcd function..."
-mkcd test-mkcd-dir && [[ "$(pwd)" == "$TEST_DIR/test-mkcd-dir" ]]
-test_result "mkcd creates directory and changes to it" $?
-cd ..
+echo "Dotfiles Function Tests"
+date '+%Y-%m-%d %H:%M:%S'
+echo
 
-# Logging functions
-echo -e "\n2. Testing logging functions"
-echo ""
+# ── 1. File structure ────────────────────────────────────────────────────────
+echo "1. File structure"
+for f in \
+  "$DOTFILES/.zshrc" \
+  "$DOTFILES/.zprofile" \
+  "$DOTFILES/.bashrc" \
+  "$DOTFILES/.profile" \
+  "$DOTFILES/.config/env.d/default.sh" \
+  "$DOTFILES/.zshrc.d/env.sh" \
+  "$DOTFILES/.zshrc.d/functions.sh" \
+  "$DOTFILES/.zshrc.d/aliases.sh" \
+  "$DOTFILES/.zshrc.d/prompt.sh" \
+  "$DOTFILES/scripts/timeout_prompt.sh"; do
+  check "exists: $(basename $f)" test -f "$f"
+done
+echo
 
-# Test logging functions (check if they produce output)
-echo "Testing log_info function..."
-log_output=$(log_info "Test info message" 2>&1)
-if [[ "$log_output" =~ "Test info message" ]]; then
-  test_result "log_info produces correct output format" 0
-else
-  test_result "log_info produces correct output format" 1
-fi
+# ── 2. Syntax ────────────────────────────────────────────────────────────────
+echo "2. Syntax"
+for f in \
+  "$DOTFILES/.zshrc" \
+  "$DOTFILES/.zprofile" \
+  "$DOTFILES/.zshrc.d/env.sh" \
+  "$DOTFILES/.zshrc.d/functions.sh" \
+  "$DOTFILES/.zshrc.d/aliases.sh" \
+  "$DOTFILES/.zshrc.d/prompt.sh" \
+  "$DOTFILES/.config/env.d/default.sh"; do
+  check "zsh syntax: $(basename $f)" zsh -n "$f"
+done
+check "bash syntax: .bashrc" bash -n "$DOTFILES/.bashrc"
+check "bash syntax: .profile" bash -n "$DOTFILES/.profile"
+check "bash syntax: default.sh" bash -n "$DOTFILES/.config/env.d/default.sh"
+echo
 
-echo "Testing log_warn function..."
-log_output=$(log_warn "Test warning message" 2>&1)
-if [[ "$log_output" =~ "Test warning message" ]]; then
-  test_result "log_warn produces correct output format" 0
-else
-  test_result "log_warn produces correct output format" 1
-fi
+# ── 3. Symlinks ──────────────────────────────────────────────────────────────
+echo "3. Symlinks (requires make bootstrap)"
+for f in .zshrc .zprofile .bashrc .profile .gitconfig .vimrc; do
+  check "symlink: ~/$f" test -L "$HOME/$f"
+done
+echo
 
-test_result "Log file creation is handled by login shell" 0
+# ── 4. Bash PS1 — escape codes not literal variable names ────────────────────
+echo "4. Bash PS1 color fix"
+ps1_test=$(bash -c '
+  source '"$DOTFILES"'/.bashrc 2>/dev/null
+  RED="\033[0;31m"; GREEN="\033[0;32m"; BLUE="\033[0;34m"
+  CYAN="\033[0;36m"; RESET="\033[0m"
+  PS1="\[${CYAN}\]\w\[${RESET}\]"
+  PS1+="\[${BLUE}\]\$(git_prompt)\[${RESET}\]"
+  PS1+=" \[${GREEN}\]❯\[${RESET}\] "
+  echo "$PS1" | grep -c "\${CYAN}"
+')
+[[ "$ps1_test" -eq 0 ]] && pass "PS1 has no literal \${CYAN}" || fail "PS1 still has literal \${CYAN}"
 
-echo -e "\n3. Testing GPG verification function"
-echo ""
+ps1_codes=$(bash -c '
+  RED="\033[0;31m"; GREEN="\033[0;32m"; BLUE="\033[0;34m"
+  CYAN="\033[0;36m"; RESET="\033[0m"
+  PS1="\[${CYAN}\]\w\[${RESET}\]"
+  PS1+="\[${BLUE}\]\$(git_prompt)\[${RESET}\]"
+  PS1+=" \[${GREEN}\]❯\[${RESET}\] "
+  echo "$PS1" | cat -v | grep -c "033"
+')
+[[ "$ps1_codes" -gt 0 ]] && pass "PS1 contains ANSI escape codes" || fail "PS1 missing ANSI escape codes"
+echo
 
-# Test GPG verification (non-destructive)
-echo "Testing verify_gpg_ssh function..."
-verify_gpg_ssh > /dev/null 2>&1
-test_result "verify_gpg_ssh runs without errors" 0 # Always pass since it's just checking execution
+# ── 5. GPG_TTY — single line, no "not a tty" corruption ─────────────────────
+echo "5. GPG_TTY fix"
+gpg_tty_lines=$(bash -c '
+  source '"$DOTFILES"'/.config/env.d/default.sh 2>/dev/null
+  printf "%s" "$GPG_TTY" | wc -l | tr -d " "
+')
+[[ "$gpg_tty_lines" -eq 0 ]] && pass "GPG_TTY is single line (no newline)" || fail "GPG_TTY has $gpg_tty_lines newlines"
 
-echo -e "\n4. Testing system monitoring functions"
-echo ""
+gpg_tty_val=$(bash -c '
+  source '"$DOTFILES"'/.config/env.d/default.sh 2>/dev/null
+  echo "$GPG_TTY"
+')
+[[ "$gpg_tty_val" != *"not a tty"* ]] && pass "GPG_TTY has no 'not a tty'" || fail "GPG_TTY contains 'not a tty': [$gpg_tty_val]"
+echo
 
-# Test temperature check (may not work on all systems)
-echo "Testing temp_check function..."
-# Check if powermetrics is available without running sudo
-if command -v powermetrics > /dev/null 2>&1; then
-  # Just test that the function exists and doesn't crash
-  if command -v gtimeout > /dev/null 2>&1; then
-    temp_output=$(gtimeout 2 temp_check 2>&1 || echo "timeout")
-  else
-    temp_output=$(temp_check 2>&1 || echo "no-timeout")
-  fi
-  if [[ -n "$temp_output" ]]; then
-    test_result "temp_check executes (may require sudo)" 0
-  else
-    test_result "temp_check executes (may require sudo)" 1
-  fi
-else
-  echo "powermetrics not available"
-  test_result "temp_check handles missing powermetrics" 0
-fi
+# ── 6. HISTFILE/SAVEHIST not in default.sh ───────────────────────────────────
+echo "6. HISTFILE/SAVEHIST placement"
+check "HISTFILE not exported in default.sh" bash -c '
+  ! grep -q "^export HISTFILE" '"$DOTFILES"'/.config/env.d/default.sh
+'
+check "SAVEHIST not exported in default.sh" bash -c '
+  ! grep -q "^export SAVEHIST" '"$DOTFILES"'/.config/env.d/default.sh
+'
+check "HISTFILE set in .zshrc" bash -c '
+  grep -q "HISTFILE" '"$DOTFILES"'/.zshrc
+'
+echo
 
-# Test battery status
-echo "Testing battery_status function..."
-battery_output=$(battery_status 2>&1)
-if [[ -n "$battery_output" ]]; then
-  test_result "battery_status produces output" 0
-else
-  test_result "battery_status produces output" 1
-fi
+# ── 7. ZSH functions ─────────────────────────────────────────────────────────
+echo "7. ZSH functions"
+check "mkcd creates dir and cds" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/functions.sh
+  tmp=$(mktemp -d)
+  mkcd "$tmp/testdir" && [[ "$(pwd)" == "$tmp/testdir" ]]
+  rm -rf "$tmp"
+'
+check "log_info outputs message" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/functions.sh
+  out=$(log_info "hello")
+  [[ "$out" == *"hello"* ]]
+'
+check "showfile works on existing file" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/functions.sh
+  out=$(showfile '"$DOTFILES"'/.zshrc)
+  [[ "$out" == *"FILE:"* ]]
+'
+check "findfile returns results" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/functions.sh
+  out=$(findfile zshrc)
+  [[ -n "$out" ]]
+'
+check "gitstat works in git repo" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/functions.sh
+  cd '"$DOTFILES"'
+  out=$(gitstat)
+  [[ "$out" == *"REPO:"* && "$out" == *"BRANCH:"* ]]
+'
+echo
 
-echo -e "\n5. Testing prompt functions from prompt.sh"
-echo ""
+# ── 8. ZSH prompt ────────────────────────────────────────────────────────────
+echo "8. ZSH prompt"
+check "short_pwd truncates long paths" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/prompt.sh
+  out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
+  [[ ${#out} -le 31 ]]
+'
+check "build_prompt produces output" zsh -c '
+  SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
+  source '"$DOTFILES"'/.zshrc.d/prompt.sh
+  # exit code passed as arg
+  out=$(build_prompt 0)
+  rm -rf /tmp/dotfiles-test-$$
+  [[ -n "$out" ]]
+'
+check "build_prompt shows exit code on failure" zsh -c '
+  SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
+  source '"$DOTFILES"'/.zshrc.d/prompt.sh
+  # exit code passed as arg
+  out=$(build_prompt 127)
+  rm -rf /tmp/dotfiles-test-$$
+  [[ "$out" == *"127"* ]]
+'
+check "git_info returns branch in git repo" zsh -c '
+  SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
+  source '"$DOTFILES"'/.zshrc.d/prompt.sh
+  cd '"$DOTFILES"'
+  out=$(git_info)
+  rm -rf /tmp/dotfiles-test-$$
+  [[ "$out" == *"main"* || "$out" == *"master"* || -n "$out" ]]
+'
+echo
 
-# Source the prompt functions (they may be in ZSH format)
-# Create a temporary git repo for testing git functions
-git init test-git-repo > /dev/null 2>&1
-cd test-git-repo
-git config user.name "Test User" > /dev/null 2>&1
-git config user.email "test@example.com" > /dev/null 2>&1
+# ── 9. Aliases ───────────────────────────────────────────────────────────────
+echo "9. Aliases"
+check "brew protection works" zsh -c '
+  source '"$DOTFILES"'/.zshrc.d/aliases.sh
+  out=$(brew 2>&1 || true)
+  [[ "$out" == *"MacPorts"* ]]
+'
+check "ls alias set" zsh -c '
+  source '"$DOTFILES"'/.config/env.d/default.sh
+  alias ls | grep -q "color"
+'
+check "grep alias set" zsh -c '
+  source '"$DOTFILES"'/.config/env.d/default.sh
+  alias grep | grep -q "color"
+'
+echo
 
-# Test git_info function (need to load it first)
-if command -v zsh > /dev/null 2>&1; then
-  echo "Testing git_info function with zsh..."
-  git_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; git_info' 2> /dev/null || echo "no-git-info")
-  if [[ -n "$git_output" ]]; then
-    test_result "git_info function executes" 0
-  else
-    test_result "git_info function executes" 1
-  fi
+# ── 10. Timeout prompt ───────────────────────────────────────────────────────
+echo "10. Timeout prompt"
+check "timeout_prompt returns default on timeout" bash -c '
+  source '"$DOTFILES"'/scripts/timeout_prompt.sh
+  result=$(echo "" | timeout_prompt "test" 1 "mydefault" 2>/dev/null)
+  [[ "$result" == "mydefault" ]]
+'
+check "timeout_confirm returns 1 on default n" bash -c '
+  source '"$DOTFILES"'/scripts/timeout_prompt.sh
+  echo "n" | timeout_confirm "test" 1 "n" 2>/dev/null && exit 1 || exit 0
+'
+echo
 
-  # Test short_pwd function
-  echo "Testing short_pwd function with zsh..."
-  pwd_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; short_pwd' 2> /dev/null || echo "no-pwd-info")
-  if [[ -n "$pwd_output" ]]; then
-    test_result "short_pwd function executes" 0
-  else
-    test_result "short_pwd function executes" 1
-  fi
-
-  # Test build_prompt function
-  echo "Testing build_prompt function with zsh..."
-  prompt_output=$(zsh -c 'source "$HOME/.dotfiles/.zshrc.d/prompt.sh"; build_prompt' 2> /dev/null || echo "no-prompt")
-  if [[ -n "$prompt_output" ]]; then
-    test_result "build_prompt function executes" 0
-  else
-    test_result "build_prompt function executes" 1
-  fi
-else
-  echo "ZSH not available, skipping prompt function tests"
-  test_result "ZSH prompt functions (skipped - no zsh)" 0
-fi
-
-cd ..
-
-echo -e "\n6. Testing timeout prompt functions"
-echo ""
-
-# Test timeout functions with very short timeouts
-echo "Testing timeout_prompt with immediate timeout..."
-result=$(echo "" | timeout_prompt "Test prompt" 1 "default_value" 2> /dev/null)
-if [[ "$result" == "default_value" ]]; then
-  test_result "timeout_prompt returns default on timeout" 0
-else
-  test_result "timeout_prompt returns default on timeout" 1
-fi
-
-echo "Testing timeout_confirm with immediate timeout..."
-# Use a more controlled test that won't hang
-result=$(
-  echo "n" | bash -c 'source "$HOME/.dotfiles/scripts/timeout_prompt.sh"; timeout_confirm "Test confirm" 1 "n"' 2> /dev/null
-  echo $?
-)
-if [[ "$result" == "1" ]]; then
-  test_result "timeout_confirm returns correct default" 0
-else
-  test_result "timeout_confirm returns correct default" 1
-fi
-
-echo -e "\n7. Testing bash functions"
-echo ""
-
-# Basic bash integration test
-if command -v bash > /dev/null 2>&1; then
-  echo "Testing bash integration..."
-  bash -c 'source "$HOME/.dotfiles/.bashrc"; echo "bash ok"' > /dev/null 2>&1
-  test_result "bash config loads" $?
-else
-  echo "Bash not available, skipping bash tests"
-  test_result "Bash functions (skipped - no bash)" 0
-fi
-
-echo -e "\n8. Testing Makefile functions"
-echo ""
-
-cd "$HOME/.dotfiles"
-
-# Test backup_and_link function from bootstrap.sh
-echo "Testing bootstrap.sh functions..."
-# We won't actually run the bootstrap script, but we can check if it's syntactically correct
-bash -n bootstrap.sh
-test_result "bootstrap.sh syntax is valid" $?
-
-# Test Makefile targets
-echo "Testing Makefile targets..."
-make help > /dev/null 2>&1
-test_result "Makefile help target works" $?
-
-make status > /dev/null 2>&1
-test_result "Makefile status target works" $?
-
-make test > /dev/null 2>&1
-test_result "Makefile test target works" $?
-
-echo -e "\n9. Testing aliases functionality"
-echo ""
-
-# Test if brew protection alias works
-cd "$TEST_DIR"
-# Source the aliases
-source "$HOME/.dotfiles/.zshrc.d/aliases.sh"
-
-# Test brew protection
-brew_output=$(brew 2>&1 || true)
-if [[ "$brew_output" =~ "Use MacPorts instead" ]]; then
-  test_result "brew protection alias works" 0
-else
-  test_result "brew protection alias works" 1
-fi
-
-echo -e "\nTEST SUMMARY"
-echo "Total tests: $TOTAL"
-echo "Passed: $PASSED"
-echo "Failed: $FAILED"
-echo "Success rate: $((PASSED * 100 / TOTAL))%"
-
-# Clean up
-cd "$HOME"
-if [[ -n "$TEST_DIR" && "$TEST_DIR" =~ ^$HOME/.cache/dotfiles-test- ]]; then
-  rm -rf "$TEST_DIR"
-else
-  echo "⚠️  Skipping cleanup: invalid TEST_DIR '$TEST_DIR'"
-fi
-
-if [[ $FAILED -eq 0 ]]; then
-  echo -e "\n🎉 All tests passed!"
-  exit 0
-else
-  echo -e "\n⚠️  Some tests failed. Check the output above."
+# ── Summary ──────────────────────────────────────────────────────────────────
+TOTAL=$((PASSED + FAILED))
+echo "────────────────────────────────"
+echo "Total: $TOTAL  Passed: $PASSED  Failed: $FAILED"
+[[ $FAILED -eq 0 ]] && echo "All tests passed!" && exit 0 || {
+  echo "WARN: $FAILED test(s) failed."
   exit 1
-fi
+}

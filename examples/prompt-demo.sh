@@ -7,23 +7,22 @@ echo
 # Source the prompt
 source "$(dirname "$0")/../.zshrc.d/prompt.sh"
 
-echo "🎨 Prompt Features:"
-echo "  • Current directory (shortened if long)"
-echo "  • Git branch and status (✓ clean, ± dirty)"
-echo "  • Exit status indicator (red [code] if non-zero)"
-echo "  • Minimal colors for readability"
+echo "Prompt Features:"
+echo "  - Current directory (shortened if long)"
+echo "  - Git branch and status (clean, +/- dirty)"
+echo "  - Exit status indicator (red [code] if non-zero)"
+echo "  - Minimal colors for readability"
 echo
 
-echo "📁 Example prompts:"
+echo "Example prompts:"
 echo
 
-# Simulate different scenarios
 echo "Normal directory:"
 echo "~/Projects/dotfiles ❯ "
 echo
 
 echo "Git repository (clean):"
-echo "~/Projects/dotfiles (main✓) ❯ "
+echo "~/Projects/dotfiles (main) ❯ "
 echo
 
 echo "Git repository (dirty):"
@@ -38,8 +37,4 @@ echo "Long path (shortened):"
 echo "...very/long/path/to/directory ❯ "
 echo
 
-echo "💡 Performance optimized for development environment:"
-echo "  • Fast git status check"
-echo "  • Minimal external commands"
-echo "  • Efficient string operations"
-echo "  • No heavy dependencies"
+echo "Performance: fast git check, minimal subprocesses, 5s dir cache"

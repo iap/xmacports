@@ -35,48 +35,48 @@ REMOVE_FILES=(
 )
 
 # Check what we're keeping
-echo "📋 Files to KEEP (essential):"
+echo "Files to KEEP (essential):"
 for file in "${KEEP_FILES[@]}"; do
   if [[ -e "$file" ]]; then
     if [[ -L "$file" ]]; then
-      echo "  ✅ $file -> $(readlink "$file")"
+      echo "  [keep] $file -> $(readlink "$file")"
     else
-      echo "  ✅ $file"
+      echo "  [keep] $file"
     fi
   else
-    echo "  ❌ $file (missing)"
+    echo "  [missing] $file"
   fi
 done
 
 echo
-echo "🗑️  Files to REMOVE (unused backups/templates):"
+echo "Files to REMOVE (unused backups/templates):"
 for file in "${REMOVE_FILES[@]}"; do
   if [[ -e "$file" ]]; then
-    echo "  🔴 $file"
+    echo "  [remove] $file"
   else
-    echo "  ⚪ $file (already gone)"
+    echo "  [gone]   $file"
   fi
 done
 
 # Handle .zcompdump (ZSH completion cache)
 echo
-echo "🔄 ZSH completion cache:"
+echo "ZSH completion cache:"
 if [[ -f "$HOME/.zcompdump" ]]; then
-  echo "  📁 .zcompdump ($(du -h ~/.zcompdump | cut -f1)) - will regenerate automatically"
+  echo "  .zcompdump ($(du -h ~/.zcompdump | cut -f1)) - will regenerate automatically"
 else
-  echo "  ⚪ .zcompdump (not found)"
+  echo "  .zcompdump (not found)"
 fi
 
 # Handle .zsh_sessions (Terminal.app session data)
 echo
-echo "📂 ZSH sessions directory:"
+echo "ZSH sessions directory:"
 if [[ -d "$HOME/.zsh_sessions" ]]; then
   session_count=$(find ~/.zsh_sessions -name "*.session" | wc -l | tr -d ' ')
   history_count=$(find ~/.zsh_sessions -name "*.history" | wc -l | tr -d ' ')
-  echo "  📊 $session_count session files, $history_count history files"
-  echo "  💡 These are Terminal.app session data - safe to clean old ones"
+  echo "  $session_count session files, $history_count history files"
+  echo "  (Terminal.app session data - safe to clean old ones)"
 else
-  echo "  ⚪ .zsh_sessions (not found)"
+  echo "  .zsh_sessions (not found)"
 fi
 
 echo
@@ -84,14 +84,14 @@ read -p "Proceed with cleanup? (y/N): " -n 1 -r
 echo
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-  echo "🧹 Starting cleanup..."
+  echo "Starting cleanup..."
 
   # Remove backup and template files
   for file in "${REMOVE_FILES[@]}"; do
     if [[ -e "$file" ]]; then
       rm -f "$file"
       log_action "REMOVED" "$file"
-      echo "  ✅ Removed $file"
+      echo "  Removed $file"
     fi
   done
 
@@ -99,7 +99,7 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
   if [[ -f "$HOME/.zcompdump" ]]; then
     rm -f "$HOME/.zcompdump"
     log_action "REMOVED" ".zcompdump (will regenerate)"
-    echo "  ✅ Removed .zcompdump (will regenerate automatically)"
+    echo "  Removed .zcompdump (will regenerate automatically)"
   fi
 
   # Clean old zsh sessions (keep last 30 days)
@@ -111,25 +111,25 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
       find ~/.zsh_sessions -name "*.session" -mtime +30 -delete 2> /dev/null || true
       find ~/.zsh_sessions -name "*.history" -mtime +30 -delete 2> /dev/null || true
       log_action "CLEANED" ".zsh_sessions (removed $old_sessions sessions, $old_histories histories older than 30 days)"
-      echo "  ✅ Cleaned old session data ($old_sessions sessions, $old_histories histories)"
+      echo "  Cleaned old session data ($old_sessions sessions, $old_histories histories)"
     else
-      echo "  ℹ️  No old session data to clean"
+      echo "  No old session data to clean"
     fi
   fi
 
   echo
-  echo "✅ Cleanup completed successfully!"
-  echo "📝 Log saved to: $CLEANUP_LOG"
+  echo "Cleanup completed successfully."
+  echo "Log saved to: $CLEANUP_LOG"
   echo
-  echo "💡 Next steps:"
+  echo "Next steps:"
   echo "  - Restart your terminal to regenerate .zcompdump"
   echo "  - Your command history and current config are preserved"
 
 else
-  echo "❌ Cleanup cancelled"
+  echo "Cleanup cancelled."
   log_action "CANCELLED" "User cancelled cleanup"
 fi
 
 echo
-echo "📊 Current ZSH files:"
+echo "Current ZSH files:"
 find ~ -maxdepth 1 -name "*zsh*" -o -name ".zcomp*" | sort

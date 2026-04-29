@@ -2,8 +2,8 @@
 # Simplified functions - essential utilities with enhanced output
 
 # Basic utility
-mkcd() { 
-    mkdir -p "$1" && cd "$1" 
+mkcd() {
+  mkdir -p "$1" && cd "$1" || return
 }
 
 # Simple logging
@@ -77,10 +77,13 @@ gitstat() {
         echo "Not a git repository"
         return 1
     fi
-    echo "REPO: $(basename $(git rev-parse --show-toplevel))"
+    local root changes
+    root="$(git rev-parse --show-toplevel)"
+    changes="$(git status --porcelain)"
+    echo "REPO: $(basename "$root")"
     echo "BRANCH: $(git branch --show-current)"
-    echo "CHANGES: $(git status --porcelain | wc -l | tr -d ' ')"
-    [[ "$(git status --porcelain | wc -l | tr -d ' ')" -gt 0 ]] && git status --porcelain | head -5
+    echo "CHANGES: $(echo "$changes" | grep -c . 2>/dev/null || echo 0)"
+    [[ -n "$changes" ]] && echo "$changes" | head -5
 }
 
 # System environment info

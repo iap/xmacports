@@ -1,6 +1,6 @@
-# Dotfiles
+# xMacPort | .dot
 
-Minimal terminal-focused development environment with MacPorts integration.
+> Privacy-first, secure, streamlined `$HOME` management with Git — optimized for daily dev on legacy hardware.
 
 ## System Setup
 
