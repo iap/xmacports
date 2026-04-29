@@ -66,8 +66,8 @@ export MAKEFLAGS="-j$(sysctl -n hw.ncpu 2>/dev/null || echo 2)"
 # GPG-SSH integration (cross-platform)
 if has_cmd gpgconf; then
     export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket 2>/dev/null || echo "$HOME/.gnupg/S.gpg-agent.ssh")"
-    export GPG_TTY="$(tty 2>/dev/null || echo /dev/tty)"
-    gpgconf --launch gpg-agent
+    [[ -t 0 ]] && export GPG_TTY="$(tty)" || export GPG_TTY=/dev/tty
+    gpgconf --launch gpg-agent 2>/dev/null || true
 fi
 
 # MacPorts build environment (macOS)
@@ -82,11 +82,6 @@ fi
 # Logging directory
 export DOTFILES_LOG_DIR="$HOME/.logs"
 
-# History configuration
-export HISTFILE="${XDG_STATE_HOME}/zsh/history"
-export HISTSIZE=10000
-export SAVEHIST=10000
-
 # Shell session context and cache
 export SHELL_CACHE_DIR="$HOME/.cache/shell"
 
@@ -95,7 +90,6 @@ if [[ -z "$DOTFILES_DIRS_CREATED" ]]; then
     export DOTFILES_DIRS_CREATED=1
     # Create directories with validation and secure permissions
     [[ -n "$DOTFILES_LOG_DIR" ]] && mkdir -p "$DOTFILES_LOG_DIR" && chmod 700 "$DOTFILES_LOG_DIR"
-    [[ -n "$HISTFILE" ]] && mkdir -p "$(dirname "$HISTFILE")" && chmod 700 "$(dirname "$HISTFILE")"
     [[ -n "$SHELL_CACHE_DIR" ]] && mkdir -p "$SHELL_CACHE_DIR" && chmod 700 "$SHELL_CACHE_DIR"
     mkdir -p "$HOME/.cache/ssh" && chmod 700 "$HOME/.cache/ssh"
 fi

@@ -22,6 +22,7 @@ export HISTCONTROL=ignoredups:erasedups
 export HISTTIMEFORMAT="%s "
 export HISTSIZE=10000
 export HISTFILESIZE=10000
+export HISTFILE="$HOME/.bash_history"
 
 # Modern bash features (4.0+)
 if [[ "$BASH_MAJOR" -ge 4 ]]; then
@@ -37,13 +38,12 @@ fi
 
 # Simple bash prompt (lightweight)
 if [[ -t 1 ]]; then
-    # Colors
-    RED='\033[0;31m'
-    GREEN='\033[0;32m'
-    YELLOW='\033[0;33m'
-    BLUE='\033[0;34m'
-    CYAN='\033[0;36m'
-    RESET='\033[0m'
+    # Colors (use $'\e' so PS1 renders actual escape bytes, not literal \033)
+    RED=$'\e[0;31m'
+    GREEN=$'\e[0;32m'
+    YELLOW=$'\e[0;33m'
+    CYAN=$'\e[0;36m'
+    RESET=$'\e[0m'
     
     # Cached git prompt for performance
     __git_ps1_cache=""
@@ -61,24 +61,16 @@ if [[ -t 1 ]]; then
     }
     
     # Build prompt: ~/path (branch) ❯ 
-    PS1='\[${CYAN}\]\w\[${RESET}\]'
-    PS1+='\[${BLUE}\]$(git_prompt)\[${RESET}\]'
-    PS1+=' \[${GREEN}\]❯\[${RESET}\] '
+    PS1="\[${CYAN}\]\w\[${RESET}\]"
+    PS1+="\[${YELLOW}\]\$(git_prompt)\[${RESET}\]"
+    PS1+=" \[${GREEN}\]❯\[${RESET}\] "
     export PS1
 fi
 
-# Foundry wrappers to scope DYLD_LIBRARY_PATH (macOS/MacPorts)
-_with_foundry_libs() {
-    if [[ -x "$HOME/.dotfiles/bin/with-foundry-libs" ]]; then
-        "$HOME/.dotfiles/bin/with-foundry-libs" "$@"
-    else
-        "$@"
-    fi
-}
-
-forge() { _with_foundry_libs command forge "$@"; }
-cast() { _with_foundry_libs command cast "$@"; }
-anvil() { _with_foundry_libs command anvil "$@"; }
+# Foundry wrappers (shared with Zsh)
+if [ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]; then
+    . "$HOME/.dotfiles/.config/env.d/foundry.sh"
+fi
 
 # Load local bash customizations
 if [ -f "$HOME/.bashrc.local" ]; then

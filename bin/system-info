@@ -7,7 +7,7 @@ set -e
 echo "Development Environment System Information"
 echo "Date: $(date)"
 echo "Uptime: $(uptime | awk '{print $3,$4}' | sed 's/,//')"
-echo "Memory: $(vm_stat | grep "Pages free" | awk '{print $3}' | sed 's/\.//')KB free"
+echo "Memory: $(($(vm_stat | awk '/Pages free/{gsub(/\./,"",$3); print $3}') * $(sysctl -n hw.pagesize) / 1048576))MB free"
 echo "Disk: $(df -h / | tail -1 | awk '{print $4}') available"
 echo "MacPorts: $(port version 2> /dev/null || echo 'Not bootstrapped')"
 echo "Shell: $SHELL"

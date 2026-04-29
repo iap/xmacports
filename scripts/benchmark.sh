@@ -15,4 +15,4 @@ done
 
 echo ""
 echo "Average startup time calculated above"
-echo "Target: <100ms for optimal performance"
+echo "Target: <500ms (compinit dominates; ~65ms unavoidable)"
