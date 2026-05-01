@@ -146,6 +146,41 @@ cd ~/.dotfiles-private
 git add -A && git commit -m "update" && git push
 ```
 
+## Secret Management
+
+Secrets are **never exported as environment variables at shell startup**. They are fetched on demand from Keybase kvstore and scoped to the child process only.
+
+### Store a secret
+```bash
+secret_set github-token ghp_xxxxxxxxxxxx
+secret_set npm-token    npm_xxxxxxxxxxxx
+```
+
+### Use a secret once
+```bash
+with_secret GITHUB_TOKEN=github-token -- gh repo list
+with_secret NPM_TOKEN=npm-token -- npm publish
+```
+
+### Wrap a command permanently (in `~/.bashrc.local`)
+```bash
+gh()  { with_secret GITHUB_TOKEN=github-token  -- command gh  "$@"; }
+npm() { with_secret NPM_TOKEN=npm-token         -- command npm "$@"; }
+```
+
+### Other helpers
+```bash
+secret github-token       # fetch and print a secret
+secret_list               # list all keys in default namespace
+secret_list my-namespace  # list keys in a custom namespace
+secret_del github-token   # delete a secret
+```
+
+### Why not `export TOKEN=$(secret ...)` at startup?
+- Once exported, the value is a plain env var readable by any child process
+- `with_secret` scopes the value to one process invocation only
+- Shell startup stays fast — no Keybase IPC call until a wrapped command runs
+
 ## GPG + SSH Integration
 
 GPG agent handles SSH authentication. The chain:
