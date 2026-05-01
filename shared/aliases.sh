@@ -4,20 +4,33 @@
 # Essential navigation
 alias ..='cd ..'
 
-# MacPorts essentials
-alias install='sudo port install'
-alias update='sudo port selfupdate && sudo port upgrade outdated'
+# Package manager essentials (platform-aware)
+if [ "$(uname -s)" = "Darwin" ]; then
+  alias install='sudo port install'
+  alias update='sudo port selfupdate && sudo port upgrade outdated'
+elif command -v apt-get > /dev/null 2>&1; then
+  alias install='sudo apt-get install'
+  alias update='sudo apt-get update && sudo apt-get upgrade'
+elif command -v dnf > /dev/null 2>&1; then
+  alias install='sudo dnf install'
+  alias update='sudo dnf upgrade'
+elif command -v pacman > /dev/null 2>&1; then
+  alias install='sudo pacman -S'
+  alias update='sudo pacman -Syu'
+fi
 
 # Git essentials
 alias gs='git status'
 alias ga='git add'
 alias gc='git commit'
 
-# Homebrew protection
-brew() {
-  echo "Use MacPorts instead: port install <package>"
-  return 1
-}
+# Homebrew protection (macOS only)
+if [ "$(uname -s)" = "Darwin" ]; then
+  brew() {
+    echo "Use MacPorts instead: port install <package>"
+    return 1
+  }
+fi
 
 # Context and status
 alias where='echo "DIR: $(basename "$(pwd)")" && echo "PATH: $(pwd)" && echo "FILES: $(ls -1 | wc -l | tr -d " ")"'
@@ -38,5 +51,9 @@ tree() {
 # Git info
 alias gitinfo='git branch --show-current 2>/dev/null && git status --porcelain 2>/dev/null | wc -l | tr -d " " && echo "changes"'
 
-# System info
-alias sysinfo='echo "macOS: $(sw_vers -productVersion)" && echo "Shell: $SHELL" && echo "MacPorts: $(port version 2>/dev/null | head -1 || echo "not bootstrapped")"'
+# System info (platform-aware)
+if [ "$(uname -s)" = "Darwin" ]; then
+  alias sysinfo='echo "macOS: $(sw_vers -productVersion)" && echo "Shell: $SHELL" && echo "MacPorts: $(port version 2>/dev/null | head -1 || echo "not bootstrapped")"'
+else
+  alias sysinfo='echo "OS: $(uname -sr)" && echo "Shell: $SHELL"'
+fi

@@ -26,19 +26,20 @@ for profile in .profile .bashrc .zshrc .zprofile; do
   fi
 done
 
-# Check MacPorts prefix (dynamic detection)
-MACPORTS_PREFIX="$(command -v port 2> /dev/null | sed 's|/bin/port||' || echo '/opt/local')"
-if [[ "$PATH" =~ $MACPORTS_PREFIX ]]; then
-  log_check "PASS" "MacPorts prefix ($MACPORTS_PREFIX) in PATH"
-else
-  log_check "FAIL" "MacPorts prefix ($MACPORTS_PREFIX) not found in PATH"
-fi
-
-# Check for Homebrew (should not exist)
-if command -v brew > /dev/null 2>&1; then
-  log_check "WARN" "Homebrew found - should be disabled per system rules"
-else
-  log_check "PASS" "Homebrew not found (compliant)"
+# Check MacPorts prefix (macOS only)
+if [[ "$(uname -s)" == "Darwin" ]]; then
+  MACPORTS_PREFIX="$(command -v port 2> /dev/null | sed 's|/bin/port||' || echo '/opt/local')"
+  if [[ "$PATH" =~ $MACPORTS_PREFIX ]]; then
+    log_check "PASS" "MacPorts prefix ($MACPORTS_PREFIX) in PATH"
+  else
+    log_check "FAIL" "MacPorts prefix ($MACPORTS_PREFIX) not found in PATH"
+  fi
+  # Check for Homebrew (should not exist on macOS with MacPorts)
+  if command -v brew > /dev/null 2>&1; then
+    log_check "WARN" "Homebrew found - should be disabled per system rules"
+  else
+    log_check "PASS" "Homebrew not found (compliant)"
+  fi
 fi
 
 # Check XDG compliance

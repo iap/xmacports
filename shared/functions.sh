@@ -30,6 +30,10 @@ verify_gpg_ssh() {
 
 # System monitoring (macOS only)
 temp_check() {
+  if [ "$(uname -s)" != "Darwin" ]; then
+    echo "temp_check is macOS only"
+    return 1
+  fi
   if command -v powermetrics > /dev/null 2>&1; then
     sudo powermetrics --samplers smc_temp -n 1 2> /dev/null | grep -i temp || echo "Temperature monitoring unavailable"
   else
@@ -38,6 +42,10 @@ temp_check() {
 }
 
 battery_status() {
+  if [ "$(uname -s)" != "Darwin" ]; then
+    echo "battery_status is macOS only"
+    return 1
+  fi
   pmset -g batt | grep -v "No estimate"
 }
 
@@ -235,6 +243,10 @@ secret_del() {
 
 # Privacy and security functions
 randomize_mac() {
+  if [ "$(uname -s)" != "Darwin" ]; then
+    echo "randomize_mac is macOS only"
+    return 1
+  fi
   local interface="${1:-en0}"
   if [ "$(id -u)" -eq 0 ]; then
     local new_mac
@@ -247,8 +259,12 @@ randomize_mac() {
 }
 
 check_privacy() {
-  echo "WiFi MAC: $(ifconfig en0 2> /dev/null | grep ether | awk '{print $2}' || echo 'N/A')"
-  echo "Private Address: $(system_profiler SPAirPortDataType 2> /dev/null | grep -q 'Private' && echo 'Enabled' || echo 'Check System Settings')"
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "WiFi MAC: $(ifconfig en0 2> /dev/null | grep ether | awk '{print $2}' || echo 'N/A')"
+    echo "Private Address: $(system_profiler SPAirPortDataType 2> /dev/null | grep -q 'Private' && echo 'Enabled' || echo 'Check System Settings')"
+  else
+    echo "WiFi MAC: $(ip link show 2> /dev/null | awk '/ether/{print $2}' | head -1 || echo 'N/A')"
+  fi
   echo "Telemetry Blocking: $(env | grep -c 'TELEMETRY\|DO_NOT_TRACK\|ANALYTICS' || echo '0') variables set"
-  echo "Network Connections (current user): $(lsof -i | wc -l | tr -d ' ') active"
+  echo "Network Connections (current user): $(lsof -i 2> /dev/null | wc -l | tr -d ' ') active"
 }
