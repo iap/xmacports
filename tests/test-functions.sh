@@ -37,9 +37,9 @@ for f in \
   "$DOTFILES/.profile" \
   "$DOTFILES/.config/env.d/default.sh" \
   "$DOTFILES/.zshrc.d/env.sh" \
-  "$DOTFILES/.zshrc.d/functions.sh" \
-  "$DOTFILES/.zshrc.d/aliases.sh" \
   "$DOTFILES/.zshrc.d/prompt.sh" \
+  "$DOTFILES/shared/functions.sh" \
+  "$DOTFILES/shared/aliases.sh" \
   "$DOTFILES/scripts/timeout_prompt.sh"; do
   check "exists: $(basename $f)" test -f "$f"
 done
@@ -51,15 +51,18 @@ for f in \
   "$DOTFILES/.zshrc" \
   "$DOTFILES/.zprofile" \
   "$DOTFILES/.zshrc.d/env.sh" \
-  "$DOTFILES/.zshrc.d/functions.sh" \
-  "$DOTFILES/.zshrc.d/aliases.sh" \
   "$DOTFILES/.zshrc.d/prompt.sh" \
   "$DOTFILES/.config/env.d/default.sh"; do
   check "zsh syntax: $(basename $f)" zsh -n "$f"
 done
-check "bash syntax: .bashrc" bash -n "$DOTFILES/.bashrc"
-check "bash syntax: .profile" bash -n "$DOTFILES/.profile"
-check "bash syntax: default.sh" bash -n "$DOTFILES/.config/env.d/default.sh"
+for f in \
+  "$DOTFILES/.bashrc" \
+  "$DOTFILES/.profile" \
+  "$DOTFILES/.config/env.d/default.sh" \
+  "$DOTFILES/shared/functions.sh" \
+  "$DOTFILES/shared/aliases.sh"; do
+  check "bash syntax: $(basename $f)" bash -n "$f"
+done
 echo
 
 # ── 3. Symlinks ──────────────────────────────────────────────────────────────
@@ -121,34 +124,40 @@ check "HISTFILE set in .zshrc" bash -c '
 '
 echo
 
-# ── 7. ZSH functions ─────────────────────────────────────────────────────────
-echo "7. ZSH functions"
-check "mkcd creates dir and cds" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/functions.sh
+# ── 7. Shared functions ──────────────────────────────────────────────────────
+echo "7. Shared functions"
+check "mkcd creates dir and cds" bash -c '
+  source '"$DOTFILES"'/shared/functions.sh
   tmp=$(mktemp -d)
   mkcd "$tmp/testdir" && [[ "$(pwd)" == "$tmp/testdir" ]]
   rm -rf "$tmp"
 '
-check "log_info outputs message" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/functions.sh
+check "log_info outputs message" bash -c '
+  source '"$DOTFILES"'/shared/functions.sh
   out=$(log_info "hello")
   [[ "$out" == *"hello"* ]]
 '
-check "showfile works on existing file" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/functions.sh
+check "showfile works on existing file" bash -c '
+  source '"$DOTFILES"'/shared/functions.sh
   out=$(showfile '"$DOTFILES"'/.zshrc)
   [[ "$out" == *"FILE:"* ]]
 '
-check "findfile returns results" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/functions.sh
+check "findfile returns results" bash -c '
+  source '"$DOTFILES"'/shared/functions.sh
   out=$(findfile zshrc)
   [[ -n "$out" ]]
 '
-check "gitstat works in git repo" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/functions.sh
+check "gitstat works in git repo" bash -c '
+  source '"$DOTFILES"'/shared/functions.sh
   cd '"$DOTFILES"'
   out=$(gitstat)
   [[ "$out" == *"REPO:"* && "$out" == *"BRANCH:"* ]]
+'
+# Also verify shared functions load correctly under zsh
+check "shared functions load in zsh" zsh -c '
+  source '"$DOTFILES"'/shared/functions.sh
+  out=$(log_info "zsh-test")
+  [[ "$out" == *"zsh-test"* ]]
 '
 echo
 
@@ -187,16 +196,21 @@ echo
 
 # ── 9. Aliases ───────────────────────────────────────────────────────────────
 echo "9. Aliases"
-check "brew protection works" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/aliases.sh
+check "brew protection works" bash -c '
+  source '"$DOTFILES"'/shared/aliases.sh
   out=$(brew 2>&1 || true)
   [[ "$out" == *"MacPorts"* ]]
 '
-check "ls alias set" zsh -c '
+check "brew protection works in zsh" zsh -c '
+  source '"$DOTFILES"'/shared/aliases.sh
+  out=$(brew 2>&1 || true)
+  [[ "$out" == *"MacPorts"* ]]
+'
+check "ls alias set" bash -c '
   source '"$DOTFILES"'/.config/env.d/default.sh
   alias ls | grep -q "color"
 '
-check "grep alias set" zsh -c '
+check "grep alias set" bash -c '
   source '"$DOTFILES"'/.config/env.d/default.sh
   alias grep | grep -q "color"
 '
