@@ -146,3 +146,10 @@ fi
 if [[ ! -f "$HOME/.forward.local" ]]; then
   echo "💡 Consider creating $HOME/.forward.local for private mail forwarding"
 fi
+
+# Bootstrap private overlay (Keybase) if available
+if [[ -f "$HOME/.dotfiles/bootstrap-private.sh" ]]; then
+  echo ""
+  echo "Bootstrapping private overlay..."
+  bash "$HOME/.dotfiles/bootstrap-private.sh" || echo "⚠️  Private overlay skipped (Keybase unavailable)"
+fi
