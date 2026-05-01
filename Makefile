@@ -312,11 +312,19 @@ test-functions:
 test-compliance:
 	@./tests/run-tests.sh compliance
 
-# Switch login shell to bash 5 (MacPorts)
+# Switch login shell to bash 5
 switch-shell:
-	@command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }
-	@grep -qF '/opt/local/bin/bash' /etc/shells || { echo "Adding /opt/local/bin/bash to /etc/shells (requires sudo)..."; sudo sh -c 'echo /opt/local/bin/bash >> /etc/shells'; }
-	@chsh -s /opt/local/bin/bash && echo "✅ Login shell switched to /opt/local/bin/bash. Re-login to apply."
+	@OS=$$(uname -s); \
+	if [ "$$OS" = "Darwin" ]; then \
+		command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }; \
+		grep -qF '/opt/local/bin/bash' /etc/shells || { echo "Adding /opt/local/bin/bash to /etc/shells..."; sudo sh -c 'echo /opt/local/bin/bash >> /etc/shells'; }; \
+		chsh -s /opt/local/bin/bash && echo "✅ Login shell set to /opt/local/bin/bash. Re-login to apply."; \
+	else \
+		BASH5=$$(command -v bash); \
+		[ -z "$$BASH5" ] && { echo "❌ bash not found"; exit 1; }; \
+		grep -qF "$$BASH5" /etc/shells || { echo "Adding $$BASH5 to /etc/shells..."; sudo sh -c "echo $$BASH5 >> /etc/shells"; }; \
+		chsh -s "$$BASH5" && echo "✅ Login shell set to $$BASH5. Re-login to apply."; \
+	fi
 
 # Show help
 help:

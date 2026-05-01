@@ -17,7 +17,7 @@ check_prerequisites() {
   echo "Checking prerequisites..."
 
   # Check if dotfiles are bootstrapped
-  if [[ ! -L "$HOME/.zshrc" ]]; then
+  if [[ ! -L "$HOME/.bashrc" ]]; then
     echo "⚠️  Dotfiles don't appear to be bootstrapped. Run 'make bootstrap' first."
     return 1
   fi
