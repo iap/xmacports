@@ -9,6 +9,8 @@
 .DS_Store
 *.log
 *.tmp
+*.out
+*.o
 
 # Sensitive data patterns
 *password*

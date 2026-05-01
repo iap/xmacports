@@ -15,16 +15,19 @@ if [ -x "/opt/local/bin/pinentry-mac" ]; then
   exec "/opt/local/bin/pinentry-mac" "$@"
 fi
 
-# MacPorts terminal pinentry options
+# MacPorts terminal pinentry options (TTY required)
+# Skip curses/tty when no TTY is available (e.g. non-interactive terminals, scripts, pipes)
+# to avoid display glitches and broken password prompts.
+if [ -t 0 ]; then
+  # Try MacPorts pinentry-curses (terminal-based, always available)
+  if [ -x "/opt/local/bin/pinentry-curses" ]; then
+    exec "/opt/local/bin/pinentry-curses" "$@"
+  fi
 
-# Try MacPorts pinentry-curses (terminal-based, always available)
-if [ -x "/opt/local/bin/pinentry-curses" ]; then
-  exec "/opt/local/bin/pinentry-curses" "$@"
-fi
-
-# Try MacPorts pinentry-tty (minimal terminal interface)
-if [ -x "/opt/local/bin/pinentry-tty" ]; then
-  exec "/opt/local/bin/pinentry-tty" "$@"
+  # Try MacPorts pinentry-tty (minimal terminal interface)
+  if [ -x "/opt/local/bin/pinentry-tty" ]; then
+    exec "/opt/local/bin/pinentry-tty" "$@"
+  fi
 fi
 
 # System fallback (legacy macOS)

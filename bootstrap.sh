@@ -60,7 +60,9 @@ fi
 if ! command -v gpgconf > /dev/null 2>&1; then
   echo "⚠️  gpgconf not found. Install GnuPG (gnupg2) for GPG/SSH integration."
 fi
-if ! command -v pinentry-mac > /dev/null 2>&1 && ! command -v pinentry-curses > /dev/null 2>&1; then
+if ! [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ] &&
+  ! command -v pinentry-mac > /dev/null 2>&1 &&
+  ! command -v pinentry-curses > /dev/null 2>&1; then
   echo "⚠️  pinentry not found. Install pinentry-mac (or pinentry-curses) via MacPorts."
 fi
 
@@ -121,7 +123,7 @@ chmod 600 "$HOME/.ssh/config"
 
 echo "✅ Dotfiles bootstrapped successfully!"
 echo "📁 Backup created at: $BACKUP_DIR"
-echo "🔄 Restart your shell or run: source ~/.zshrc"
+echo "🔄 Restart your shell or run: source ~/.bashrc"
 
 # Configure repo-local git hooks (if in repo)
 if [[ -d "$HOME/.dotfiles/.githooks" ]]; then
@@ -129,8 +131,11 @@ if [[ -d "$HOME/.dotfiles/.githooks" ]]; then
 fi
 
 # Check if local config files exist
+if [[ ! -f "$HOME/.bashrc.local" ]]; then
+  echo "💡 Consider creating $HOME/.bashrc.local for personal bash customizations"
+fi
 if [[ ! -f "$HOME/.zshrc.local" ]]; then
-  echo "💡 Consider creating $HOME/.zshrc.local for personal customizations"
+  echo "💡 Consider creating $HOME/.zshrc.local for personal zsh customizations"
 fi
 
 if [[ ! -f "$HOME/.gitconfig.local" ]]; then
