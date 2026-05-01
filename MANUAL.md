@@ -109,6 +109,43 @@ cp examples/profile-local-example    "$HOME/.profile.local"
 cp examples/zshrc-local-example      "$HOME/.zshrc.local"
 ```
 
+## Private Overlay (Keybase)
+
+Private `*.local` files are managed in a separate encrypted repo:
+
+```
+keybase://private/ixo/xmacports
+```
+
+Structure:
+```
+~/.dotfiles-private/
+  home/
+    gitconfig.local   → ~/.gitconfig.local
+    bashrc.local      → ~/.bashrc.local
+    zshrc.local       → ~/.zshrc.local
+    profile.local     → ~/.profile.local
+    forward.local     → ~/.forward.local
+    ssh-config.local  → ~/.ssh/config.local
+  bootstrap.sh        # links home/* into $HOME
+```
+
+Bootstrap automatically calls the private overlay if Keybase is available:
+```bash
+make bootstrap   # runs bootstrap-private.sh at the end
+```
+
+Or run it manually:
+```bash
+bash ~/.dotfiles/bootstrap-private.sh
+```
+
+To sync private config changes across devices:
+```bash
+cd ~/.dotfiles-private
+git add -A && git commit -m "update" && git push
+```
+
 ## GPG + SSH Integration
 
 GPG agent handles SSH authentication. The chain:
