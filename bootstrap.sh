@@ -35,7 +35,7 @@ else
   # Xcode Command Line Tools
   if ! xcode-select -p > /dev/null 2>&1; then
     echo "Xcode Command Line Tools not found. Installing..."
-    xcode-select --install
+    xcode-select --install || true
   fi
 
   # MacPorts
@@ -66,9 +66,9 @@ if ! [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" 
   echo "⚠️  pinentry not found. Install pinentry-mac (or pinentry-curses) via MacPorts."
 fi
 
-# Create backup directory
+# Create backup directory (lazy — only used if needed)
 BACKUP_DIR="$HOME/.dotfiles-backup-$(date +%Y%m%d_%H%M%S)"
-mkdir -p "$BACKUP_DIR"
+_backup_used=0
 
 # Function to backup and link
 backup_and_link() {
@@ -84,6 +84,7 @@ backup_and_link() {
         return 0
       fi
     fi
+    [[ $_backup_used -eq 0 ]] && mkdir -p "$BACKUP_DIR" && _backup_used=1
     echo "Backing up existing $target"
     mv "$target" "$BACKUP_DIR/"
   fi
@@ -122,7 +123,7 @@ chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf"
 chmod 600 "$HOME/.ssh/config"
 
 echo "✅ Dotfiles bootstrapped successfully!"
-echo "📁 Backup created at: $BACKUP_DIR"
+[[ $_backup_used -eq 1 ]] && echo "📁 Backup created at: $BACKUP_DIR"
 echo "🔄 Restart your shell or run: source ~/.bashrc"
 
 # Configure repo-local git hooks (if in repo)

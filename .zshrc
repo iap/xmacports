@@ -13,6 +13,11 @@ for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
 done
 unset _config_file
 
+# Load foundry wrappers (forge/cast/anvil with DYLD_LIBRARY_PATH scoping)
+if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
+    source "$HOME/.dotfiles/.config/env.d/foundry.sh"
+fi
+
 # Load ZSH-only config (prompt, etc.) — skip env.sh already loaded above
 for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
     [[ "$(basename "$_config_file")" == "env.sh" ]] && continue
@@ -36,7 +41,6 @@ setopt HIST_IGNORE_SPACE
 setopt HIST_REDUCE_BLANKS
 setopt HIST_SAVE_NO_DUPS
 setopt HIST_VERIFY
-setopt INC_APPEND_HISTORY
 setopt SHARE_HISTORY
 setopt EXTENDED_HISTORY
 setopt CORRECT

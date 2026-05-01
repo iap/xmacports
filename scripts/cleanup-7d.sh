@@ -39,19 +39,17 @@ find "$HOME" -maxdepth 1 -type d -name ".dotfiles-backup-*" -mtime +7 -print0 |
   done
 
 # Logs
-for d in "$HOME/.logs" "$LOG_DIR"; do
-  if [ -d "$d" ]; then
-    find "$d" -type f -mtime +7 -print0 |
-      while IFS= read -r -d '' f; do
-        if safe_under_home "$f"; then
-          log "Removing log: $f"
-          rm -f "$f"
-        else
-          log "Skipping unexpected path: $f"
-        fi
-      done
-  fi
-done
+if [ -d "$LOG_DIR" ]; then
+  find "$LOG_DIR" -type f -mtime +7 -print0 |
+    while IFS= read -r -d '' f; do
+      if safe_under_home "$f"; then
+        log "Removing log: $f"
+        rm -f "$f"
+      else
+        log "Skipping unexpected path: $f"
+      fi
+    done
+fi
 
 # ZSH history (extended history format required)
 ZSH_HISTORY="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
