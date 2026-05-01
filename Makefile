@@ -1,9 +1,9 @@
 # Simple Makefile for dotfiles management
 # MacBook Air 2017 optimized
 
-SHELL := /bin/bash
+SHELL := $(shell command -v bash)
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt check schedule-cleanup unschedule-cleanup help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt check schedule-cleanup unschedule-cleanup switch-shell help
 
 # Default target
 all: bootstrap
@@ -84,7 +84,7 @@ audit:
 	done; \
 	echo ""; \
 	echo "Non-executable configs (should not be +x):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh; do \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh shared/*.sh; do \
 		[ -e "$$f" ] || continue; \
 		if [ -x "$$f" ]; then \
 			echo "⚠️  $$f (executable)"; \
@@ -102,7 +102,7 @@ audit:
 	done; \
 	echo ""; \
 	echo "Config file permissions (expect 644):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh; do \
+	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do \
 		[ -e "$$f" ] || continue; \
 		case "$$f" in \
 			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
@@ -260,6 +260,9 @@ audit:
 test:
 	@echo "Testing configurations..."
 	@zsh -n .zshrc && echo "✅ ZSH syntax OK" || echo "❌ ZSH syntax error"
+	@for f in .zshrc.d/*.sh; do zsh -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
+	@bash -n .bashrc && echo "✅ Bash syntax OK" || echo "❌ Bash syntax error"
+	@for f in shared/*.sh; do bash -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
 
 # Shellcheck (lint shell scripts)
@@ -309,14 +312,30 @@ test-functions:
 test-compliance:
 	@./tests/run-tests.sh compliance
 
+# Switch login shell to bash 5 (MacPorts)
+switch-shell:
+	@command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }
+	@grep -qF '/opt/local/bin/bash' /etc/shells || { echo "Adding /opt/local/bin/bash to /etc/shells (requires sudo)..."; sudo sh -c 'echo /opt/local/bin/bash >> /etc/shells'; }
+	@chsh -s /opt/local/bin/bash && echo "✅ Login shell switched to /opt/local/bin/bash. Re-login to apply."
+
 # Show help
 help:
 	@echo "Available targets:"
-	@echo "  bootstrap       - Bootstrap dotfiles (default)"
-	@echo "  clean           - Remove dotfiles symlinks"
-	@echo "  status          - Show bootstrap status"
-	@echo "  test            - Test configuration syntax"
-	@echo "  test-all        - Run comprehensive test suite"
-	@echo "  test-functions  - Run function tests only"
-	@echo "  test-compliance - Run compliance tests only"
-	@echo "  help            - Show this help"
+	@echo "  bootstrap         - Bootstrap dotfiles (default)"
+	@echo "  clean             - Remove dotfiles symlinks"
+	@echo "  status            - Show bootstrap status"
+	@echo "  audit             - Check file permissions and compliance"
+	@echo "  test              - Test configuration syntax"
+	@echo "  test-all          - Run comprehensive test suite"
+	@echo "  test-functions    - Run function tests only"
+	@echo "  test-compliance   - Run compliance tests only"
+	@echo "  shellcheck        - Lint shell scripts"
+	@echo "  shfmt             - Format shell scripts"
+	@echo "  shfmt-check       - Check formatting without changes"
+	@echo "  fmt               - Alias for shfmt"
+	@echo "  lint              - Alias for shellcheck"
+	@echo "  check             - Run shfmt-check and shellcheck"
+	@echo "  switch-shell      - Switch login shell to bash 5 (MacPorts)"
+	@echo "  schedule-cleanup  - Schedule cleanup job (launchd/cron)"
+	@echo "  unschedule-cleanup- Remove cleanup job"
+	@echo "  help              - Show this help"
