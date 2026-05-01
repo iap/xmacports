@@ -14,6 +14,8 @@ files=(
   "bin/system-info"
   "bin/update"
   "bin/with-foundry-libs"
+  "scripts/bootstrap-macos.sh"
+  "scripts/bootstrap-linux.sh"
   "scripts/benchmark.sh"
   "scripts/cleanup-zsh.sh"
   "scripts/cleanup-7d.sh"
