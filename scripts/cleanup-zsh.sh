@@ -28,11 +28,14 @@ KEEP_FILES=(
 )
 
 # Files safe to remove (backups and templates)
-REMOVE_FILES=(
-  "$HOME/.zshrc.backup.20250618_002900"
-  "$HOME/.zshrc.local.template"
-  "$HOME/.zshrc.local.backup.20250621"
-)
+REMOVE_FILES=()
+while IFS= read -r -d '' f; do
+  REMOVE_FILES+=("$f")
+done < <(find "$HOME" -maxdepth 1 \( \
+  -name '.zshrc.backup.*' \
+  -o -name '.zshrc.local.backup.*' \
+  -o -name '.zshrc.local.template' \
+  \) -print0 2> /dev/null)
 
 # Check what we're keeping
 echo "Files to KEEP (essential):"

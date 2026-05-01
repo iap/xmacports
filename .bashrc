@@ -86,6 +86,7 @@ if [[ -t 1 ]]; then
     }
 
     # Build PS1 dynamically via PROMPT_COMMAND to capture $?
+    # Preserve any existing PROMPT_COMMAND (e.g. Apple Terminal's update_terminal_cwd)
     _build_prompt() {
         local last_exit=$?
         local exit_prefix=""
@@ -93,7 +94,7 @@ if [[ -t 1 ]]; then
         PS1="${exit_prefix}${CYAN}\$(_short_pwd)${RESET}\$(_git_prompt) ${GREEN}❯${RESET} "
     }
 
-    PROMPT_COMMAND="_build_prompt"
+    PROMPT_COMMAND="_build_prompt${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
 fi
 
 # ── Completion ────────────────────────────────────────────────────────────────
