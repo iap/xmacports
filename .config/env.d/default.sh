@@ -129,18 +129,6 @@ export PAGER="less"
 alias curl='curl --proto =https --tlsv1.2'
 alias wget='wget --secure-protocol=TLSv1_2 --https-only'
 
-# Enhanced prompt and output settings
-export COLUMNS=${COLUMNS:-80}
-export LINES=${LINES:-24}
-
-# Make command output more verbose and informative
-export GIT_PS1_SHOWDIRTYSTATE=1
-export GIT_PS1_SHOWSTASHSTATE=1
-export GIT_PS1_SHOWUNTRACKEDFILES=1
-
-# Enhanced find and grep defaults
-export FINDOPTS="-type f"
-
 # Security hardening
 umask 077  # Files: 600, Dirs: 700
 
@@ -153,7 +141,6 @@ export DO_NOT_TRACK=1
 # Additional privacy protection
 export DISABLE_TELEMETRY=1
 export NO_UPDATE_NOTIFIER=1
-export ADBLOCK=1
 
 # grep color compatibility (GNU/BSD)
 if grep --color=auto "" /dev/null >/dev/null 2>&1; then

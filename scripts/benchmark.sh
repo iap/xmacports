@@ -1,18 +1,23 @@
 #!/bin/bash
-# Simple shell startup benchmark for MacBook Air 2017
+# Shell startup benchmark
 
 set -e
 
-echo "Benchmarking ZSH startup time..."
-echo "Benchmark"
+benchmark_shell() {
+  local shell="$1"
+  local label="$2"
+  echo "Benchmarking $label startup time..."
+  for i in {1..5}; do
+    time_result=$(
+      TIMEFORMAT='%R'
+      { time "$shell" -i -c 'exit' 2> /dev/null; } 2>&1
+    )
+    echo "  Test $i: ${time_result}s"
+  done
+  echo
+}
 
-# Run 5 tests
-for i in {1..5}; do
-  time_result=$(time (zsh -i -c 'exit') 2>&1 | grep real | awk '{print $2}')
-  echo "Test $i: $time_result"
-  # Convert to milliseconds for averaging (simplified)
-done
+benchmark_shell "/opt/local/bin/bash" "bash 5"
+benchmark_shell "/bin/zsh" "zsh"
 
-echo ""
-echo "Average startup time calculated above"
-echo "Target: <500ms (compinit dominates; ~65ms unavoidable)"
+echo "Target: <500ms per shell"
