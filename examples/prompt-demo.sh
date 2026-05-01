@@ -18,19 +18,19 @@ echo "Example prompts:"
 echo
 
 echo "Normal directory:"
-echo "~/Projects/dotfiles ❯ "
+echo "$HOME/Projects/dotfiles ❯ "
 echo
 
 echo "Git repository (clean):"
-echo "~/Projects/dotfiles (main) ❯ "
+echo "$HOME/Projects/dotfiles (main) ❯ "
 echo
 
 echo "Git repository (dirty):"
-echo "~/Projects/dotfiles (main±) ❯ "
+echo "$HOME/Projects/dotfiles (main±) ❯ "
 echo
 
 echo "After failed command:"
-echo "[1] ~/Projects/dotfiles (main±) ❯ "
+echo "[1] $HOME/Projects/dotfiles (main±) ❯ "
 echo
 
 echo "Long path (shortened):"
