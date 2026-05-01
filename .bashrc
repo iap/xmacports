@@ -104,20 +104,6 @@ elif [[ -f /usr/share/bash-completion/bash_completion ]]; then
     source /usr/share/bash-completion/bash_completion
 fi
 
-# Scarb completions (Starknet/Cairo toolchain)
-if command -v scarb >/dev/null 2>&1; then
-    _scarb_cache="${XDG_CACHE_HOME:-$HOME/.cache}/shell/scarb-completions.bash"
-    _scarb_bin="$(command -v scarb)"
-    _scarb_bin_mtime=$(stat -c %Y "$_scarb_bin" 2>/dev/null || stat -f %m "$_scarb_bin" 2>/dev/null || echo 0)
-    _scarb_cache_mtime=$(stat -c %Y "$_scarb_cache" 2>/dev/null || stat -f %m "$_scarb_cache" 2>/dev/null || echo 0)
-    if [[ ! -f "$_scarb_cache" || "$_scarb_bin_mtime" -gt "$_scarb_cache_mtime" ]]; then
-        scarb completions bash 2>/dev/null >"$_scarb_cache"
-    fi
-    # shellcheck source=/dev/null
-    source "$_scarb_cache" 2>/dev/null
-    unset _scarb_cache _scarb_bin _scarb_bin_mtime _scarb_cache_mtime
-fi
-
 # ── Local overrides ───────────────────────────────────────────────────────────
 if [ -f "$HOME/.bashrc.local" ]; then
     source "$HOME/.bashrc.local"

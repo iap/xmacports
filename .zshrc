@@ -60,19 +60,6 @@ unset _zcompdump
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
-# ── Scarb completions ─────────────────────────────────────────────────────────
-if command -v scarb >/dev/null 2>&1; then
-    _scarb_cache="${XDG_CACHE_HOME:-$HOME/.cache}/shell/scarb-completions.zsh"
-    _scarb_bin="$(command -v scarb)"
-    _scarb_bin_mtime="$(stat -c %Y "$_scarb_bin" 2>/dev/null || /usr/bin/stat -f %m "$_scarb_bin" 2>/dev/null || echo 0)"
-    _scarb_cache_mtime="$(stat -c %Y "$_scarb_cache" 2>/dev/null || /usr/bin/stat -f %m "$_scarb_cache" 2>/dev/null || echo 0)"
-    if [[ ! -f "$_scarb_cache" || "$_scarb_bin_mtime" -gt "$_scarb_cache_mtime" ]]; then
-        scarb completions zsh 2>/dev/null >| "$_scarb_cache"
-    fi
-    source "$_scarb_cache" 2>/dev/null
-    unset _scarb_cache _scarb_bin _scarb_bin_mtime _scarb_cache_mtime
-fi
-
 # ── GPG verification (non-blocking) ──────────────────────────────────────────
 if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; then
     if mkdir -p "$DOTFILES_LOG_DIR" 2>/dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
