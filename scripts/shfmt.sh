@@ -13,6 +13,8 @@ fi
 
 files=(
   "bootstrap.sh"
+  "shared/functions.sh"
+  "shared/aliases.sh"
   "bin/pinentry-fallback"
   "bin/system-info"
   "bin/update"
