@@ -17,7 +17,7 @@ bootstrap:
 clean:
 	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
 	@echo "Removing dotfiles symlinks..."
-	@for f in "$$HOME/.profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
+	@for f in "$$HOME/.profile" "$$HOME/.bash_profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
 		if [ -L "$$f" ]; then \
 			target=$$(readlink "$$f"); \
 			case "$$target" in \
@@ -35,6 +35,7 @@ status:
 	@echo "Dotfiles Status:"
 	@echo ""
 	@if [ -L "$$HOME/.profile" ]; then echo "✅ $$HOME/.profile -> $$(readlink "$$HOME/.profile")"; else echo "❌ $$HOME/.profile not linked"; fi
+	@if [ -L "$$HOME/.bash_profile" ]; then echo "✅ $$HOME/.bash_profile -> $$(readlink "$$HOME/.bash_profile")"; else echo "❌ $$HOME/.bash_profile not linked"; fi
 	@if [ -L "$$HOME/.zprofile" ]; then echo "✅ $$HOME/.zprofile -> $$(readlink "$$HOME/.zprofile")"; else echo "❌ $$HOME/.zprofile not linked"; fi
 	@if [ -L "$$HOME/.zshrc" ]; then echo "✅ $$HOME/.zshrc -> $$(readlink "$$HOME/.zshrc")"; else echo "❌ $$HOME/.zshrc not linked"; fi
 	@if [ -L "$$HOME/.bashrc" ]; then echo "✅ $$HOME/.bashrc -> $$(readlink "$$HOME/.bashrc")"; else echo "❌ $$HOME/.bashrc not linked"; fi
@@ -84,7 +85,7 @@ audit:
 	done; \
 	echo ""; \
 	echo "Non-executable configs (should not be +x):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh shared/*.sh; do \
+	for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh shared/*.sh; do \
 		[ -e "$$f" ] || continue; \
 		if [ -x "$$f" ]; then \
 			echo "⚠️  $$f (executable)"; \
@@ -262,6 +263,7 @@ test:
 	@zsh -n .zshrc && echo "✅ ZSH syntax OK" || echo "❌ ZSH syntax error"
 	@for f in .zshrc.d/*.sh; do zsh -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@bash -n .bashrc && echo "✅ Bash syntax OK" || echo "❌ Bash syntax error"
+	@bash -n .bash_profile && echo "✅ bash_profile syntax OK" || echo "❌ bash_profile syntax error"
 	@for f in shared/*.sh; do bash -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
 
@@ -312,19 +314,29 @@ test-functions:
 test-compliance:
 	@./tests/run-tests.sh compliance
 
-# Switch login shell to bash 5
+# Switch login shell — toggles between platform default and bash 5
+# macOS default: /bin/zsh — bash: /opt/local/bin/bash (MacPorts)
+# Linux default: /bin/bash — zsh: $(command -v zsh)
 switch-shell:
 	@OS=$$(uname -s); \
+	CURRENT=$$(dscl . -read $$HOME UserShell 2>/dev/null | awk '{print $$2}' || getent passwd $$USER | cut -d: -f7); \
+	echo "Current login shell: $$CURRENT"; \
 	if [ "$$OS" = "Darwin" ]; then \
-		command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }; \
-		grep -qF '/opt/local/bin/bash' /etc/shells || { echo "Adding /opt/local/bin/bash to /etc/shells..."; sudo sh -c 'echo /opt/local/bin/bash >> /etc/shells'; }; \
-		chsh -s /opt/local/bin/bash && echo "✅ Login shell set to /opt/local/bin/bash. Re-login to apply."; \
+		case "$$CURRENT" in \
+			*zsh*) \
+				command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }; \
+				TARGET=/opt/local/bin/bash ;; \
+			*) TARGET=/bin/zsh ;; \
+		esac; \
 	else \
-		BASH5=$$(command -v bash); \
-		[ -z "$$BASH5" ] && { echo "❌ bash not found"; exit 1; }; \
-		grep -qF "$$BASH5" /etc/shells || { echo "Adding $$BASH5 to /etc/shells..."; sudo sh -c "echo $$BASH5 >> /etc/shells"; }; \
-		chsh -s "$$BASH5" && echo "✅ Login shell set to $$BASH5. Re-login to apply."; \
-	fi
+		case "$$CURRENT" in \
+			*bash*) TARGET=$$(command -v zsh) ;; \
+			*) TARGET=$$(command -v bash) ;; \
+		esac; \
+	fi; \
+	[ -z "$$TARGET" ] && { echo "❌ Target shell not found"; exit 1; }; \
+	grep -qF "$$TARGET" /etc/shells || { echo "Adding $$TARGET to /etc/shells..."; sudo sh -c "echo $$TARGET >> /etc/shells"; }; \
+	chsh -s "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."
 
 # Show help
 help:
@@ -343,7 +355,7 @@ help:
 	@echo "  fmt               - Alias for shfmt"
 	@echo "  lint              - Alias for shellcheck"
 	@echo "  check             - Run shfmt-check and shellcheck"
-	@echo "  switch-shell      - Switch login shell to bash 5 (MacPorts)"
+	@echo "  switch-shell      - Toggle login shell (bash<->zsh, platform-aware)"
 	@echo "  schedule-cleanup  - Schedule cleanup job (launchd/cron)"
 	@echo "  unschedule-cleanup- Remove cleanup job"
 	@echo "  help              - Show this help"

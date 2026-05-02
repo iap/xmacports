@@ -47,6 +47,7 @@ backup_and_link() {
 
 # ── Common: shell configs ─────────────────────────────────────────────────────
 backup_and_link "$DOTFILES/.profile" "$HOME/.profile"
+backup_and_link "$DOTFILES/.bash_profile" "$HOME/.bash_profile"
 backup_and_link "$DOTFILES/.bashrc" "$HOME/.bashrc"
 backup_and_link "$DOTFILES/.zprofile" "$HOME/.zprofile"
 backup_and_link "$DOTFILES/.zshrc" "$HOME/.zshrc"
