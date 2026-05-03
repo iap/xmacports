@@ -1,4 +1,3 @@
-" Vim privacy settings - suppress viminfo leakage only
-" backup, swapfile, undofile, and history are managed by .vimrc
+" Vim privacy settings — disable viminfo only
+" swapfile, backup, undofile are intentionally enabled in .vimrc (XDG paths)
 set viminfo=""
-set noswapfile

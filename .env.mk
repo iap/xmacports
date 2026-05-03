@@ -12,7 +12,7 @@ MACPORTS_PREFIX ?= $(shell if command -v port >/dev/null 2>&1; then command -v p
 
 # Performance settings for efficient builds
 # Note: Some targets may not be parallel-safe; override if needed.
-MAKEFLAGS ?= -j$(shell sysctl -n hw.ncpu 2>/dev/null || echo 2)
+MAKEFLAGS ?= -j$(shell sysctl -n hw.ncpu 2>/dev/null || nproc 2>/dev/null || echo 2)
 
 # Logging
 LOG_DIR ?= $(XDG_CACHE_HOME)/logs
