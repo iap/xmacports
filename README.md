@@ -1,4 +1,4 @@
-# xMacPort | .dot
+# xMacPorts | .dot
 
 > Privacy-first, secure `$HOME` management with Git — bash-primary, optimized for legacy hardware via MacPorts.
 
