@@ -31,6 +31,8 @@ for f in $staged_files; do
       reject "Possible private key/keystore detected: $f";;
     id_rsa|id_dsa|id_ecdsa|id_ed25519|id_ed25519_sk|id_rsa_*|id_ecdsa_*|id_dsa_*)
       reject "SSH private key detected: $f";;
+    *.env.mk)
+      : ;; # .env.mk is a Makefile include, not a secrets file
     *.env|.env|.env.*|*secret*|*secrets*)
       reject "Potential secrets file detected: $f";;
   esac

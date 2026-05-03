@@ -19,7 +19,9 @@ fi
 
 if [ -d "$PRIVATE_DIR/.git" ]; then
     echo "Updating private overlay..."
-    git -C "$PRIVATE_DIR" pull --ff-only
+    git -C "$PRIVATE_DIR" pull --ff-only 2>/dev/null || {
+        echo "⚠️  Private overlay has diverged — skipping auto-update. Run: git -C ~/.dotfiles-private pull"
+    }
 else
     echo "Cloning private overlay..."
     git clone "$KEYBASE_REPO" "$PRIVATE_DIR"

@@ -3,6 +3,9 @@
 
 SHELL := $(shell command -v bash)
 
+# Include environment variables
+-include .env.mk
+
 .PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt check schedule-cleanup unschedule-cleanup switch-shell help
 
 # Default target
