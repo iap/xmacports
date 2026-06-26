@@ -1,38 +1,29 @@
 #!/bin/zsh
-# ZSH interactive shell configuration
-# Sources shared cross-shell config, then ZSH-only extras
 
-# Load ZSH-specific environment (sources default.sh via env.sh)
 if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
     source "$HOME/.dotfiles/.zshrc.d/env.sh"
 fi
 
-# Load shared functions and aliases (bash + zsh compatible)
 for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
     [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
 
-# Load foundry wrappers (forge/cast/anvil with DYLD_LIBRARY_PATH scoping)
-if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
-    source "$HOME/.dotfiles/.config/env.d/foundry.sh"
-fi
-
-# Load ZSH-only config (prompt, etc.) — skip env.sh already loaded above
 for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
     [[ "$(basename "$_config_file")" == "env.sh" ]] && continue
     [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
 
-# ── History ───────────────────────────────────────────────────────────────────
+# History
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 HISTSIZE=10000
 SAVEHIST=10000
 [[ -d "$(dirname "$HISTFILE")" ]] || { mkdir -p "$(dirname "$HISTFILE")" && chmod 700 "$(dirname "$HISTFILE")"; }
 
-# ── ZSH options ───────────────────────────────────────────────────────────────
+# ZSH options
 setopt AUTO_CD
+setopt NO_NOMATCH          # Pass unmatched globs through (fixes bare https:// URLs)
 setopt EXTENDED_GLOB
 setopt GLOB_DOTS
 setopt HIST_EXPIRE_DUPS_FIRST
@@ -50,7 +41,7 @@ setopt PROMPT_SUBST
 unsetopt BEEP
 unsetopt FLOW_CONTROL
 
-# ── Completion ────────────────────────────────────────────────────────────────
+# Completion
 autoload -Uz compinit
 _zcompdump="${XDG_CACHE_HOME:-$HOME/.cache}/zsh/zcompdump"
 mkdir -p "${_zcompdump:h}"
@@ -60,7 +51,7 @@ unset _zcompdump
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
-# ── GPG verification (non-blocking) ──────────────────────────────────────────
+# GPG verification (non-blocking)
 if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; then
     if mkdir -p "$DOTFILES_LOG_DIR" 2>/dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
         verify_gpg_ssh >"$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
@@ -68,5 +59,10 @@ if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; the
     fi
 fi
 
-# ── Local overrides ───────────────────────────────────────────────────────────
+# mise (dev tools version manager)
+if command -v mise &>/dev/null; then
+    eval "$(mise activate zsh)"
+fi
+
+# Local overrides
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"

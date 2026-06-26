@@ -1,7 +1,7 @@
 #!/bin/bash
-# Uninstall scheduled cleanup job (launchd on macOS, cron on Linux).
+# Uninstall cleanup job
 
-set -e
+set -eu
 
 OS="$(uname -s)"
 

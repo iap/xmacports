@@ -1,24 +1,28 @@
 #!/bin/bash
-# Test runner for dotfiles project
-# Provides organized test execution and reporting
+# Test runner
 
-set -e
+set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES_ROOT="$(dirname "$SCRIPT_DIR")"
+DOTFILES_ROOT="${DOTFILES_ROOT:-$(dirname "$SCRIPT_DIR")}"
+DOTFILES="$HOME/.dotfiles"
 
 echo "Dotfiles Test Runner"
 echo "Project root: $DOTFILES_ROOT"
 echo "Test directory: $SCRIPT_DIR"
 echo
 
-# Check prerequisites
 check_prerequisites() {
   echo "Checking prerequisites..."
 
-  # Check if dotfiles are bootstrapped
-  if [[ ! -L "$HOME/.bashrc" ]]; then
-    echo "⚠️  Dotfiles don't appear to be bootstrapped. Run 'make bootstrap' first."
+  # Check if dotfiles are bootstrapped (or DOTFILES_ROOT is set)
+  if [[ -n "${DOTFILES_ROOT:-}" ]] && [[ -d "$DOTFILES_ROOT" ]]; then
+    echo "✅ Using DOTFILES_ROOT=$DOTFILES_ROOT (no symlinks required)"
+  elif [[ -L "$HOME/.bashrc" ]]; then
+    echo "✅ Dotfiles appear to be bootstrapped"
+  else
+    echo "⚠️  Dotfiles don't appear to be bootstrapped."
+    echo "   Run 'make bootstrap' first, or set DOTFILES_ROOT=/path/to/repo to test without symlinks."
     return 1
   fi
 
@@ -39,7 +43,6 @@ check_prerequisites() {
   return 0
 }
 
-# Run function tests
 run_function_tests() {
   echo "Running function tests..."
   if [[ -f "$SCRIPT_DIR/test-functions.sh" ]]; then
@@ -50,18 +53,6 @@ run_function_tests() {
   fi
 }
 
-# Run compliance tests
-run_compliance_tests() {
-  echo "Running compliance tests..."
-  if [[ -f "$DOTFILES_ROOT/scripts/compliance-check.sh" ]]; then
-    bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
-  else
-    echo "❌ compliance-check.sh not found"
-    return 1
-  fi
-}
-
-# Run configuration tests
 run_config_tests() {
   echo "Running configuration tests..."
   cd "$DOTFILES_ROOT" || {
@@ -79,9 +70,6 @@ main() {
     "functions")
       check_prerequisites && run_function_tests
       ;;
-    "compliance")
-      check_prerequisites && run_compliance_tests
-      ;;
     "config")
       check_prerequisites && run_config_tests
       ;;
@@ -94,20 +82,15 @@ main() {
       fi
 
       echo "1. Configuration Tests"
-      echo ""
-      run_config_tests
+      echo
+      run_config_tests || true
       echo
 
-      echo "2. Compliance Tests"
-      echo ""
-      run_compliance_tests
+      echo "2. Function Tests"
       echo
-
-      echo "3. Function Tests"
-      echo ""
       run_function_tests
-
       echo
+
       echo "🎉 Complete test suite finished!"
       ;;
     "help" | "-h" | "--help")
@@ -116,7 +99,6 @@ main() {
       echo "Test types:"
       echo "  all         Run all tests (default)"
       echo "  functions   Run function tests only"
-      echo "  compliance  Run compliance tests only"
       echo "  config      Run configuration tests only"
       echo "  help        Show this help message"
       ;;

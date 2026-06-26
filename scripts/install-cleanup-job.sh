@@ -1,7 +1,7 @@
 #!/bin/bash
-# Install scheduled cleanup job (launchd on macOS, cron on Linux).
+# Install cleanup job
 
-set -e
+set -eu
 
 SCRIPT="$HOME/.dotfiles/scripts/cleanup-7d.sh"
 if [ ! -x "$SCRIPT" ]; then

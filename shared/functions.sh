@@ -1,12 +1,12 @@
 #!/bin/bash
-# Shared functions — bash 4+ and zsh compatible, no shell-specific syntax
+# Shared functions
 
-# Basic utility
+set -u
+
 mkcd() {
   mkdir -p "$1" && cd "$1" || return
 }
 
-# Simple logging
 log_info() {
   echo "[$(date '+%H:%M:%S')] $1"
 }
@@ -15,7 +15,6 @@ log_warn() {
   echo "[$(date '+%H:%M:%S')] WARNING: $1" >&2
 }
 
-# GPG verification
 verify_gpg_ssh() {
   if ! command -v gpg > /dev/null 2>&1; then
     log_warn "GPG not found, SSH authentication may not work"
@@ -28,7 +27,6 @@ verify_gpg_ssh() {
   log_info "GPG-SSH integration verified"
 }
 
-# System monitoring (macOS only)
 temp_check() {
   if [ "$(uname -s)" != "Darwin" ]; then
     echo "temp_check is macOS only"
@@ -46,10 +44,13 @@ battery_status() {
     echo "battery_status is macOS only"
     return 1
   fi
-  pmset -g batt | grep -v "No estimate"
+  if command -v pmset > /dev/null 2>&1; then
+    pmset -g batt | grep -v "No estimate"
+  else
+    echo "pmset not available"
+  fi
 }
 
-# Core context information
 context() {
   echo "DIR: $(pwd)"
   echo "FILES: $(find . -maxdepth 1 -type f | wc -l | tr -d ' ')"
@@ -58,7 +59,6 @@ context() {
   fi
 }
 
-# Simple file display
 showfile() {
   local file="$1"
   if [ -z "$file" ] || [ ! -f "$file" ]; then
@@ -71,12 +71,10 @@ showfile() {
   cat "$file"
 }
 
-# Find files
 findfile() {
   find . -name "*$1*" -type f 2> /dev/null | head -10
 }
 
-# Git status with structured output
 gitstat() {
   if ! git rev-parse --git-dir > /dev/null 2>&1; then
     echo "Not a git repository"
@@ -91,7 +89,6 @@ gitstat() {
   [ -n "$changes" ] && echo "$changes" | head -5
 }
 
-# System environment info
 envinfo() {
   if [ "$(uname -s)" = "Darwin" ]; then
     echo "OS: $(sw_vers -productVersion)"
@@ -103,16 +100,12 @@ envinfo() {
   echo "GIT: $(git --version 2> /dev/null | cut -d' ' -f3 || echo 'not bootstrapped')"
 }
 
-# GPG unlock helper
 unlock_gpg() {
   echo "Unlocking GPG key..."
   echo "test" | gpg --clearsign > /dev/null 2>&1 && echo "✅ GPG key unlocked" || echo "❌ Failed to unlock"
 }
 
-# ─────────────────────────────────────────────────────────────────────────────
 # Secret management — fetch secrets on demand, never export at shell startup
-# Secrets are never stored in environment variables persistently.
-# ─────────────────────────────────────────────────────────────────────────────
 
 # Fetch a secret by key from Keybase kvstore (value encrypted, key name visible)
 # Usage: secret <key> [namespace]
@@ -120,6 +113,10 @@ _secret_kvstore() {
   local key="$1" ns="${2:-dotfiles}"
   if ! command -v keybase > /dev/null 2>&1; then
     log_warn "keybase not found"
+    return 1
+  fi
+  if ! command -v python3 > /dev/null 2>&1; then
+    log_warn "python3 not found, cannot parse Keybase kvstore response"
     return 1
   fi
   keybase kvstore api -m \
@@ -190,6 +187,10 @@ secret_set() {
     log_warn "keybase not found"
     return 1
   fi
+  if ! command -v python3 > /dev/null 2>&1; then
+    log_warn "python3 not found, cannot parse Keybase kvstore response"
+    return 1
+  fi
   local result
   result=$(keybase kvstore api -m \
     "{\"method\":\"put\",\"params\":{\"options\":{\"namespace\":\"${ns}\",\"entryKey\":\"${key}\",\"entryValue\":\"${value}\"}}}" \
@@ -241,7 +242,6 @@ secret_del() {
   fi
 }
 
-# Privacy and security functions
 randomize_mac() {
   if [ "$(uname -s)" != "Darwin" ]; then
     echo "randomize_mac is macOS only"

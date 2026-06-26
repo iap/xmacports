@@ -1,7 +1,7 @@
 #!/bin/bash
-# Cleanup dotfiles backups, logs, and shell history older than 7 days.
+# Cleanup dotfiles
 
-set -e
+set -eu
 
 RANDOM_DELAY_MAX=3600
 sleep $((RANDOM % RANDOM_DELAY_MAX))
@@ -19,7 +19,6 @@ log() {
 
 log "Starting cleanup (cutoff epoch: $CUTOFF)"
 
-# Safety guard: never operate outside HOME
 safe_under_home() {
   case "$1" in
     "$HOME"/*) return 0 ;;
@@ -75,7 +74,7 @@ else
 fi
 
 # Bash history (timestamp format required)
-BASH_HISTORY="${HISTFILE:-$HOME/.bash_history}"
+BASH_HISTORY="${HISTFILE:-${XDG_STATE_HOME:-$HOME/.local/state}/bash/history}"
 if [ -f "$BASH_HISTORY" ]; then
   if grep -qE '^#[0-9]+' "$BASH_HISTORY"; then
     log "Pruning Bash history: $BASH_HISTORY"
@@ -90,6 +89,16 @@ if [ -f "$BASH_HISTORY" ]; then
   fi
 else
   log "Bash history not found: $BASH_HISTORY"
+fi
+
+# Shell prompt caches (zsh and bash)
+SHELL_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/shell"
+if [ -d "$SHELL_CACHE_DIR" ]; then
+  old_caches=$(find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 2>/dev/null | wc -l | tr -d ' ')
+  if [ "$old_caches" -gt 0 ]; then
+    find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 -delete 2>/dev/null || true
+    log "Cleaned old prompt caches ($old_caches entries)"
+  fi
 fi
 
 log "Cleanup complete"

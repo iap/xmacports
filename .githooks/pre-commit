@@ -1,5 +1,5 @@
 #!/bin/sh
-# Block committing obvious secrets and private keys
+# Pre-commit hook: format/lint checks and secret detection
 
 set -e
 
@@ -25,7 +25,7 @@ if command -v shellcheck >/dev/null 2>&1; then
 fi
 
 # Block common private key files by name
-for f in $staged_files; do
+while IFS= read -r f; do
   case "$f" in
     *.key|*.pem|*.p12|*.pfx|*.kdb|*.keystore|*.jks)
       reject "Possible private key/keystore detected: $f";;
@@ -36,7 +36,9 @@ for f in $staged_files; do
     *.env|.env|.env.*|*secret*|*secrets*)
       reject "Potential secrets file detected: $f";;
   esac
- done
+done <<EOF
+$staged_files
+EOF
 
 # Block PEM/OPENSSH private key content
 if git diff --cached --unified=0 | grep -E "BEGIN (OPENSSH|RSA|DSA|EC|PRIVATE) KEY" >/dev/null; then
