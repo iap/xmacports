@@ -1,110 +1,82 @@
 #!/bin/bash
-# Bash interactive shell configuration — primary shell
-# Requires bash 4.0+ (install via: sudo port install bash)
 
-# Warn on outdated system bash (macOS ships 3.2)
-if [[ -n "$BASH_VERSION" ]]; then
-    _bash_major="${BASH_VERSION%%.*}"
-    if [[ "$_bash_major" -lt 4 ]]; then
-        echo "Warning: bash $BASH_VERSION is outdated. Install bash 5: sudo port install bash" >&2
-    fi
-    unset _bash_major
-fi
-
-# Source shared profile (env, PATH, XDG, GPG, etc.)
-if [ -f "$HOME/.profile" ]; then
-    source "$HOME/.profile"
-fi
-
-# ── History ──────────────────────────────────────────────────────────────────
+# History
 export HISTCONTROL=ignoredups:erasedups
 export HISTTIMEFORMAT="%s "
 export HISTSIZE=10000
 export HISTFILESIZE=10000
-export HISTFILE="$HOME/.bash_history"
+export HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/bash/history"
+mkdir -p "$(dirname "$HISTFILE")"
 shopt -s histappend
 
-# ── Shell options (bash 4+) ───────────────────────────────────────────────────
+# Shell Options
 shopt -s autocd 2>/dev/null
 shopt -s globstar 2>/dev/null
 shopt -s checkwinsize 2>/dev/null
-shopt -s cdspell 2>/dev/null
 
-# ── Shared functions and aliases ──────────────────────────────────────────────
-if [ -f "$HOME/.dotfiles/shared/functions.sh" ]; then
-    source "$HOME/.dotfiles/shared/functions.sh"
-fi
-if [ -f "$HOME/.dotfiles/shared/aliases.sh" ]; then
-    source "$HOME/.dotfiles/shared/aliases.sh"
+# Load Unified Platform Configuration
+if [[ -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
+    source "$HOME/.dotfiles/.config/env.d/platform.sh"
 fi
 
-# ── Foundry wrappers ─────────────────────────────────────────────────────────
-if [ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]; then
+# Load Shared Functions
+for f in functions.sh aliases.sh; do
+    [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
+done
+
+# Load Optional Tools
+# mise (development tool manager)
+if has_cmd mise 2>/dev/null; then eval "$(mise activate bash)" 2>/dev/null || true; fi
+
+# Foundry wrappers
+if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
     source "$HOME/.dotfiles/.config/env.d/foundry.sh"
 fi
 
-# ── Prompt ───────────────────────────────────────────────────────────────────
+# Prompt
 if [[ -t 1 ]]; then
-    RED=$'\e[0;31m'
-    GREEN=$'\e[0;32m'
-    YELLOW=$'\e[0;33m'
-    CYAN=$'\e[0;36m'
-    RESET=$'\e[0m'
-
-    # Git info with per-directory cache (5s TTL), same logic as ZSH prompt
+    RED=$'\e[0;31m' GREEN=$'\e[0;32m' YELLOW=$'\e[0;33m' CYAN=$'\e[0;36m' RESET=$'\e[0m'
+    
     _git_prompt_cache=""
     _git_prompt_last_pwd=""
     _git_prompt_last_time=0
-
+    
     _git_prompt() {
-        local now
-        now=$(date +%s)
-        if [[ "$PWD" != "$_git_prompt_last_pwd" || $((now - _git_prompt_last_time)) -gt 5 ]]; then
+        local now=$(date +%s)
+        local cache_file="${XDG_CACHE_HOME:-$HOME/.cache}/shell/git_status_${PWD//\//_}"
+        local cache_timeout="${GIT_PROMPT_CACHE_TIMEOUT:-5}"
+        if [[ "$PWD" != "$_git_prompt_last_pwd" ]] || [[ $((now - _git_prompt_last_time)) -gt $cache_timeout ]]; then
             _git_prompt_last_pwd="$PWD"
             _git_prompt_last_time=$now
-            local branch mark=""
-            branch=$(git symbolic-ref --short HEAD 2>/dev/null)
+            local branch=$(git symbolic-ref --short HEAD 2>/dev/null) mark=""
+            [[ -n "$branch" ]] && { git diff --quiet 2>/dev/null || mark="±"; [[ -z "$mark" ]] && { git diff --cached --quiet 2>/dev/null || mark="+"; }; }
             if [[ -n "$branch" ]]; then
-                git diff --quiet 2>/dev/null || mark="±"
-                [[ -z "$mark" ]] && { git diff --cached --quiet 2>/dev/null || mark="+"; }
                 _git_prompt_cache=" ${YELLOW}(${branch}${mark})${RESET}"
             else
                 _git_prompt_cache=""
             fi
+            echo "$_git_prompt_cache" > "$cache_file" 2>/dev/null
         fi
         echo "$_git_prompt_cache"
     }
-
-    # Short pwd: replace $HOME with ~, truncate if > 25 chars
+    
     _short_pwd() {
-        local p="${PWD/#$HOME/\~}"
-        if [[ ${#p} -gt 25 ]]; then
-            echo "...${p: -25}"
-        else
-            echo "$p"
-        fi
+        local p="${PWD/#$HOME/~}"
+        [[ ${#p} -gt 25 ]] && echo "...${p: -25}" || echo "$p"
     }
-
-    # Build PS1 dynamically via PROMPT_COMMAND to capture $?
-    # Preserve any existing PROMPT_COMMAND (e.g. Apple Terminal's update_terminal_cwd)
+    
     _build_prompt() {
-        local last_exit=$?
+        local exit_code=$?
         local exit_prefix=""
-        [[ $last_exit -ne 0 ]] && exit_prefix="${RED}[${last_exit}]${RESET} "
+        [[ $exit_code -ne 0 ]] && exit_prefix="${RED}[${exit_code}]${RESET} "
         PS1="${exit_prefix}${CYAN}\$(_short_pwd)${RESET}\$(_git_prompt) ${GREEN}❯${RESET} "
     }
-
-    PROMPT_COMMAND="_build_prompt${PROMPT_COMMAND:+; $PROMPT_COMMAND}"
+    
+    PROMPT_COMMAND="_build_prompt${PROMPT_COMMAND:+; ${PROMPT_COMMAND}}"
 fi
 
-# ── Completion ────────────────────────────────────────────────────────────────
-if [[ -f /opt/local/etc/profile.d/bash_completion.sh ]]; then
-    source /opt/local/etc/profile.d/bash_completion.sh
-elif [[ -f /usr/share/bash-completion/bash_completion ]]; then
-    source /usr/share/bash-completion/bash_completion
-fi
+# Completion
+[[ -f /opt/local/etc/profile.d/bash_completion.sh ]] && source /opt/local/etc/profile.d/bash_completion.sh 2>/dev/null || true
 
-# ── Local overrides ───────────────────────────────────────────────────────────
-if [ -f "$HOME/.bashrc.local" ]; then
-    source "$HOME/.bashrc.local"
-fi
+# Local Overrides
+[[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"

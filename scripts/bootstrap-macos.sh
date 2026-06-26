@@ -1,10 +1,8 @@
 #!/bin/bash
-# macOS-specific bootstrap steps
-# Called by bootstrap.sh on Darwin only
+# macOS bootstrap steps
 
-set -e
+set -eu
 
-# macOS version check (minimum 10.15)
 MACOS_VERSION="$(sw_vers -productVersion 2> /dev/null || echo 0)"
 MIN_MACOS_VERSION="10.15"
 
@@ -27,13 +25,11 @@ if ! _version_ge "$MACOS_VERSION" "$MIN_MACOS_VERSION"; then
   echo "Proceeding, but some features may not work."
 fi
 
-# Xcode Command Line Tools
 if ! xcode-select -p > /dev/null 2>&1; then
   echo "Xcode Command Line Tools not found. Installing..."
   xcode-select --install || true
 fi
 
-# MacPorts
 if ! command -v port > /dev/null 2>&1; then
   echo "⚠️  MacPorts not found."
   echo "Install from: https://www.macports.org/install.php"
@@ -46,7 +42,6 @@ else
   fi
 fi
 
-# Dependency warnings
 if ! command -v gpgconf > /dev/null 2>&1; then
   echo "⚠️  gpgconf not found. Install: sudo port install gnupg2"
 fi

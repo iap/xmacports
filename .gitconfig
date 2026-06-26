@@ -1,7 +1,15 @@
-# Simple Git Config for Terminal Usage
+# Include personal settings (load first for override priority)
+
+[include]
+    path = ~/.gitconfig.local
 
 [user]
-    # Personal settings in ~/.gitconfig.local
+	email = 6572003+iap@users.noreply.github.com
+	name = Iko
+	signingkey = 0x9166D30F6FE70F56
+
+[commit]
+	gpgsign = true
 
 [core]
     editor = nano
@@ -36,7 +44,6 @@
     default = simple
 
 [alias]
-    # Simple commands for terminal usage
     s = status --porcelain
     l = log --oneline -10
     b = branch
@@ -44,15 +51,9 @@
     c = commit -m
     d = diff
     
-    # Quick info
     info = log --oneline -1
     files = diff --name-only
     changes = status --porcelain
     
-    # Safe operations
     unstage = reset HEAD
     undo = reset --soft HEAD~1
-
-# Include personal settings
-[include]
-    path = ~/.gitconfig.local

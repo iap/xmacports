@@ -1,9 +1,5 @@
 #!/bin/sh
-# MacPorts pinentry fallback script for secure development environment
-# MacPorts-only approach per system rules - Homebrew disabled
-# Compatible with older macOS versions and different MacPorts configurations
-
-# MacPorts pinentry options
+# Pinentry fallback script
 
 # Try MacPorts pinentry-mac (GUI) - current installation location
 if [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ]; then
@@ -15,24 +11,19 @@ if [ -x "/opt/local/bin/pinentry-mac" ]; then
   exec "/opt/local/bin/pinentry-mac" "$@"
 fi
 
-# MacPorts terminal pinentry options (TTY required)
-# Skip curses/tty when no TTY is available (e.g. non-interactive terminals, scripts, pipes)
-# to avoid display glitches and broken password prompts.
 if [ -t 0 ]; then
-  # Try MacPorts pinentry-curses (terminal-based, always available)
+  # MacPorts terminal pinentry options (TTY required)
+  # Skip curses/tty when no TTY is available to avoid display glitches and broken password prompts
   if [ -x "/opt/local/bin/pinentry-curses" ]; then
     exec "/opt/local/bin/pinentry-curses" "$@"
   fi
 
-  # Try MacPorts pinentry-tty (minimal terminal interface)
+  # Try MacPorts pinentry-tty
   if [ -x "/opt/local/bin/pinentry-tty" ]; then
     exec "/opt/local/bin/pinentry-tty" "$@"
   fi
 fi
 
-# System fallback (legacy macOS)
-
-# Try system pinentry (older macOS versions, if available)
 if [ -x "/usr/bin/pinentry" ]; then
   exec "/usr/bin/pinentry" "$@"
 fi
