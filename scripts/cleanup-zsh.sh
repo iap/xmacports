@@ -1,10 +1,8 @@
 #!/bin/bash
-# ZSH cleanup script for development environment
-# Removes unused .zsh files while preserving essential ones
+# ZSH cleanup
 
-set -e
+set -eu
 
-# Logging setup
 CLEANUP_LOG="$HOME/.cache/logs/zsh-cleanup-$(date +%Y-%m-%d).log"
 mkdir -p "$(dirname "$CLEANUP_LOG")"
 
@@ -20,14 +18,12 @@ echo "ZSH Files Cleanup for Development Environment"
 echo "This will remove unused .zsh files while preserving essential ones"
 echo
 
-# Files to keep (essential)
 KEEP_FILES=(
   "$HOME/.zshrc"       # Current zshrc (symlink to dotfiles)
   "$HOME/.zprofile"    # Login shell profile
   "$HOME/.zsh_history" # Command history
 )
 
-# Files safe to remove (backups and templates)
 REMOVE_FILES=()
 while IFS= read -r -d '' f; do
   REMOVE_FILES+=("$f")
@@ -37,7 +33,6 @@ done < <(find "$HOME" -maxdepth 1 \( \
   -o -name '.zshrc.local.template' \
   \) -print0 2> /dev/null)
 
-# Check what we're keeping
 echo "Files to KEEP (essential):"
 for file in "${KEEP_FILES[@]}"; do
   if [[ -e "$file" ]]; then
@@ -61,7 +56,6 @@ for file in "${REMOVE_FILES[@]}"; do
   fi
 done
 
-# Handle .zcompdump (ZSH completion cache)
 echo
 echo "ZSH completion cache:"
 if [[ -f "$HOME/.zcompdump" ]]; then
@@ -70,7 +64,6 @@ else
   echo "  .zcompdump (not found)"
 fi
 
-# Handle .zsh_sessions (Terminal.app session data)
 echo
 echo "ZSH sessions directory:"
 if [[ -d "$HOME/.zsh_sessions" ]]; then
@@ -89,7 +82,6 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
   echo "Starting cleanup..."
 
-  # Remove backup and template files
   for file in "${REMOVE_FILES[@]}"; do
     if [[ -e "$file" ]]; then
       rm -f "$file"

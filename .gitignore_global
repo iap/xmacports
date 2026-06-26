@@ -1,5 +1,8 @@
-# Global gitignore for all projects
-# macOS specific files
+*.backup
+*.back
+*.bak
+*.bak.*
+
 .DS_Store
 .DS_Store?
 ._*
@@ -8,31 +11,25 @@
 ehthumbs.db
 Thumbs.db
 
-# Editor files
 *~
 *.swp
 *.swo
 .vscode/
 .idea/
 
-# Compiled files
 *.o
 *.pyc
 *.class
 
-# Logs
 *.log
 
-# Temporary files
 *.tmp
 *.temp
 .cache/
 
-# Local configuration
 *.local
 .env
 
-# Private keys and keystores
 *.key
 id_rsa
 id_dsa

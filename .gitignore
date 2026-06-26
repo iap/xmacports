@@ -1,23 +1,17 @@
-# Simple gitignore for dotfiles
 # Protect sensitive information - never commit personal data
 *.local
 *.private
 *_local
 *_private
+bootstrap-private.sh
 
-# System files
-.DS_Store
-*.log
-*.tmp
-*.out
-*.o
-
-# Sensitive data patterns
 *password*
 *secret*
 *token*
 *credential*
 
-# Personal information
 personal/
 private/
+
+*.o
+*.out

@@ -1,5 +1,5 @@
-# Simple Makefile for dotfiles management
-# MacBook Air 2017 optimized
+# Makefile
+
 
 SHELL := $(shell command -v bash)
 
@@ -8,15 +8,10 @@ SHELL := $(shell command -v bash)
 
 .PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt check schedule-cleanup unschedule-cleanup switch-shell help
 
-# Default target
-all: bootstrap
-
-# Bootstrap dotfiles
 bootstrap:
 	@echo "Bootstrapping dotfiles..."
 	@./bootstrap.sh
 
-# Remove dotfiles symlinks
 clean:
 	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
 	@echo "Removing dotfiles symlinks..."
@@ -33,7 +28,6 @@ clean:
 	done
 	@echo "✅ Dotfiles removed"
 
-# Show installation status
 status:
 	@echo "Dotfiles Status:"
 	@echo ""
@@ -50,7 +44,6 @@ status:
 	@if [ -L "$$HOME/.vimrc" ]; then echo "✅ $$HOME/.vimrc -> $$(readlink "$$HOME/.vimrc")"; else echo "❌ $$HOME/.vimrc not linked"; fi
 	@if [ -L "$$HOME/.ssh/config" ]; then echo "✅ $$HOME/.ssh/config -> $$(readlink "$$HOME/.ssh/config")"; else echo "❌ $$HOME/.ssh/config not linked"; fi
 
-# Check compliance (includes home directory permissions)
 audit:
 	@set -e; \
 	echo "Dotfiles Audit:"; \
@@ -260,7 +253,6 @@ audit:
 		echo "⚠️  $$gnupg_dir missing"; \
 	fi
 
-# Test configuration syntax
 test:
 	@echo "Testing configurations..."
 	@zsh -n .zshrc && echo "✅ ZSH syntax OK" || echo "❌ ZSH syntax error"
@@ -270,54 +262,44 @@ test:
 	@for f in shared/*.sh; do bash -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
 
-# Shellcheck (lint shell scripts)
 shellcheck:
 	@echo "Running shellcheck..."
 	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install with: sudo port install shellcheck"; exit 1; }
 	@./scripts/shellcheck.sh
 
-# shfmt (format shell scripts)
 shfmt:
 	@echo "Running shfmt..."
 	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
 	@./scripts/shfmt.sh
 
-# shfmt check (no changes)
 shfmt-check:
 	@echo "Running shfmt check..."
 	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
 	@./scripts/shfmt.sh --check
 
-# Format (alias)
 fmt: shfmt
 
-# Check (format check + lint)
 check: shfmt-check shellcheck
 
-# Schedule cleanup (launchd/cron)
 schedule-cleanup:
 	@./scripts/install-cleanup-job.sh
 
-# Unschedule cleanup
 unschedule-cleanup:
 	@./scripts/uninstall-cleanup-job.sh
 
-# Lint (alias)
 lint: shellcheck
 
-# Run comprehensive test suite
 test-all:
 	@echo "Running comprehensive test suite..."
 	@./tests/run-tests.sh all
 
-# Run specific test types
 test-functions:
 	@./tests/run-tests.sh functions
 
 test-compliance:
 	@./tests/run-tests.sh compliance
 
-# Switch login shell — toggles between platform default and bash 5
+# Switch login shell between bash 5 and zsh
 # macOS default: /bin/zsh — bash: /opt/local/bin/bash (MacPorts)
 # Linux default: /bin/bash — zsh: $(command -v zsh)
 switch-shell:
@@ -341,7 +323,6 @@ switch-shell:
 	grep -qF "$$TARGET" /etc/shells || { echo "Adding $$TARGET to /etc/shells..."; sudo sh -c "echo $$TARGET >> /etc/shells"; }; \
 	chsh -s "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."
 
-# Show help
 help:
 	@echo "Available targets:"
 	@echo "  bootstrap         - Bootstrap dotfiles (default)"

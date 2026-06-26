@@ -13,7 +13,7 @@ Load order for bash:
 ```
 /etc/profile → ~/.profile → ~/.bashrc
                     ↓
-            .config/env.d/default.sh   (env, PATH, GPG)
+            .config/env.d/platform.sh   (env, PATH, GPG)
             shared/functions.sh        (cross-shell functions)
             shared/aliases.sh          (cross-shell aliases)
 ```
@@ -22,7 +22,7 @@ Load order for zsh:
 ```
 ~/.zprofile → ~/.zshrc
                   ↓
-          .zshrc.d/env.sh        (loads default.sh)
+          .zshrc.d/env.sh        (loads platform.sh)
           shared/functions.sh    (cross-shell functions)
           shared/aliases.sh      (cross-shell aliases)
           .zshrc.d/prompt.sh     (zsh-only prompt)
@@ -34,7 +34,7 @@ Load order for zsh:
 $HOME/.dotfiles/
 ├── .config/
 │   ├── env.d/
-│   │   ├── default.sh        # Shared env: PATH, XDG, GPG, MAKEFLAGS
+│   │   ├── platform.sh        # Shared env: PATH, XDG, GPG, MAKEFLAGS
 │   │   └── foundry.sh        # Foundry wrappers (forge, cast, anvil)
 │   ├── gpg/
 │   │   ├── gpg.conf          # GPG settings (600)
@@ -51,7 +51,6 @@ $HOME/.dotfiles/
 │   └── prompt.sh             # ZSH-only prompt
 ├── bin/
 │   ├── pinentry-fallback     # Resolves pinentry-mac or curses
-│   ├── with-foundry-libs     # Scopes DYLD_LIBRARY_PATH for Foundry
 │   ├── system-info           # System info script
 │   └── update                # Update helper
 ├── scripts/
@@ -62,9 +61,8 @@ $HOME/.dotfiles/
 │   ├── shfmt.sh
 │   └── compliance-check.sh
 ├── tests/
-│   ├── run-tests.sh
-│   └── test-functions.sh
-├── examples/                 # Config templates (copy and edit)
+│   ├── verify-dotfiles.sh    # Cross-platform environment verification
+├── templates/                 # Config templates (copy and edit)
 ├── .githooks/
 │   └── pre-commit            # Blocks secrets and private keys
 ├── .bashrc                   # Bash interactive config
@@ -104,9 +102,9 @@ These files are gitignored — safe for personal/private settings:
 | `~/.ssh/config.local` | Host-specific SSH entries |
 
 ```bash
-cp examples/gitconfig-local-example  "$HOME/.gitconfig.local"
-cp examples/profile-local-example    "$HOME/.profile.local"
-cp examples/zshrc-local-example      "$HOME/.zshrc.local"
+cp templates/gitconfig-local-example  "$HOME/.gitconfig.local"
+cp templates/profile-local-example    "$HOME/.profile.local"
+cp templates/zshrc-local-example      "$HOME/.zshrc.local"
 ```
 
 ## Private Overlay (Keybase)
@@ -152,8 +150,8 @@ Secrets are **never exported as environment variables at shell startup**. They a
 
 ### Store a secret
 ```bash
-secret_set github-token ghp_xxxxxxxxxxxx
-secret_set npm-token    npm_xxxxxxxxxxxx
+secret_set github-token ***
+secret_set npm-token    ***
 ```
 
 ### Use a secret once
@@ -206,12 +204,7 @@ unlock_gpg
 
 ## Foundry (Ethereum)
 
-`DYLD_LIBRARY_PATH` is never set globally. Instead, `forge`, `cast`, and `anvil` are wrapped to scope it per-invocation:
-
-```bash
-# Confirm wrapper is active
-$HOME/.dotfiles/bin/with-foundry-libs env | grep '^DYLD_LIBRARY_PATH='
-```
+`DYLD_LIBRARY_PATH` is never set globally. Instead, `forge`, `cast`, and `anvil` are wrapped to scope it per-invocation from `platform.sh` when on macOS MacPorts.
 
 ## Cleanup Job
 
@@ -240,7 +233,7 @@ time zsh -i -c exit
 ```bash
 echo $PATH | grep /opt/local
 # Should show /opt/local/bin early in PATH
-# If missing, check ~/.profile sources default.sh
+# If missing, check ~/.profile sources platform.sh
 ```
 
 **Permission errors**

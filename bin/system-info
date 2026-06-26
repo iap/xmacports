@@ -1,8 +1,7 @@
 #!/bin/bash
-# System information script for development environment
-# Follows system rules for minimal, readable output
+# System information
 
-set -e
+set -eu
 
 echo "Development Environment System Information"
 echo "Date: $(date)"

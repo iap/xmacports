@@ -1,7 +1,5 @@
 #!/bin/bash
-# Shell startup benchmark
-
-set -e
+set -eu
 
 benchmark_shell() {
   local shell="$1"

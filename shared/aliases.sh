@@ -1,10 +1,10 @@
 #!/bin/bash
-# Shared aliases — bash 4+ and zsh compatible
+# Shared aliases
 
-# Essential navigation
+set -u
+
 alias ..='cd ..'
 
-# Package manager essentials (platform-aware)
 if [ "$(uname -s)" = "Darwin" ]; then
   alias install='sudo port install'
   alias update='sudo port selfupdate && sudo port upgrade outdated'
@@ -19,12 +19,10 @@ elif command -v pacman > /dev/null 2>&1; then
   alias update='sudo pacman -Syu'
 fi
 
-# Git essentials
 alias gs='git status'
 alias ga='git add'
 alias gc='git commit'
 
-# Homebrew protection (macOS only)
 if [ "$(uname -s)" = "Darwin" ]; then
   brew() {
     echo "Use MacPorts instead: port install <package>"
@@ -32,26 +30,24 @@ if [ "$(uname -s)" = "Darwin" ]; then
   }
 fi
 
-# Context and status
 alias where='echo "DIR: $(basename "$(pwd)")" && echo "PATH: $(pwd)" && echo "FILES: $(ls -1 | wc -l | tr -d " ")"'
 alias status='echo "PWD: $(pwd)" && echo "DATE: $(date "+%Y-%m-%d %H:%M:%S")" && git rev-parse --git-dir >/dev/null 2>&1 && echo "GIT: $(git branch --show-current) ($(git status --porcelain | wc -l | tr -d " ") changes)" || true'
 
-# File operations
 alias lsf='ls -1'
 alias count='ls -1 | wc -l | tr -d " "'
 
 tree() {
-  if command -v gfind > /dev/null 2>&1; then
+  if command -v tree > /dev/null 2>&1; then
+    command tree "$@"
+  elif command -v gfind > /dev/null 2>&1; then
     gfind . -type d -maxdepth 3 | head -15
   else
     find . -type d | head -15
   fi
 }
 
-# Git info
 alias gitinfo='git branch --show-current 2>/dev/null && git status --porcelain 2>/dev/null | wc -l | tr -d " " && echo "changes"'
 
-# System info (platform-aware)
 if [ "$(uname -s)" = "Darwin" ]; then
   alias sysinfo='echo "macOS: $(sw_vers -productVersion)" && echo "Shell: $SHELL" && echo "MacPorts: $(port version 2>/dev/null | head -1 || echo "not bootstrapped")"'
 else

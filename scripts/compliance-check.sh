@@ -1,8 +1,7 @@
 #!/bin/bash
-# System rules compliance checker
-# Validates dotfiles against development environment requirements
+# Compliance checker
 
-set -e
+set -eu
 
 COMPLIANCE_LOG="$HOME/.cache/logs/compliance-$(date +%Y-%m-%d).log"
 mkdir -p "$(dirname "$COMPLIANCE_LOG")"
@@ -17,7 +16,6 @@ log_check() {
 
 echo "System Rules Compliance Check"
 
-# Check required shell profiles
 for profile in .profile .bashrc .zshrc .zprofile; do
   if [[ -f "$HOME/.dotfiles/$profile" ]]; then
     log_check "PASS" "Required profile $profile exists"
@@ -42,7 +40,6 @@ if [[ "$(uname -s)" == "Darwin" ]]; then
   fi
 fi
 
-# Check XDG compliance
 for dir in .config .local/share .cache .local/state; do
   if [[ -d "$HOME/$dir" ]]; then
     log_check "PASS" "XDG directory $dir exists"
@@ -51,9 +48,6 @@ for dir in .config .local/share .cache .local/state; do
   fi
 done
 
-# Check dynamic path resolution in scripts
-# Only check shell scripts, exclude documentation and examples
-# Look for actual hardcoded paths, not variables or fallback patterns
 if grep -r --include="*.sh" --include="*.zsh" --exclude-dir=.git --exclude-dir=examples \
   -E "^[^#=]*=[^$]*/(Users|home)/[a-zA-Z0-9_-]+[^)]|^[^#]*/(Users|home)/[a-zA-Z0-9_-]+" \
   "$HOME/.dotfiles/" | grep -v "echo '/opt/local'" | grep -v "sed 's|" > /dev/null 2>&1; then
