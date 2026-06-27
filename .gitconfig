@@ -3,10 +3,11 @@
 [include]
     path = ~/.gitconfig.local
 
-[user]
-	email = 6572003+iap@users.noreply.github.com
-	name = Iko
-	signingkey = 0x9166D30F6FE70F56
+# Sample configuration - override in ~/.gitconfig.local
+# [user]
+#     name = Your Name
+#     email = your.email@example.tld
+#     signingkey = 0xYOURGPGKEY
 
 [commit]
 	gpgsign = true
