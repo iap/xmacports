@@ -63,7 +63,7 @@ echo "✅ Dotfiles bootstrapped successfully!"
 echo "🔄 Restart your shell or run: source ~/.bashrc"
 
 # Local config hints
-[[ ! -f "$HOME/.bashrc.local" ]] && echo "💡 Create ~/.bashrc.local for personal bash settings"
-[[ ! -f "$HOME/.zshrc.local" ]] && echo "💡 Create ~/.zshrc.local for personal zsh settings"
-[[ ! -f "$HOME/.gitconfig.local" ]] && echo "💡 Create ~/.gitconfig.local with your git user info"
-[[ ! -f "$HOME/.forward.local" ]] && echo "💡 Create ~/.forward.local for private mail forwarding"
+[[ ! -f "$HOME/.bashrc.local" ]] && echo "💡 Create ~/.bashrc.local for personal bash settings" || true
+[[ ! -f "$HOME/.zshrc.local" ]] && echo "💡 Create ~/.zshrc.local for personal zsh settings" || true
+[[ ! -f "$HOME/.gitconfig.local" ]] && echo "💡 Create ~/.gitconfig.local with your git user info" || true
+[[ ! -f "$HOME/.forward.local" ]] && echo "💡 Create ~/.forward.local for private mail forwarding" || true
