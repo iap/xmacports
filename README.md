@@ -50,10 +50,13 @@ It does not install system packages.
 
 ## Local Overrides
 
-Use local override files for machine-specific or private settings:
+Use local override files for machine-specific or private settings. Templates are available in `templates/` and additional examples in `examples/`:
 
 ```bash
+# Required for most users
 cp templates/profile-local.example    "$HOME/.profile.local"
+
+# Optional overrides (copy from examples/)
 cp examples/gitconfig-local-example   "$HOME/.gitconfig.local"
 cp examples/forward-local-example     "$HOME/.forward.local"
 cp examples/zshrc-local-example       "$HOME/.zshrc.local"

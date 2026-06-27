@@ -76,6 +76,25 @@ check "zsh env loader survives set -u" zsh -c '
   set -u
   source "'"$DOTFILES"'/.zshrc.d/env.sh"
 '
+check "platform loader dedupes PATH" bash --noprofile --norc -c '
+  set -u
+  PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
+  export PATH
+  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+  count=$(printf "%s" "$PATH" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
+  [ "$count" -eq 0 ]
+'
+check "platform loader discovers /opt/local/bin gpg when present" bash --noprofile --norc -c '
+  set -u
+  PATH="/usr/bin:/bin"
+  export PATH
+  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+  if [ -x /opt/local/bin/gpg ]; then
+    command -v gpg | grep -qx /opt/local/bin/gpg
+  else
+    command -v gpg >/dev/null 2>&1
+  fi
+'
 echo
 
 echo "4. Symlinks (requires make bootstrap)"
