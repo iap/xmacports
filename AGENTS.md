@@ -2,7 +2,7 @@
 
 ## Role
 
-This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git, SSH, GPG, editor config, and small helper scripts. Keep it file-based. Do not turn it into a package-manager or provisioning system.
+This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git, SSH, GPG, editor config, and small helper scripts. Keep it file-based. Do not turn it into a package-manager or provisioning system. Keep private secrets out of git. Keep the repo small, clear, and reviewable.
 
 ## Precedence
 

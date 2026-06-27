@@ -104,12 +104,8 @@ for dir in \
     "$HOME/bin" \
     "$HOME/.local/bin" \
     "${FOUNDRY_BIN_PATH:-}" \
-    "${HOME}/.nix-profile/bin" \
-    "/nix/var/nix/profiles/default/bin" \
     "/usr/local/bin" \
     "/usr/local/sbin" \
-    "/opt/local/bin" \
-    "/opt/local/sbin" \
     "/usr/bin" \
     "/bin" \
     "/usr/sbin" \
