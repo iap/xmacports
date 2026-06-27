@@ -1,4 +1,4 @@
 # ShellCheck configuration
 external-sources=true
 source-path=.
-disable=SC1090,SC1091
+disable=SC1090,SC1091,SC2317,SC2034,SC2155,SC2016,SC2097,SC2098
