@@ -24,8 +24,8 @@ for f in functions.sh aliases.sh; do
     [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
 done
 
-# Load Optional Tools
-# mise (development tool manager)
+# Optional developer tool manager.
+# If `mise` exists, activate its shims; otherwise continue silently.
 if has_cmd mise 2>/dev/null; then eval "$(mise activate bash)" 2>/dev/null || true; fi
 
 # Foundry wrappers

@@ -9,11 +9,15 @@ This repo is organized around a small number of clear responsibilities:
 - `.bash_profile` and `.zprofile` load `.profile`
 - `.bashrc` and `.zshrc` load the shared interactive environment
 - `.config/env.d/platform.sh` holds shared environment defaults
+- `.config/env.d/foundry.sh` provides optional Ethereum development wrappers
 - `shared/functions.sh` and `shared/aliases.sh` expose cross-shell helpers
+- `.zshrc.d/prompt.sh` provides zsh-specific prompt formatting
 - `bin/` contains small user-facing helper executables
 - `scripts/` contains verification, maintenance, and cleanup helpers
 
 The repo does not automate package installation. It assumes required tools are installed manually.
+
+`mise` is supported as an optional per-user developer tool manager for language runtimes and shims, but it is not part of bootstrap or system provisioning.
 
 ## Shell Load Order
 
@@ -31,13 +35,24 @@ The repo does not automate package installation. It assumes required tools are i
 
 ### Shared interactive layer
 
-Both shells ultimately load:
+Both shells load shared configuration:
 
 ```text
+# .bashrc loads directly:
 .config/env.d/platform.sh
+.config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
+
+# .zshrc loads via .zshrc.d/env.sh:
+.zshrc.d/env.sh       -> .config/env.d/platform.sh
+.config/env.d/foundry.sh
+shared/functions.sh
+shared/aliases.sh
+.zshrc.d/prompt.sh
 ```
+
+Both shells now consistently load foundry.sh if available. `.zshrc.d/env.sh` provides intermediate loading with duplicate protection for platform.sh.
 
 ## Environment Rules
 
@@ -50,6 +65,7 @@ shared/aliases.sh
 - optional Foundry path discovery
 - default editor and locale values
 - privacy-oriented telemetry defaults
+- optional `mise`-driven shim activation when `mise` is already installed
 
 It must remain safe to source more than once and safe under `set -u`.
 
@@ -62,6 +78,10 @@ $HOME/.dotfiles/
 ├── .profile
 ├── .zprofile
 ├── .zshrc
+├── .forward
+├── .zshrc.d/
+│   ├── env.sh
+│   └── prompt.sh
 ├── .config/
 │   ├── env.d/
 │   │   ├── platform.sh
@@ -74,10 +94,25 @@ $HOME/.dotfiles/
 │   └── vim/
 │       └── vimrc
 ├── shared/
+│   ├── functions.sh
+│   └── aliases.sh
 ├── bin/
+│   ├── pinentry-fallback
+│   ├── system-info
+│   └── update
 ├── scripts/
+│   ├── bootstrap-macos.sh
+│   ├── compliance-check.sh
+│   └── cleanup-*.sh
 ├── templates/
+│   ├── profile-local.example
+│   └── server-profile.example
 └── examples/
+    ├── gitconfig-local-example
+    ├── forward-local-example
+    ├── zshrc-local-example
+    ├── vimrc-local-example
+    └── ssh-config-example
 ```
 
 ## Bootstrap Behavior

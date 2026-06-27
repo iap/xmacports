@@ -1,4 +1,5 @@
 #!/bin/zsh
+# ZSH Profile - shell entrypoint
 
 if [[ -f "$HOME/.profile" ]]; then
     source "$HOME/.profile"
@@ -6,6 +7,11 @@ fi
 
 if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
     source "$HOME/.dotfiles/.zshrc.d/env.sh"
+fi
+
+# Foundry wrappers (consistent with bash)
+if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
+    source "$HOME/.dotfiles/.config/env.d/foundry.sh"
 fi
 
 for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
@@ -63,7 +69,8 @@ if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; the
     fi
 fi
 
-# mise (dev tools version manager)
+# Optional developer tool manager.
+# If `mise` exists, activate its shims; otherwise continue silently.
 if command -v mise &>/dev/null; then
     eval "$(mise activate zsh)"
 fi
