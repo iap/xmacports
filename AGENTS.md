@@ -45,6 +45,7 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - It is fine to print manual install guidance when a tool is missing.
 - Keep docs honest about prerequisites.
 - If a required tool is absent, fail clearly and early.
+- `mise` is allowed as an opt-in per-user tool manager for developer runtimes and shims, but it must remain optional and must not be used to provision the base dotfiles environment.
 
 ## Cursor Plans
 
