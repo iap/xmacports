@@ -12,7 +12,16 @@ if [[ "${1:-}" == "--check" ]]; then
 fi
 
 files=(
+  ".bash_profile"
+  ".bashrc"
   "bootstrap.sh"
+  ".config/env.d/foundry.sh"
+  ".config/env.d/platform.sh"
+  ".profile"
+  ".zprofile"
+  ".zshrc"
+  ".zshrc.d/env.sh"
+  ".zshrc.d/prompt.sh"
   "shared/functions.sh"
   "shared/aliases.sh"
   "bin/pinentry-fallback"

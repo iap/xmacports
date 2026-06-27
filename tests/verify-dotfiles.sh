@@ -1,7 +1,8 @@
 #!/bin/bash
 set -eu
 
-source "$HOME/.dotfiles/.config/env.d/platform.sh"
+DOTFILES_ROOT="${DOTFILES_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+source "$DOTFILES_ROOT/.config/env.d/platform.sh"
 
 FAILED=0
 
@@ -21,21 +22,10 @@ fi
 echo ""
 echo "2. False Positive Prevention"
 
-# Test that read-only /opt/local doesn't trigger MacPorts on Linux
 if is_linux; then
-    echo "   - MacPorts guard: Testing read-only path detection..."
-    if [[ -d "/opt/local" ]] && [[ ! -w "/opt/local" ]]; then
-      if [[ -z "${MACPORTS_PREFIX:-}" ]] || [[ "$MACPORTS_PREFIX" != "/opt/local" ]]; then
-            echo "   - PASS: Read-only /opt/local ignored correctly"
-        else
-            echo "   - FAIL: Read-only /opt/local incorrectly activated"
-            ((FAILED++))
-        fi
-    else
-        echo "   - SKIP: /opt/local writable or missing (not applicable)"
-    fi
+    echo "   - SKIP: package-manager path checks removed"
 else
-    echo "   - SKIP: macOS platform (MacPorts not guarded by read-only check)"
+    echo "   - SKIP: macOS-specific package-manager checks removed"
 fi
 
 echo ""

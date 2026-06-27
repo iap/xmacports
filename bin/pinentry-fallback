@@ -1,39 +1,27 @@
 #!/bin/sh
 # Pinentry fallback script
 
-# Try MacPorts pinentry-mac (GUI) - current installation location
-if [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ]; then
-  exec "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" "$@"
-fi
-
-# Try MacPorts pinentry-mac (older installation pattern)
-if [ -x "/opt/local/bin/pinentry-mac" ]; then
-  exec "/opt/local/bin/pinentry-mac" "$@"
+# Try GUI pinentry if available
+if command -v pinentry-mac >/dev/null 2>&1; then
+  exec pinentry-mac "$@"
 fi
 
 if [ -t 0 ]; then
-  # MacPorts terminal pinentry options (TTY required)
-  # Skip curses/tty when no TTY is available to avoid display glitches and broken password prompts
-  if [ -x "/opt/local/bin/pinentry-curses" ]; then
-    exec "/opt/local/bin/pinentry-curses" "$@"
+  # Prefer a terminal pinentry when running in a TTY.
+  if command -v pinentry-curses >/dev/null 2>&1; then
+    exec pinentry-curses "$@"
   fi
 
-  # Try MacPorts pinentry-tty
-  if [ -x "/opt/local/bin/pinentry-tty" ]; then
-    exec "/opt/local/bin/pinentry-tty" "$@"
+  if command -v pinentry-tty >/dev/null 2>&1; then
+    exec pinentry-tty "$@"
   fi
 fi
 
-if [ -x "/usr/bin/pinentry" ]; then
-  exec "/usr/bin/pinentry" "$@"
+if command -v pinentry >/dev/null 2>&1; then
+  exec pinentry "$@"
 fi
 
 # Error handling
 echo "ERROR: No pinentry program available." >&2
-echo "" >&2
-echo "This dotfiles setup requires MacPorts pinentry." >&2
-echo "Bootstrap with: sudo port install pinentry-mac" >&2
-echo "" >&2
-echo "Note: This setup intentionally avoids Homebrew per system rules." >&2
-echo "For legacy hardware compatibility, MacPorts is preferred." >&2
+echo "Install a pinentry program and make it available on PATH." >&2
 exit 1

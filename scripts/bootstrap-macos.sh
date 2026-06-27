@@ -26,27 +26,16 @@ if ! _version_ge "$MACOS_VERSION" "$MIN_MACOS_VERSION"; then
 fi
 
 if ! xcode-select -p > /dev/null 2>&1; then
-  echo "Xcode Command Line Tools not found. Installing..."
-  xcode-select --install || true
-fi
-
-if ! command -v port > /dev/null 2>&1; then
-  echo "⚠️  MacPorts not found."
-  echo "Install from: https://www.macports.org/install.php"
-  echo "Then run: sudo port selfupdate"
-else
-  if ! port installed coreutils 2> /dev/null | grep -q "coreutils"; then
-    echo "Installing coreutils via MacPorts..."
-    sudo port selfupdate
-    sudo port install coreutils
-  fi
+  echo "Xcode Command Line Tools not found."
+  echo "Install them manually with: xcode-select --install"
 fi
 
 if ! command -v gpgconf > /dev/null 2>&1; then
-  echo "⚠️  gpgconf not found. Install: sudo port install gnupg2"
+  echo "⚠️  gpgconf not found. Install GnuPG manually."
 fi
-if ! [ -x "/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac" ] &&
-  ! command -v pinentry-mac > /dev/null 2>&1 &&
-  ! command -v pinentry-curses > /dev/null 2>&1; then
-  echo "⚠️  pinentry not found. Install: sudo port install pinentry-mac"
+if ! command -v pinentry-mac > /dev/null 2>&1 &&
+  ! command -v pinentry-curses > /dev/null 2>&1 &&
+  ! command -v pinentry-tty > /dev/null 2>&1 &&
+  ! command -v pinentry > /dev/null 2>&1; then
+  echo "⚠️  pinentry not found. Install a pinentry program manually."
 fi

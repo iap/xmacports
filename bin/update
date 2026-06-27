@@ -1,6 +1,11 @@
 #!/bin/bash
-# MacPorts update
-echo "Updating MacPorts..."
-sudo port selfupdate
-sudo port upgrade outdated
-echo "Done!"
+# Update helper
+
+set -eu
+
+echo "This dotfiles repository does not manage package installations."
+echo "Use your platform's documented maintenance workflow for system tools."
+echo "Dotfiles maintenance targets:"
+echo "  make bootstrap"
+echo "  make test"
+echo "  make check"

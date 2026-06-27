@@ -12,17 +12,15 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-[[ -n "$DOTFILES_ENV_LOADED" ]] && return 0
+if [[ -n "${DOTFILES_ENV_LOADED:-}" ]]; then
+    return 0
+fi
 export DOTFILES_ENV_LOADED=1
 
-# MacPorts (macOS only, must be accessible)
-if is_macos && has_cmd port && [[ -w "/opt/local" ]]; then
-    export MACPORTS_PREFIX="$(command -v port | sed 's|/bin/port||')"
-    export CPPFLAGS="-I$MACPORTS_PREFIX/include"
-    export LDFLAGS="-L$MACPORTS_PREFIX/lib"
-fi
+unset MACPORTS_PREFIX CPPFLAGS LDFLAGS
 
 # Foundry (Ethereum - check both standard locations)
+unset FOUNDRY_BIN_PATH
 for foundry_path in "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin"; do
     if [[ -d "$foundry_path" ]] && [[ -r "$foundry_path" ]]; then
         export FOUNDRY_BIN_PATH="$foundry_path"
@@ -78,13 +76,7 @@ export NEXT_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
 export DISABLE_TELEMETRY=1 NO_UPDATE_NOTIFIER=1
 
 PATH_CLEAN="$HOME/bin:$HOME/.local/bin"
-if is_macos && [[ -n "$MACPORTS_PREFIX" ]] && [[ -d "$MACPORTS_PREFIX" ]]; then
-    # Add MacPorts paths without duplication
-    for mp_dir in "$MACPORTS_PREFIX/libexec/gnubin" "$MACPORTS_PREFIX/bin" "$MACPORTS_PREFIX/sbin"; do
-        [[ -d "$mp_dir" ]] && PATH_CLEAN="$mp_dir:$PATH_CLEAN"
-    done
-fi
-if [[ -n "$FOUNDRY_BIN_PATH" ]]; then
+if [[ -n "${FOUNDRY_BIN_PATH:-}" ]]; then
     PATH_CLEAN="$FOUNDRY_BIN_PATH:$PATH_CLEAN"
 fi
 for dir in /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
