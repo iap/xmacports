@@ -2,26 +2,26 @@
 # ZSH Profile - shell entrypoint
 
 if [[ -f "$HOME/.profile" ]]; then
-    source "$HOME/.profile"
+  source "$HOME/.profile"
 fi
 
 if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
-    source "$HOME/.dotfiles/.zshrc.d/env.sh"
+  source "$HOME/.dotfiles/.zshrc.d/env.sh"
 fi
 
 # Foundry wrappers (consistent with bash)
 if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
-    source "$HOME/.dotfiles/.config/env.d/foundry.sh"
+  source "$HOME/.dotfiles/.config/env.d/foundry.sh"
 fi
 
 for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
-    [[ -f "$_config_file" ]] && source "$_config_file"
+  [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
 
 for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
-    [[ "$(basename "$_config_file")" == "env.sh" ]] && continue
-    [[ -f "$_config_file" ]] && source "$_config_file"
+  [[ "$(basename "$_config_file")" == "env.sh" ]] && continue
+  [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
 
@@ -33,7 +33,7 @@ SAVEHIST=10000
 
 # ZSH options
 setopt AUTO_CD
-setopt NO_NOMATCH          # Pass unmatched globs through (fixes bare https:// URLs)
+setopt NO_NOMATCH # Pass unmatched globs through (fixes bare https:// URLs)
 setopt EXTENDED_GLOB
 setopt GLOB_DOTS
 setopt HIST_EXPIRE_DUPS_FIRST
@@ -62,17 +62,17 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
 
 # GPG verification (non-blocking)
-if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh >/dev/null; then
-    if mkdir -p "$DOTFILES_LOG_DIR" 2>/dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
-        verify_gpg_ssh >"$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
-        disown
-    fi
+if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh > /dev/null; then
+  if mkdir -p "$DOTFILES_LOG_DIR" 2> /dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
+    verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
+    disown
+  fi
 fi
 
 # Optional developer tool manager.
 # If `mise` exists, activate its shims; otherwise continue silently.
-if command -v mise &>/dev/null; then
-    eval "$(mise activate zsh)"
+if command -v mise &> /dev/null; then
+  eval "$(mise activate zsh)"
 fi
 
 # Local overrides

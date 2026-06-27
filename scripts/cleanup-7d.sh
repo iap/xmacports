@@ -94,9 +94,9 @@ fi
 # Shell prompt caches (zsh and bash)
 SHELL_CACHE_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/shell"
 if [ -d "$SHELL_CACHE_DIR" ]; then
-  old_caches=$(find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 2>/dev/null | wc -l | tr -d ' ')
+  old_caches=$(find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 2> /dev/null | wc -l | tr -d ' ')
   if [ "$old_caches" -gt 0 ]; then
-    find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 -delete 2>/dev/null || true
+    find "$SHELL_CACHE_DIR" -name 'git_status_*' -mtime +1 -delete 2> /dev/null || true
     log "Cleaned old prompt caches ($old_caches entries)"
   fi
 fi
