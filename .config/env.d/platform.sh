@@ -111,6 +111,7 @@ for dir in \
   "$HOME/bin" \
   "$HOME/.local/bin" \
   "${FOUNDRY_BIN_PATH:-}" \
+  "/opt/local/bin" \
   "/usr/local/bin" \
   "/usr/local/sbin" \
   "/usr/bin" \
