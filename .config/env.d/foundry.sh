@@ -8,13 +8,13 @@ _with_foundry_libs() {
     if [[ -d "$HOME/.foundry/lib" ]]; then
         if [[ "$(uname -s)" == "Darwin" ]]; then
             # macOS: use DYLD_FALLBACK_LIBRARY_PATH
-            (DYLD_FALLBACK_LIBRARY_PATH="$HOME/.foundry/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}" "$cmd" "$@")
+            (DYLD_FALLBACK_LIBRARY_PATH="$HOME/.foundry/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}" command "$cmd" "$@")
         else
             # Linux: use LD_LIBRARY_PATH
-            (LD_LIBRARY_PATH="$HOME/.foundry/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" "$cmd" "$@")
+            (LD_LIBRARY_PATH="$HOME/.foundry/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" command "$cmd" "$@")
         fi
     else
-        "$cmd" "$@"
+        command "$cmd" "$@"
     fi
 }
 
@@ -28,6 +28,6 @@ if [[ -d "$HOME/.foundry/bin" ]] && [[ -r "$HOME/.foundry/bin" ]]; then
 fi
 
 # Foundry functions - work with or without foundry installed
-forge()  { _with_foundry_libs command forge "$@" 2>/dev/null || command -v forge >/dev/null && forge "$@"; }
-cast()   { _with_foundry_libs command cast "$@" 2>/dev/null || command -v cast >/dev/null && cast "$@"; }
-anvil()  { _with_foundry_libs command anvil "$@" 2>/dev/null || command -v anvil >/dev/null && anvil "$@"; }
+forge() { _with_foundry_libs forge "$@"; }
+cast() { _with_foundry_libs cast "$@"; }
+anvil() { _with_foundry_libs anvil "$@"; }

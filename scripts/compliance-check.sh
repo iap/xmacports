@@ -3,8 +3,9 @@
 
 set -eu
 
-COMPLIANCE_LOG="$HOME/.cache/logs/compliance-$(date +%Y-%m-%d).log"
-mkdir -p "$(dirname "$COMPLIANCE_LOG")"
+LOG_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}/.cache/logs"
+COMPLIANCE_LOG="$LOG_ROOT/compliance-$(date +%Y-%m-%d).log"
+mkdir -p "$LOG_ROOT"
 
 log_check() {
   local status="$1"
@@ -16,28 +17,25 @@ log_check() {
 
 echo "System Rules Compliance Check"
 
+DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
+
 for profile in .profile .bashrc .zshrc .zprofile; do
-  if [[ -f "$HOME/.dotfiles/$profile" ]]; then
+  if [[ -f "$DOTFILES_ROOT/$profile" ]]; then
     log_check "PASS" "Required profile $profile exists"
   else
     log_check "FAIL" "Missing required profile $profile"
   fi
 done
 
-# Check MacPorts prefix (macOS only)
-if [[ "$(uname -s)" == "Darwin" ]]; then
-  MACPORTS_PREFIX="$(command -v port 2> /dev/null | sed 's|/bin/port||' || echo '/opt/local')"
-  if [[ "$PATH" =~ $MACPORTS_PREFIX ]]; then
-    log_check "PASS" "MacPorts prefix ($MACPORTS_PREFIX) in PATH"
-  else
-    log_check "FAIL" "MacPorts prefix ($MACPORTS_PREFIX) not found in PATH"
-  fi
-  # Check for Homebrew (should not exist on macOS with MacPorts)
-  if command -v brew > /dev/null 2>&1; then
-    log_check "WARN" "Homebrew found - should be disabled per system rules"
-  else
-    log_check "PASS" "Homebrew not found (compliant)"
-  fi
+if grep -r --include="*.sh" --include="*.zsh" --exclude="compliance-check.sh" --exclude-dir=.git --exclude-dir=examples \
+  -E 'sudo (port|apt-get|dnf|pacman)|command -v (port|brew)|sudo port|brew install|apt-get install|dnf install|pacman -S' \
+  "$DOTFILES_ROOT/" > /dev/null 2>&1; then
+  log_check "WARN" "Package-manager commands still exist in tracked scripts"
+  grep -r --include="*.sh" --include="*.zsh" --exclude="compliance-check.sh" --exclude-dir=.git --exclude-dir=examples \
+    -E 'sudo (port|apt-get|dnf|pacman)|command -v (port|brew)|sudo port|brew install|apt-get install|dnf install|pacman -S' \
+    "$DOTFILES_ROOT/" | head -5
+else
+  log_check "PASS" "No package-manager automation detected in tracked scripts"
 fi
 
 for dir in .config .local/share .cache .local/state; do
@@ -50,11 +48,11 @@ done
 
 if grep -r --include="*.sh" --include="*.zsh" --exclude-dir=.git --exclude-dir=examples \
   -E "^[^#=]*=[^$]*/(Users|home)/[a-zA-Z0-9_-]+[^)]|^[^#]*/(Users|home)/[a-zA-Z0-9_-]+" \
-  "$HOME/.dotfiles/" | grep -v "echo '/opt/local'" | grep -v "sed 's|" > /dev/null 2>&1; then
+  "$DOTFILES_ROOT/" | grep -v "sed 's|" > /dev/null 2>&1; then
   log_check "WARN" "Hardcoded paths found in scripts - should use dynamic resolution"
   grep -r --include="*.sh" --include="*.zsh" --exclude-dir=.git --exclude-dir=examples \
     -E "^[^#=]*=[^$]*/(Users|home)/[a-zA-Z0-9_-]+[^)]|^[^#]*/(Users|home)/[a-zA-Z0-9_-]+" \
-    "$HOME/.dotfiles/" | grep -v "echo '/opt/local'" | grep -v "sed 's|" 2> /dev/null | head -5
+    "$DOTFILES_ROOT/" | grep -v "sed 's|" 2> /dev/null | head -5
 else
   log_check "PASS" "No hardcoded paths detected in scripts"
 fi

@@ -1,5 +1,9 @@
 #!/bin/zsh
 
+if [[ -f "$HOME/.profile" ]]; then
+    source "$HOME/.profile"
+fi
+
 if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
     source "$HOME/.dotfiles/.zshrc.d/env.sh"
 fi

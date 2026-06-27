@@ -259,22 +259,24 @@ test:
 	@for f in .zshrc.d/*.sh; do zsh -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@bash -n .bashrc && echo "✅ Bash syntax OK" || echo "❌ Bash syntax error"
 	@bash -n .bash_profile && echo "✅ bash_profile syntax OK" || echo "❌ bash_profile syntax error"
+	@bash -n .profile && echo "✅ profile syntax OK" || echo "❌ profile syntax error"
+	@zsh -n .zprofile && echo "✅ zprofile syntax OK" || echo "❌ zprofile syntax error"
 	@for f in shared/*.sh; do bash -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
 	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
 
 shellcheck:
 	@echo "Running shellcheck..."
-	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install with: sudo port install shellcheck"; exit 1; }
+	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install it manually and ensure it is on PATH."; exit 1; }
 	@./scripts/shellcheck.sh
 
 shfmt:
 	@echo "Running shfmt..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually and ensure it is on PATH."; exit 1; }
 	@./scripts/shfmt.sh
 
 shfmt-check:
 	@echo "Running shfmt check..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install with: sudo port install shfmt"; exit 1; }
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually and ensure it is on PATH."; exit 1; }
 	@./scripts/shfmt.sh --check
 
 fmt: shfmt
@@ -297,10 +299,10 @@ test-functions:
 	@./tests/run-tests.sh functions
 
 test-compliance:
-	@./tests/run-tests.sh compliance
+	@./scripts/compliance-check.sh
 
 # Switch login shell between bash 5 and zsh
-# macOS default: /bin/zsh — bash: /opt/local/bin/bash (MacPorts)
+# macOS default: /bin/zsh — bash is discovered on PATH
 # Linux default: /bin/bash — zsh: $(command -v zsh)
 switch-shell:
 	@OS=$$(uname -s); \
@@ -309,8 +311,8 @@ switch-shell:
 	if [ "$$OS" = "Darwin" ]; then \
 		case "$$CURRENT" in \
 			*zsh*) \
-				command -v /opt/local/bin/bash >/dev/null 2>&1 || { echo "❌ bash 5 not found. Run: sudo port install bash"; exit 1; }; \
-				TARGET=/opt/local/bin/bash ;; \
+				command -v bash >/dev/null 2>&1 || { echo "❌ bash not found on PATH"; exit 1; }; \
+				TARGET=$$(command -v bash) ;; \
 			*) TARGET=/bin/zsh ;; \
 		esac; \
 	else \

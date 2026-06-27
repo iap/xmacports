@@ -4,6 +4,10 @@
 set -u
 
 mkcd() {
+  [ $# -ge 1 ] || {
+    echo "Usage: mkcd <dir>" >&2
+    return 1
+  }
   mkdir -p "$1" && cd "$1" || return
 }
 
@@ -20,7 +24,7 @@ verify_gpg_ssh() {
     log_warn "GPG not found, SSH authentication may not work"
     return 1
   fi
-  if [ ! -S "$SSH_AUTH_SOCK" ]; then
+  if [ -z "${SSH_AUTH_SOCK:-}" ] || [ ! -S "$SSH_AUTH_SOCK" ]; then
     log_warn "GPG agent SSH socket not available"
     return 1
   fi
@@ -110,7 +114,8 @@ unlock_gpg() {
 # Fetch a secret by key from Keybase kvstore (value encrypted, key name visible)
 # Usage: secret <key> [namespace]
 _secret_kvstore() {
-  local key="$1" ns="${2:-dotfiles}"
+  local key="${1:-}" ns="${2:-dotfiles}"
+  [ -n "$key" ] || return 1
   if ! command -v keybase > /dev/null 2>&1; then
     log_warn "keybase not found"
     return 1
@@ -137,7 +142,7 @@ _secret_kbfs() {
 # Primary secret accessor — tries kvstore first, then KBFS
 # Usage: secret <key> [namespace]
 secret() {
-  if [ -z "$1" ]; then
+  if [ $# -lt 1 ] || [ -z "${1:-}" ]; then
     echo "Usage: secret <key> [namespace]" >&2
     return 1
   fi
@@ -152,6 +157,10 @@ secret() {
 # Usage: with_secret ENV_VAR_NAME=<key> [namespace] -- <command> [args...]
 # Example: with_secret GITHUB_TOKEN=github-token -- gh repo list
 with_secret() {
+  if [ $# -lt 2 ]; then
+    echo "Usage: with_secret ENV_VAR=key [namespace] -- command [args...]" >&2
+    return 1
+  fi
   local assignment="$1"
   shift
   local env_var key ns="dotfiles"
@@ -178,7 +187,7 @@ with_secret() {
 # Store a secret in Keybase kvstore
 # Usage: secret_set <key> <value> [namespace]
 secret_set() {
-  local key="$1" value="$2" ns="${3:-dotfiles}"
+  local key="${1:-}" value="${2:-}" ns="${3:-dotfiles}"
   if [ -z "$key" ] || [ -z "$value" ]; then
     echo "Usage: secret_set <key> <value> [namespace]" >&2
     return 1
@@ -223,7 +232,7 @@ secret_list() {
 # Delete a secret from Keybase kvstore
 # Usage: secret_del <key> [namespace]
 secret_del() {
-  local key="$1" ns="${2:-dotfiles}"
+  local key="${1:-}" ns="${2:-dotfiles}"
   if [ -z "$key" ]; then
     echo "Usage: secret_del <key> [namespace]" >&2
     return 1

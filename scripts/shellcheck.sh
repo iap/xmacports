@@ -7,7 +7,16 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 files=(
+  ".bash_profile"
+  ".bashrc"
   "bootstrap.sh"
+  ".config/env.d/foundry.sh"
+  ".config/env.d/platform.sh"
+  ".profile"
+  ".zprofile"
+  ".zshrc"
+  ".zshrc.d/env.sh"
+  ".zshrc.d/prompt.sh"
   "shared/functions.sh"
   "shared/aliases.sh"
   "bin/pinentry-fallback"
@@ -22,6 +31,7 @@ files=(
   "scripts/uninstall-cleanup-job.sh"
   "tests/run-tests.sh"
   "tests/test-functions.sh"
+  "tests/verify-dotfiles.sh"
 )
 
 shell_for() {

@@ -5,6 +5,7 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_ROOT="${DOTFILES_ROOT:-$(dirname "$SCRIPT_DIR")}"
+export DOTFILES_ROOT
 DOTFILES="$HOME/.dotfiles"
 
 echo "Dotfiles Test Runner"
@@ -73,6 +74,9 @@ main() {
     "config")
       check_prerequisites && run_config_tests
       ;;
+    "compliance")
+      check_prerequisites && run_config_tests && DOTFILES_ROOT="$DOTFILES_ROOT" bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
+      ;;
     "all" | "")
       echo "Running complete test suite..."
       echo
@@ -100,6 +104,7 @@ main() {
       echo "  all         Run all tests (default)"
       echo "  functions   Run function tests only"
       echo "  config      Run configuration tests only"
+      echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"
       ;;
     *)
