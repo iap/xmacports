@@ -1,257 +1,49 @@
 # Makefile
 
+SHELL := /bin/bash
 
-SHELL := $(shell command -v bash)
+# Ensure MacPorts tools are available (they may not be in PATH)
+MACPORTS_PATH := /opt/local/bin
+ifneq ($(shell test -d $(MACPORTS_PATH) && echo yes),)
+    export PATH := $(MACPORTS_PATH):$(PATH)
+endif
 
 # Include environment variables
 -include .env.mk
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt shfmt-check fmt check schedule-cleanup unschedule-cleanup switch-shell help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance switch-shell help
 
 bootstrap:
 	@echo "Bootstrapping dotfiles..."
 	@./bootstrap.sh
 
 clean:
-	@echo "⚠️  This will remove all dotfiles symlinks. Continue? [y/N]" && read ans && [ $${ans:-N} = y ]
-	@echo "Removing dotfiles symlinks..."
-	@for f in "$$HOME/.profile" "$$HOME/.bash_profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" "$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" "$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
+	@echo "⚠️  This will remove all dotfiles symlinks."
+	@for f in \
+		"$$HOME/.profile" "$$HOME/.bash_profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" \
+		"$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" \
+		"$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
 		if [ -L "$$f" ]; then \
 			target=$$(readlink "$$f"); \
-			case "$$target" in \
-				"$$HOME/.dotfiles"/*) rm -f "$$f" ;; \
-				*) echo "Skipping $$f (not linked to dotfiles)";; \
-			esac; \
-		else \
-			echo "Skipping $$f (not a symlink)"; \
+			case "$$target" in "$$HOME/.dotfiles"/*) rm -f "$$f" ;; esac; \
 		fi; \
 	done
 	@echo "✅ Dotfiles removed"
 
 status:
 	@echo "Dotfiles Status:"
-	@echo ""
-	@if [ -L "$$HOME/.profile" ]; then echo "✅ $$HOME/.profile -> $$(readlink "$$HOME/.profile")"; else echo "❌ $$HOME/.profile not linked"; fi
-	@if [ -L "$$HOME/.bash_profile" ]; then echo "✅ $$HOME/.bash_profile -> $$(readlink "$$HOME/.bash_profile")"; else echo "❌ $$HOME/.bash_profile not linked"; fi
-	@if [ -L "$$HOME/.zprofile" ]; then echo "✅ $$HOME/.zprofile -> $$(readlink "$$HOME/.zprofile")"; else echo "❌ $$HOME/.zprofile not linked"; fi
-	@if [ -L "$$HOME/.zshrc" ]; then echo "✅ $$HOME/.zshrc -> $$(readlink "$$HOME/.zshrc")"; else echo "❌ $$HOME/.zshrc not linked"; fi
-	@if [ -L "$$HOME/.bashrc" ]; then echo "✅ $$HOME/.bashrc -> $$(readlink "$$HOME/.bashrc")"; else echo "❌ $$HOME/.bashrc not linked"; fi
-	@if [ -L "$$HOME/.gitconfig" ]; then echo "✅ $$HOME/.gitconfig -> $$(readlink "$$HOME/.gitconfig")"; else echo "❌ $$HOME/.gitconfig not linked"; fi
-	@if [ -L "$$HOME/.gitignore_global" ]; then echo "✅ $$HOME/.gitignore_global -> $$(readlink "$$HOME/.gitignore_global")"; else echo "❌ $$HOME/.gitignore_global not linked"; fi
-	@if [ -L "$$HOME/.forward" ]; then echo "✅ $$HOME/.forward -> $$(readlink "$$HOME/.forward")"; else echo "❌ $$HOME/.forward not linked"; fi
-	@if [ -L "$$HOME/.gnupg/gpg.conf" ]; then echo "✅ $$HOME/.gnupg/gpg.conf -> $$(readlink "$$HOME/.gnupg/gpg.conf")"; else echo "❌ $$HOME/.gnupg/gpg.conf not linked"; fi
-	@if [ -L "$$HOME/.gnupg/gpg-agent.conf" ]; then echo "✅ $$HOME/.gnupg/gpg-agent.conf -> $$(readlink "$$HOME/.gnupg/gpg-agent.conf")"; else echo "❌ $$HOME/.gnupg/gpg-agent.conf not linked"; fi
-	@if [ -L "$$HOME/.vimrc" ]; then echo "✅ $$HOME/.vimrc -> $$(readlink "$$HOME/.vimrc")"; else echo "❌ $$HOME/.vimrc not linked"; fi
-	@if [ -L "$$HOME/.ssh/config" ]; then echo "✅ $$HOME/.ssh/config -> $$(readlink "$$HOME/.ssh/config")"; else echo "❌ $$HOME/.ssh/config not linked"; fi
+	@echo
+	@for f in .profile .bash_profile .zprofile .zshrc .bashrc .gitconfig .gitignore_global .forward \
+		.gnupg/gpg.conf .gnupg/gpg-agent.conf .vimrc .ssh/config; do \
+		if [ -L "$$HOME/$$f" ]; then \
+			echo "✅ $$HOME/$$f -> $$(readlink "$$HOME/$$f")"; \
+		else \
+			echo "❌ $$HOME/$$f not linked"; \
+		fi; \
+	done
 
 audit:
-	@set -e; \
-	echo "Dotfiles Audit:"; \
-	echo ""; \
-	if stat --version >/dev/null 2>&1; then \
-		perm_of_cmd='stat -c %a'; \
-	else \
-		perm_of_cmd='stat -f %Lp'; \
-	fi; \
-	home_perms=$$(eval "$$perm_of_cmd \"$$HOME\"" 2>/dev/null || true); \
-	if [ "$$home_perms" = "711" ]; then \
-		echo "✅ Home permissions: 711"; \
-	else \
-		echo "⚠️  Home permissions: $${home_perms:-unknown} (expected 711)"; \
-	fi; \
-	echo ""; \
-	echo "Directory permissions (expect 755):"; \
-	find . -maxdepth 2 -type d ! -path "./.git*" -print0 | while IFS= read -r -d '' d; do \
-		p=$$(eval "$$perm_of_cmd \"$$d\"" 2>/dev/null || true); \
-		if [ "$$p" = "755" ]; then \
-			printf "✅ %s %s\n" "$$p" "$$d"; \
-		else \
-			printf "⚠️  %s %s (expected 755)\n" "$${p:-unknown}" "$$d"; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "Executable scripts (expect +x):"; \
-	for f in bootstrap.sh bin/* scripts/*.sh tests/*.sh examples/*.sh; do \
-		[ -e "$$f" ] || continue; \
-		if [ -x "$$f" ]; then \
-			echo "✅ $$f"; \
-		else \
-			echo "⚠️  $$f (not executable)"; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "Non-executable configs (should not be +x):"; \
-	for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh shared/*.sh; do \
-		[ -e "$$f" ] || continue; \
-		if [ -x "$$f" ]; then \
-			echo "⚠️  $$f (executable)"; \
-		fi; \
-	done; \
-	find .config -type f -name "*.sh" -print0 | while IFS= read -r -d '' f; do \
-		if [ -x "$$f" ]; then \
-			echo "⚠️  $$f (executable)"; \
-		fi; \
-	done; \
-	find .config -type f -name "*.conf" -print0 | while IFS= read -r -d '' f; do \
-		if [ -x "$$f" ]; then \
-			echo "⚠️  $$f (executable)"; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "Config file permissions (expect 644):"; \
-	for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do \
-		[ -e "$$f" ] || continue; \
-		case "$$f" in \
-			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
-		esac; \
-		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-		if [ "$$p" = "644" ]; then \
-			printf "✅ %s %s\n" "$$p" "$$f"; \
-		else \
-			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
-		fi; \
-	done; \
-	find .config -type f -name "*.sh" -print0 | while IFS= read -r -d '' f; do \
-		case "$$f" in \
-			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
-		esac; \
-		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-		if [ "$$p" = "644" ]; then \
-			printf "✅ %s %s\n" "$$p" "$$f"; \
-		else \
-			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
-		fi; \
-	done; \
-	find .config -type f -name "*.conf" -print0 | while IFS= read -r -d '' f; do \
-		case "$$f" in \
-			.config/gpg/gpg.conf|.config/gpg/gpg-agent.conf) continue ;; \
-		esac; \
-		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-		if [ "$$p" = "644" ]; then \
-			printf "✅ %s %s\n" "$$p" "$$f"; \
-		else \
-			printf "⚠️  %s %s (expected 644)\n" "$${p:-unknown}" "$$f"; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "Sensitive config permissions (expect 600):"; \
-	for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do \
-		[ -e "$$f" ] || continue; \
-		p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-		if [ "$$p" = "600" ]; then \
-			printf "✅ %s %s\n" "$$p" "$$f"; \
-		else \
-			printf "⚠️  %s %s (expected 600)\n" "$${p:-unknown}" "$$f"; \
-		fi; \
-	done; \
-	echo ""; \
-	echo "User security directories:"; \
-	ssh_dir="$$HOME/.ssh"; \
-	gnupg_dir="$$HOME/.gnupg"; \
-	dotfiles_dir="$$HOME/.dotfiles"; \
-	if [ -d "$$dotfiles_dir" ]; then \
-		owner=$$(stat -c %U "$$dotfiles_dir" 2>/dev/null || stat -f %Su "$$dotfiles_dir" 2>/dev/null || echo unknown); \
-		group_write=""; other_write=""; \
-		perm=$$(eval "$$perm_of_cmd \"$$dotfiles_dir\"" 2>/dev/null || true); \
-		case "$$perm" in \
-			*?*?2|*?*?6) other_write="yes" ;; \
-		esac; \
-		case "$$perm" in \
-			*2?*|*6?*) group_write="yes" ;; \
-		esac; \
-		if [ "$$owner" = "$$USER" ] && [ "$$group_write" != "yes" ] && [ "$$other_write" != "yes" ]; then \
-			echo "✅ $$dotfiles_dir owned by $$USER and not group/world-writable"; \
-		else \
-			echo "⚠️  $$dotfiles_dir ownership/perms ($$owner, $$perm) should be owned by $$USER and not group/world-writable"; \
-		fi; \
-	else \
-		echo "⚠️  $$dotfiles_dir missing"; \
-	fi; \
-	if [ -d "$$ssh_dir" ]; then \
-		p=$$(eval "$$perm_of_cmd \"$$ssh_dir\"" 2>/dev/null || true); \
-		if [ "$$p" = "700" ]; then \
-			echo "✅ $$ssh_dir 700"; \
-		else \
-			echo "⚠️  $$ssh_dir $${p:-unknown} (expected 700)"; \
-		fi; \
-		for f in "$$ssh_dir"/config "$$ssh_dir"/config.local; do \
-			[ -e "$$f" ] || continue; \
-			if [ -L "$$f" ]; then \
-				target=$$(readlink "$$f"); \
-				case "$$target" in /*) ;; *) target="$$(cd "$$(dirname "$$f")" && echo "$$PWD/$$target")";; esac; \
-				p=$$(eval "$$perm_of_cmd \"$$target\"" 2>/dev/null || true); \
-				if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
-					echo "✅ $$f -> $$target $$p"; \
-				else \
-					echo "⚠️  $$f -> $$target $${p:-unknown} (expected 600 or 644)"; \
-				fi; \
-			else \
-				p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-				if [ "$$p" = "600" ]; then \
-					echo "✅ $$f 600"; \
-				else \
-					echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
-				fi; \
-			fi; \
-		done; \
-		for f in "$$ssh_dir"/known_hosts "$$ssh_dir"/known_hosts*; do \
-			[ -e "$$f" ] || continue; \
-			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-			if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
-				echo "✅ $$f $$p"; \
-			else \
-				echo "⚠️  $$f $${p:-unknown} (expected 600 or 644)"; \
-			fi; \
-		done; \
-		for f in "$$ssh_dir"/*.pub; do \
-			[ -e "$$f" ] || continue; \
-			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-			if [ "$$p" = "644" ] || [ "$$p" = "600" ]; then \
-				echo "✅ $$f $$p"; \
-			else \
-				echo "⚠️  $$f $${p:-unknown} (expected 600 or 644)"; \
-			fi; \
-		done; \
-		for f in "$$ssh_dir"/id_* "$$ssh_dir"/*_rsa "$$ssh_dir"/*_ed25519 "$$ssh_dir"/*_ecdsa; do \
-			[ -e "$$f" ] || continue; \
-			case "$$f" in *.pub) continue ;; esac; \
-			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-			if [ "$$p" = "600" ]; then \
-				echo "✅ $$f 600"; \
-			else \
-				echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
-			fi; \
-		done; \
-	else \
-		echo "⚠️  $$ssh_dir missing"; \
-	fi; \
-	if [ -d "$$gnupg_dir" ]; then \
-		p=$$(eval "$$perm_of_cmd \"$$gnupg_dir\"" 2>/dev/null || true); \
-		if [ "$$p" = "700" ]; then \
-			echo "✅ $$gnupg_dir 700"; \
-		else \
-			echo "⚠️  $$gnupg_dir $${p:-unknown} (expected 700)"; \
-		fi; \
-		if [ -f "$$gnupg_dir/pubring.kbx" ]; then \
-			p=$$(eval "$$perm_of_cmd \"$$gnupg_dir/pubring.kbx\"" 2>/dev/null || true); \
-			if [ "$$p" = "644" ]; then \
-				echo "✅ $$gnupg_dir/pubring.kbx 644"; \
-			else \
-				echo "⚠️  $$gnupg_dir/pubring.kbx $${p:-unknown} (expected 644)"; \
-			fi; \
-		fi; \
-		find "$$gnupg_dir" -maxdepth 1 -type f | while IFS= read -r f; do \
-			[ "$$f" = "$$gnupg_dir/pubring.kbx" ] && continue; \
-			p=$$(eval "$$perm_of_cmd \"$$f\"" 2>/dev/null || true); \
-			if [ "$$p" = "600" ]; then \
-				echo "✅ $$f 600"; \
-			else \
-				echo "⚠️  $$f $${p:-unknown} (expected 600)"; \
-			fi; \
-		done; \
-	else \
-		echo "⚠️  $$gnupg_dir missing"; \
-	fi
+	@./scripts/audit.sh
 
 test:
 	@echo "Testing configurations..."
@@ -266,30 +58,24 @@ test:
 
 shellcheck:
 	@echo "Running shellcheck..."
-	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install it manually and ensure it is on PATH."; exit 1; }
+	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install it manually."; exit 1; }
 	@./scripts/shellcheck.sh
 
 shfmt:
 	@echo "Running shfmt..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually and ensure it is on PATH."; exit 1; }
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually."; exit 1; }
 	@./scripts/shfmt.sh
 
-shfmt-check:
+fmt-check:
 	@echo "Running shfmt check..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually and ensure it is on PATH."; exit 1; }
+	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually."; exit 1; }
 	@./scripts/shfmt.sh --check
 
 fmt: shfmt
 
-check: shfmt-check shellcheck
-
-schedule-cleanup:
-	@./scripts/install-cleanup-job.sh
-
-unschedule-cleanup:
-	@./scripts/uninstall-cleanup-job.sh
-
 lint: shellcheck
+
+check: fmt-check shellcheck
 
 test-all:
 	@echo "Running comprehensive test suite..."
@@ -301,25 +87,15 @@ test-functions:
 test-compliance:
 	@./scripts/compliance-check.sh
 
-# Switch login shell between bash 5 and zsh
-# macOS default: /bin/zsh — bash is discovered on PATH
-# Linux default: /bin/bash — zsh: $(command -v zsh)
+# Switch login shell between bash and zsh (platform-aware)
 switch-shell:
 	@OS=$$(uname -s); \
-	CURRENT=$$(dscl . -read $$HOME UserShell 2>/dev/null | awk '{print $$2}' || getent passwd $$USER | cut -d: -f7); \
+	CURRENT=$$(dscl . -read $$HOME UserShell 2>/dev/null || getent passwd $$USER | cut -d: -f7); \
 	echo "Current login shell: $$CURRENT"; \
 	if [ "$$OS" = "Darwin" ]; then \
-		case "$$CURRENT" in \
-			*zsh*) \
-				command -v bash >/dev/null 2>&1 || { echo "❌ bash not found on PATH"; exit 1; }; \
-				TARGET=$$(command -v bash) ;; \
-			*) TARGET=/bin/zsh ;; \
-		esac; \
+		case "$$CURRENT" in *zsh*) TARGET=$$(command -v bash) ;; *) TARGET=/bin/zsh ;; esac; \
 	else \
-		case "$$CURRENT" in \
-			*bash*) TARGET=$$(command -v zsh) ;; \
-			*) TARGET=$$(command -v bash) ;; \
-		esac; \
+		case "$$CURRENT" in *bash*) TARGET=$$(command -v zsh) ;; *) TARGET=$$(command -v bash) ;; esac; \
 	fi; \
 	[ -z "$$TARGET" ] && { echo "❌ Target shell not found"; exit 1; }; \
 	grep -qF "$$TARGET" /etc/shells || { echo "Adding $$TARGET to /etc/shells..."; sudo sh -c "echo $$TARGET >> /etc/shells"; }; \
@@ -336,12 +112,10 @@ help:
 	@echo "  test-functions    - Run function tests only"
 	@echo "  test-compliance   - Run compliance tests only"
 	@echo "  shellcheck        - Lint shell scripts"
-	@echo "  shfmt             - Format shell scripts"
-	@echo "  shfmt-check       - Check formatting without changes"
+	@echo "  shfmt             - Format shell scripts in place"
+	@echo "  fmt-check         - Check formatting without changes"
 	@echo "  fmt               - Alias for shfmt"
 	@echo "  lint              - Alias for shellcheck"
-	@echo "  check             - Run shfmt-check and shellcheck"
+	@echo "  check             - Run fmt-check and shellcheck"
 	@echo "  switch-shell      - Toggle login shell (bash<->zsh, platform-aware)"
-	@echo "  schedule-cleanup  - Schedule cleanup job (launchd/cron)"
-	@echo "  unschedule-cleanup- Remove cleanup job"
 	@echo "  help              - Show this help"
