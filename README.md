@@ -2,6 +2,8 @@
 
 > Cross-platform home directory configuration with deterministic shell startup, file-based bootstrap, and no package-manager automation.
 
+**[GitHub](https://github.com/iap) | [GitLab](https://gitlab.com/iap/xmacports)**
+
 ## What This Repo Does
 
 - Links shell, Git, SSH, GPG, and editor configuration into `$HOME`
