@@ -67,7 +67,18 @@ for f in \
 done
 echo
 
-echo "3. Symlinks (requires make bootstrap)"
+echo "3. Environment loader"
+check "platform loader survives set -u" bash --noprofile --norc -c '
+  set -u
+  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+'
+check "zsh env loader survives set -u" zsh -c '
+  set -u
+  source "'"$DOTFILES"'/.zshrc.d/env.sh"
+'
+echo
+
+echo "4. Symlinks (requires make bootstrap)"
 if [[ -L "$HOME/.zshrc" ]]; then
   for f in .zshrc .zprofile .bashrc .profile .gitconfig .vimrc; do
     check "symlink: ~/$f" test -L "$HOME/$f"
@@ -77,7 +88,7 @@ else
 fi
 echo
 
-echo "4. GPG_TTY fix"
+echo "5. GPG_TTY fix"
 gpg_tty_lines=$(bash -c '
   source '"$DOTFILES"'/.config/env.d/platform.sh 2>/dev/null
   echo "$GPG_TTY" | wc -l | tr -d " "
@@ -91,7 +102,7 @@ gpg_tty_val=$(bash -c '
 [[ "$gpg_tty_val" != *"not a tty"* ]] && pass "GPG_TTY has no 'not a tty'" || fail "GPG_TTY contains 'not a tty': [$gpg_tty_val]"
 echo
 
-echo "5. Color aliases"
+echo "6. Color aliases"
 check "ls alias set in platform.sh" bash -c '
   grep -q "alias ls" '"$DOTFILES"'/.config/env.d/platform.sh
 '
@@ -100,7 +111,7 @@ check "grep alias set in platform.sh" bash -c '
 '
 echo
 
-echo "6. Shared functions"
+echo "7. Shared functions"
 check "log_info outputs message" bash -c '
   source '"$DOTFILES"'/shared/functions.sh
   out=$(log_info "hello")
@@ -130,7 +141,7 @@ check "shared functions load in zsh" zsh -c '
 '
 echo
 
-echo "7. ZSH prompt"
+echo "8. ZSH prompt"
 check "short_pwd truncates long paths" zsh -c '
   source '"$DOTFILES"'/.zshrc.d/prompt.sh
   out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
@@ -146,16 +157,19 @@ check "git_info returns branch in git repo" zsh -c '
 '
 echo
 
-echo "8. Aliases"
-check "brew protection works" bash -c '
+echo "9. Aliases"
+check "install alias removed" bash -c '
   source '"$DOTFILES"'/shared/aliases.sh
-  out=$(brew 2>&1 || true)
-  [[ "$out" == *"MacPorts"* ]]
+  ! alias install >/dev/null 2>&1
 '
-check "brew protection works in zsh" zsh -c '
+check "update alias removed" bash -c '
   source '"$DOTFILES"'/shared/aliases.sh
-  out=$(brew 2>&1 || true)
-  [[ "$out" == *"MacPorts"* ]]
+  ! alias update >/dev/null 2>&1
+'
+check "sysinfo alias is generic" bash -c '
+  source '"$DOTFILES"'/shared/aliases.sh
+  out=$(alias sysinfo)
+  [[ "$out" == *"OS:"* && "$out" != *"MacPorts"* ]]
 '
 echo
 

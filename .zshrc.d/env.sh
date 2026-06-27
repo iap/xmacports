@@ -4,7 +4,7 @@
 set -u
 
 # Avoid duplicate loads
-if [[ -z "$DOTFILES_ENV_LOADED" && -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
+if [[ -z "${DOTFILES_ENV_LOADED:-}" && -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
     source "$HOME/.dotfiles/.config/env.d/platform.sh"
 fi
 

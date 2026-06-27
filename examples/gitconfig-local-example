@@ -1,12 +1,21 @@
 # Git Local Configuration Example
 # Copy to ~/.gitconfig.local and customize
+# Load priority: local config overrides base config
 
-[user]
-    name = <username>
-    email = <username>@example.tld
+# Note: This file is included FIRST in .gitconfig, so any settings here
+# take precedence over the base configuration. Typically used for:
+# - Personal overrides (different email/name per repo)
+# - Machine-specific settings (different GPG key on another device)
+# - Additional aliases or excludes
 
-[github]
-    user = <username>
+# Example: Override signing for specific work repos
+# [commit]
+#     gpgsign = false
 
-[core]
-    # Add any personal preferences here
+# Example: Additional excludes
+# [core]
+#     excludesfile = ~/.gitignore_work
+
+# Example: Extra aliases
+# [alias]
+#     wip = commit -m "wip"

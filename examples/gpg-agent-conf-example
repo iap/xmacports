@@ -13,7 +13,7 @@ default-cache-ttl-ssh 28800
 max-cache-ttl-ssh 86400
 
 # Pinentry program (adjust for macOS)
-pinentry-program /opt/local/bin/pinentry-mac
+pinentry-program ~/.dotfiles/bin/pinentry-fallback
 
 # Allow preset passphrases
 allow-preset-passphrase

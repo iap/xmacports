@@ -1,0 +1,21 @@
+# Server override for restricted/shared environments
+# Place this at ~/.profile.local to override desktop settings
+
+# Keep only writable/user-owned paths
+export PATH="$HOME/bin:$HOME/.local/bin:/usr/bin:/bin:/usr/local/bin"
+
+# Server-safe editor (vi/vim available on most systems)
+export EDITOR="vi"
+export VISUAL="vi"
+
+# Disable desktop-only tools
+unset MACPORTS_PREFIX
+unset CPPFLAGS
+unset LDFLAGS
+
+# Reduced history (quota-conscious)
+export HISTSIZE=2000
+export HISTFILESIZE=2000
+
+# Skip Cargo/Foundry (not usable on restricted server)
+# These are handled in .bashrc conditionals but extra safety here

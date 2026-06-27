@@ -1,77 +1,80 @@
-# xMacPorts | .dot
+# Dotfiles
 
-> Privacy-first, secure `$HOME` management with Git — bash-primary, optimized for legacy hardware via MacPorts.
+> Cross-platform home directory configuration with deterministic shell startup, file-based bootstrap, and no package-manager automation.
 
-## Setup
+## What This Repo Does
 
-### 1. Xcode Command Line Tools
-```bash
-xcode-select --install
-```
+- Links shell, Git, SSH, GPG, and editor configuration into `$HOME`
+- Keeps shared environment logic in one place for bash and zsh
+- Provides small helper scripts for inspection, cleanup, and verification
+- Supports optional local override files and an optional private overlay
 
-### 2. MacPorts
-Download and install from [macports.org](https://www.macports.org/install.php), then:
-```bash
-sudo port selfupdate
-```
+## Quick Start
 
-### 3. Prerequisites
-```bash
-sudo port install bash coreutils git nano gnupg2 pinentry-mac shellcheck shfmt
-```
-
-### 4. Bootstrap
 ```bash
 git clone <repository-url> "$HOME/.dotfiles"
 cd "$HOME/.dotfiles"
 make bootstrap
+make test
 ```
 
-### 5. Switch login shell to bash 5
+Install required tools manually before bootstrapping:
+
+- `bash`
+- `zsh`
+- `git`
+- `gpg` and `gpgconf`
+- `pinentry` of your choice
+- `shellcheck`
+- `shfmt`
+
+## Layout
+
+- `.profile` - POSIX shared base for login shells
+- `.bash_profile` - bash login entrypoint
+- `.bashrc` - bash interactive entrypoint
+- `.zprofile` - zsh login entrypoint
+- `.zshrc` - zsh interactive entrypoint
+- `.config/env.d/platform.sh` - shared environment loader
+- `.config/env.d/foundry.sh` - optional Foundry wrapper functions
+- `shared/` - cross-shell functions and aliases
+- `bin/` - small executable helpers
+- `scripts/` - maintenance and verification helpers
+- `templates/` and `examples/` - starter configs for local overrides
+
+## Bootstrap
+
+`make bootstrap` is idempotent. It links tracked files into `$HOME`, backs up replaced targets once, and applies the minimal permissions required for GPG and SSH config.
+
+It does not install system packages.
+
+## Local Overrides
+
+Use local override files for machine-specific or private settings:
+
 ```bash
-make switch-shell
-```
-Then re-login to apply.
-
-## Commands
-
-```bash
-make bootstrap          # Install dotfiles symlinks
-make status             # Check symlink status
-make test               # Syntax check all configs
-make audit              # Check file permissions
-make check              # shfmt + shellcheck
-make shellcheck         # Lint shell scripts
-make shfmt              # Format shell scripts
-make switch-shell       # Set bash 5 as login shell
-make schedule-cleanup   # Schedule 7-day cleanup job
-make unschedule-cleanup # Remove cleanup job
-make clean              # Remove symlinks
-make help               # List all targets
+cp templates/profile-local.example    "$HOME/.profile.local"
+cp examples/gitconfig-local-example   "$HOME/.gitconfig.local"
+cp examples/forward-local-example     "$HOME/.forward.local"
+cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 ```
 
-## Customization
+## Maintenance
 
-```bash
-cp examples/gitconfig-local-example  "$HOME/.gitconfig.local"
-cp examples/profile-local-example    "$HOME/.profile.local"
-cp examples/forward-local-example    "$HOME/.forward.local"
-cp examples/zshrc-local-example      "$HOME/.zshrc.local"
-```
-
-Local override files (`*.local`) are gitignored and never committed.
-
-## Why MacPorts
-
-Homebrew dropped support for older hardware. MacPorts maintains compatibility and security updates for legacy systems. Homebrew is blocked by a shell guard to prevent conflicts.
+- `make status` - show linked files
+- `make test` - syntax checks for startup files
+- `make check` - run shfmt and shellcheck
+- `make audit` - inspect permissions
+- `make test-all` - run the full test wrapper
 
 ## Security
 
-- Pre-commit hook blocks secrets, private keys, and API tokens
-- `core.hooksPath` set to `.githooks/` by bootstrap
-- `umask 077` — new files default to 600/700
-- GPG-SSH integration via `gpg-agent`
+- Secrets are not exported from shell startup
+- `umask 077` keeps new files private by default
+- GPG and SSH config files are permission-checked
+- Local/private overlays stay outside the tracked repo
 
 ## Documentation
 
-- **[MANUAL.md](MANUAL.md)** — full reference: structure, features, troubleshooting
+- `MANUAL.md` - detailed startup order, architecture, and troubleshooting
+- `AGENTS.md` - repo operating rules for agentic edits

@@ -4,21 +4,8 @@
 set -eu
 
 DOTFILES="$HOME/.dotfiles"
-OS="$(uname -s)"
 
-echo "Bootstrapping dotfiles (${OS})..."
-
-case "$OS" in
-  Darwin)
-    bash "$DOTFILES/scripts/bootstrap-macos.sh"
-    ;;
-  Linux)
-    bash "$DOTFILES/scripts/bootstrap-linux.sh"
-    ;;
-  *)
-    echo "⚠️  Unsupported platform: $OS — proceeding with common steps only"
-    ;;
-esac
+echo "Bootstrapping dotfiles..."
 
 # Common: backup and link helper
 BACKUP_DIR="$HOME/.dotfiles-backup-$(date +%Y%m%d_%H%M%S)"
@@ -80,10 +67,3 @@ echo "🔄 Restart your shell or run: source ~/.bashrc"
 [[ ! -f "$HOME/.zshrc.local" ]] && echo "💡 Create ~/.zshrc.local for personal zsh settings"
 [[ ! -f "$HOME/.gitconfig.local" ]] && echo "💡 Create ~/.gitconfig.local with your git user info"
 [[ ! -f "$HOME/.forward.local" ]] && echo "💡 Create ~/.forward.local for private mail forwarding"
-
-# Private overlay (Keybase)
-if [[ -f "$DOTFILES/bootstrap-private.sh" ]]; then
-  echo ""
-  echo "Bootstrapping private overlay..."
-  bash "$DOTFILES/bootstrap-private.sh" || echo "⚠️  Private overlay skipped (Keybase unavailable)"
-fi

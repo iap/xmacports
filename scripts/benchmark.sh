@@ -15,7 +15,7 @@ benchmark_shell() {
   echo
 }
 
-benchmark_shell "/opt/local/bin/bash" "bash 5"
-benchmark_shell "/bin/zsh" "zsh"
+benchmark_shell "bash" "bash"
+benchmark_shell "zsh" "zsh"
 
 echo "Target: <500ms per shell"

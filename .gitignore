@@ -15,3 +15,8 @@ private/
 
 *.o
 *.out
+
+# SOPS encrypted secrets
+secrets.yaml
+*.age
+*.key.enc
