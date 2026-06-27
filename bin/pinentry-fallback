@@ -1,23 +1,40 @@
 #!/bin/sh
 # Pinentry fallback script
 
-# Try GUI pinentry if available
-if command -v pinentry-mac >/dev/null 2>&1; then
-  exec pinentry-mac "$@"
+# MacPorts pinentry paths (not in default PATH)
+PINENTRY_PATHS="/opt/local/bin /usr/local/bin /usr/bin"
+
+# MacPorts app bundle path for pinentry-mac
+PINENTRY_MAC_BUNDLE="/opt/local/var/macports/software/pinentry-mac/pinentry-mac-1.3.1.1_0.darwin_21.x86_64/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac"
+
+# Try pinentry-mac first (GUI) - check both PATH and app bundle
+if [ -x "$PINENTRY_MAC_BUNDLE" ]; then
+  exec "$PINENTRY_MAC_BUNDLE" "$@"
 fi
+for p in $PINENTRY_PATHS; do
+  if [ -x "$p/pinentry-mac" ]; then
+    exec "$p/pinentry-mac" "$@"
+  fi
+done
 
 if [ -t 0 ]; then
-  # Prefer a terminal pinentry when running in a TTY.
-  if command -v pinentry-curses >/dev/null 2>&1; then
-    exec pinentry-curses "$@"
-  fi
+  # Prefer pinentry-tty for terminal (simpler than curses, fewer glitches)
+  for p in $PINENTRY_PATHS; do
+    if [ -x "$p/pinentry-tty" ]; then
+      exec "$p/pinentry-tty" "$@"
+    fi
+  done
 
-  if command -v pinentry-tty >/dev/null 2>&1; then
-    exec pinentry-tty "$@"
-  fi
+  # Fallback to curses if tty not available
+  for p in $PINENTRY_PATHS; do
+    if [ -x "$p/pinentry-curses" ]; then
+      exec "$p/pinentry-curses" "$@"
+    fi
+  done
 fi
 
-if command -v pinentry >/dev/null 2>&1; then
+# Fallback: try any pinentry on PATH
+if command -v pinentry > /dev/null 2>&1; then
   exec pinentry "$@"
 fi
 
