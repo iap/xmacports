@@ -4,13 +4,8 @@
     path = ~/.gitconfig.local
 
 # Sample configuration - override in ~/.gitconfig.local
-# [user]
-#     name = Your Name
-#     email = your.email@example.tld
-#     signingkey = 0xYOURGPGKEY
-
-[commit]
-	gpgsign = true
+#[commit]
+#    gpgsign = true
 
 [core]
     editor = nano
