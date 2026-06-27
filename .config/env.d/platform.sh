@@ -19,7 +19,7 @@ export DOTFILES_ENV_LOADED=1
 
 unset MACPORTS_PREFIX CPPFLAGS LDFLAGS
 
-# Foundry (Ethereum - check both standard locations)
+# Foundry (Ethereum) - optional local installs only
 unset FOUNDRY_BIN_PATH
 for foundry_path in "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin"; do
     if [[ -d "$foundry_path" ]] && [[ -r "$foundry_path" ]]; then
@@ -75,12 +75,47 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 HOMEBREW_NO_ANALYTICS=1
 export NEXT_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
 export DISABLE_TELEMETRY=1 NO_UPDATE_NOTIFIER=1
 
-PATH_CLEAN="$HOME/bin:$HOME/.local/bin"
-if [[ -n "${FOUNDRY_BIN_PATH:-}" ]]; then
-    PATH_CLEAN="$FOUNDRY_BIN_PATH:$PATH_CLEAN"
-fi
-for dir in /usr/local/bin /usr/bin /bin /usr/sbin /sbin; do
-    [[ -d "$dir" ]] && PATH_CLEAN="$PATH_CLEAN:$dir"
+path_dedupe() {
+    local current="${PATH:-}" normalized="" segment
+    local IFS=:
+    for segment in $current; do
+        [[ -n "$segment" ]] || continue
+        case ":$normalized:" in
+            *":$segment:"*) ;;
+            *) normalized="${normalized:+$normalized:}$segment" ;;
+        esac
+    done
+    PATH="$normalized"
+}
+
+path_prepend_if_present() {
+    local dir="$1"
+    [[ -n "$dir" ]] || return 0
+    [[ -d "$dir" ]] || return 0
+    case ":$PATH:" in
+        *":$dir:"*) return 0 ;;
+    esac
+    PATH="$dir${PATH:+:$PATH}"
+}
+
+path_dedupe
+
+for dir in \
+    "$HOME/bin" \
+    "$HOME/.local/bin" \
+    "${FOUNDRY_BIN_PATH:-}" \
+    "${HOME}/.nix-profile/bin" \
+    "/nix/var/nix/profiles/default/bin" \
+    "/usr/local/bin" \
+    "/usr/local/sbin" \
+    "/opt/local/bin" \
+    "/opt/local/sbin" \
+    "/usr/bin" \
+    "/bin" \
+    "/usr/sbin" \
+    "/sbin"; do
+    path_prepend_if_present "$dir"
 done
-export PATH="$PATH_CLEAN"
-unset PATH_CLEAN
+
+path_dedupe
+export PATH
