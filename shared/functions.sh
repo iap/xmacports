@@ -76,7 +76,7 @@ showfile() {
 }
 
 findfile() {
-  find . -name "*$1*" -type f 2> /dev/null | head -10
+  find . -name "*${1}*" -type f 2> /dev/null | head -10
 }
 
 gitstat() {
