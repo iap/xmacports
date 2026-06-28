@@ -4,9 +4,6 @@
 echo "Lightweight PS1 Prompt Demo"
 echo
 
-# Source the prompt
-source "$(dirname "$0")/../.zshrc.d/prompt.sh"
-
 echo "Prompt Features:"
 echo "  - Current directory (shortened if long)"
 echo "  - Git branch and status (clean, +/- dirty)"
