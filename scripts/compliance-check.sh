@@ -3,7 +3,7 @@
 
 set -eu
 
-LOG_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}/.cache/logs"
+LOG_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/logs"
 COMPLIANCE_LOG="$LOG_ROOT/compliance-$(date +%Y-%m-%d).log"
 mkdir -p "$LOG_ROOT"
 

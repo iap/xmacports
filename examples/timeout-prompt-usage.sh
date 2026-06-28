@@ -13,17 +13,17 @@ echo "Result: $result"
 # Example 2: Confirmation with default 'no'
 echo -e "\n2. Confirmation example (will timeout to 'no' in 2 seconds):"
 if timeout_confirm "Continue with operation" 2 "n"; then
-    echo "✅ Operation confirmed"
+  echo "✅ Operation confirmed"
 else
-    echo "❌ Operation cancelled"
+  echo "❌ Operation cancelled"
 fi
 
 # Example 3: Confirmation with default 'yes'
 echo -e "\n3. Quick confirmation (will timeout to 'yes' in 1 second):"
 if timeout_confirm "Apply safe changes" 1 "y"; then
-    echo "✅ Changes applied"
+  echo "✅ Changes applied"
 else
-    echo "❌ Changes skipped"
+  echo "❌ Changes skipped"
 fi
 
 echo -e "\n✅ Examples completed"
