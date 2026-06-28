@@ -41,7 +41,7 @@ backup_and_link "$DOTFILES/.gitignore_global" "$HOME/.gitignore_global"
 backup_and_link "$DOTFILES/.forward" "$HOME/.forward"
 
 # Common: directories
-mkdir -p "$HOME/bin" "$HOME/.local/bin" "$HOME/.gnupg" "$HOME/.ssh"
+mkdir -p "$HOME/bin" "$HOME/.local/bin" "$HOME/.gnupg" "$HOME/.ssh" "$HOME/.config/vim" "$HOME/.config/npm"
 chmod 700 "$HOME/.gnupg" "$HOME/.ssh"
 
 # Common: GPG, vim, SSH
@@ -49,6 +49,9 @@ backup_and_link "$DOTFILES/.config/gpg/gpg.conf" "$HOME/.gnupg/gpg.conf"
 backup_and_link "$DOTFILES/.config/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
 backup_and_link "$DOTFILES/.vimrc" "$HOME/.vimrc"
 backup_and_link "$DOTFILES/.config/ssh/config" "$HOME/.ssh/config"
+backup_and_link "$DOTFILES/.config/vim/vimrc" "$HOME/.config/vim/vimrc"
+backup_and_link "$DOTFILES/.config/vim/privacy.vim" "$HOME/.config/vim/privacy.vim"
+backup_and_link "$DOTFILES/.config/npm/config" "$HOME/.config/npm/config"
 
 chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf"
 chmod 600 "$HOME/.ssh/config"

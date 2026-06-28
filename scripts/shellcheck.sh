@@ -16,6 +16,7 @@ files=(
   scripts/audit.sh scripts/benchmark.sh scripts/bootstrap-macos.sh
   scripts/cleanup-7d.sh scripts/cleanup-zsh.sh scripts/compliance-check.sh
   scripts/install-cleanup-job.sh scripts/shfmt.sh scripts/shellcheck.sh
+  scripts/timeout_prompt.sh
   scripts/uninstall-cleanup-job.sh
   tests/run-tests.sh tests/test-functions.sh tests/verify-dotfiles.sh
 )

@@ -72,7 +72,7 @@ fi
 # Optional developer tool manager.
 # If `mise` exists, activate its shims; otherwise continue silently.
 if command -v mise &> /dev/null; then
-  eval "$(mise activate zsh)"
+  eval "$(mise activate zsh)" 2> /dev/null || true
 fi
 
 # Local overrides

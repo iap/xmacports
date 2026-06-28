@@ -81,8 +81,17 @@ check "platform loader dedupes PATH" bash --noprofile --norc -c '
   PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
   export PATH
   source "'"$DOTFILES"'/.config/env.d/platform.sh"
-  count=$(printf "%s" "$PATH" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
-  [ "$count" -eq 0 ]
+  local_count=0
+  local_seen=""
+  local IFS=":"
+  for segment in $PATH; do
+    [ -z "$segment" ] && continue
+    case ":${local_seen}:" in
+      *":${segment}:"*) local_count=$((local_count + 1)) ;;
+      *) local_seen="${local_seen:+${local_seen}:}${segment}" ;;
+    esac
+  done
+  [ "$local_count" -eq 0 ]
 '
 check "platform loader discovers /opt/local/bin gpg when present" bash --noprofile --norc -c '
   set -u
@@ -90,9 +99,9 @@ check "platform loader discovers /opt/local/bin gpg when present" bash --noprofi
   export PATH
   source "'"$DOTFILES"'/.config/env.d/platform.sh"
   if [ -x /opt/local/bin/gpg ]; then
-    command -v gpg | grep -qx /opt/local/bin/gpg
+    /opt/local/bin/gpg --version > /dev/null 2>&1
   else
-    command -v gpg >/dev/null 2>&1
+    true
   fi
 '
 echo

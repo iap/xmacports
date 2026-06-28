@@ -14,8 +14,8 @@ staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 
 # Run format/lint (best-effort)
 if command -v shfmt >/dev/null 2>&1; then
-  if ! make shfmt-check >/dev/null 2>&1; then
-    reject "shfmt check failed. Run: make shfmt"
+  if ! make fmt-check >/dev/null 2>&1; then
+    reject "shfmt check failed. Run: make fmt-check"
   fi
 fi
 if command -v shellcheck >/dev/null 2>&1; then

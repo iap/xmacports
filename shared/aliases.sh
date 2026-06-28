@@ -15,6 +15,8 @@ alias status='echo "PWD: $(pwd)" && echo "DATE: $(date "+%Y-%m-%d %H:%M:%S")" &&
 alias lsf='ls -1'
 alias count='ls -1 | wc -l | tr -d " "'
 
+# tree wrapper — shadows the tree binary intentionally.
+# Use \tree or command tree to invoke the real binary directly.
 tree() {
   if command -v tree > /dev/null 2>&1; then
     command tree "$@"

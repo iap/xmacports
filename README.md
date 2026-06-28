@@ -39,6 +39,12 @@ Install required tools manually before bootstrapping:
 - `.zshrc` - zsh interactive entrypoint
 - `.config/env.d/platform.sh` - shared environment loader
 - `.config/env.d/foundry.sh` - optional Foundry wrapper functions
+- `.config/gpg/gpg.conf` - GnuPG configuration
+- `.config/gpg/gpg-agent.conf` - GnuPG agent configuration
+- `.config/ssh/config` - SSH configuration
+- `.config/vim/vimrc` - XDG vim runtime config
+- `.config/vim/privacy.vim` - vim privacy settings
+- `.config/npm/config` - npm privacy configuration
 - `shared/` - cross-shell functions and aliases
 - `bin/` - small executable helpers
 - `scripts/` - maintenance and verification helpers
