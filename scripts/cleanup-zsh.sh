@@ -3,7 +3,7 @@
 
 set -eu
 
-CLEANUP_LOG="$HOME/.cache/logs/zsh-cleanup-$(date +%Y-%m-%d).log"
+CLEANUP_LOG="${XDG_CACHE_HOME:-$HOME/.cache}/logs/zsh-cleanup-$(date +%Y-%m-%d).log"
 mkdir -p "$(dirname "$CLEANUP_LOG")"
 
 log_action() {

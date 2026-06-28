@@ -104,7 +104,6 @@ $HOME/.dotfiles/
 │   ├── system-info
 │   └── update
 ├── scripts/
-│   ├── bootstrap-macos.sh
 │   ├── compliance-check.sh
 │   └── cleanup-*.sh
 ├── templates/
