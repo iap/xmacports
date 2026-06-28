@@ -46,11 +46,11 @@
     a = add
     c = commit -m
     d = diff
-    
+
     info = log --oneline -1
     files = diff --name-only
     changes = status --porcelain
-    
+
     unstage = reset HEAD
     undo = reset --soft HEAD~1
 [gpg]

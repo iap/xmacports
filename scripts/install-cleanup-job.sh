@@ -13,6 +13,7 @@ OS="$(uname -s)"
 
 if [ "$OS" = "Darwin" ]; then
   PLIST="$HOME/Library/LaunchAgents/com.iap.dotfiles.cleanup.plist"
+  LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/logs"
   cat > "$PLIST" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -34,9 +35,9 @@ if [ "$OS" = "Darwin" ]; then
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>$HOME/.cache/logs/dotfiles-cleanup.out</string>
+    <string>$LOG_DIR/dotfiles-cleanup.out</string>
     <key>StandardErrorPath</key>
-    <string>$HOME/.cache/logs/dotfiles-cleanup.err</string>
+    <string>$LOG_DIR/dotfiles-cleanup.err</string>
   </dict>
 </plist>
 EOF

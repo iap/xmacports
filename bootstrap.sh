@@ -63,7 +63,7 @@ fi
 
 echo "✅ Dotfiles bootstrapped successfully!"
 [[ $_backup_used -eq 1 ]] && echo "📁 Backup: $BACKUP_DIR"
-echo "🔄 Restart your shell or run: source ~/.bashrc"
+echo "🔄 Restart your shell or run: source ~/.bashrc (bash) or source ~/.zshrc (zsh)"
 
 # Local config hints
 [[ ! -f "$HOME/.bashrc.local" ]] && echo "💡 Create ~/.bashrc.local for personal bash settings" || true
