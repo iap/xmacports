@@ -91,8 +91,11 @@ $HOME/.dotfiles/
 │   │   └── gpg-agent.conf
 │   ├── ssh/
 │   │   └── config
-│   └── vim/
-│       └── vimrc
+│   ├── vim/
+│   │   ├── vimrc
+│   │   └── privacy.vim
+│   └── npm/
+│       └── config
 ├── shared/
 │   ├── functions.sh
 │   └── aliases.sh
@@ -209,3 +212,4 @@ Verify that the relevant binaries are on `PATH`, then check the sockets and perm
 - Legacy examples remain in `examples/`
 - Current template stubs live in `templates/`
 - `bin/pinentry-fallback` should remain the only pinentry path referenced from the tracked GPG config
+- The `tree` helper in `shared/aliases.sh` is a function wrapper. Use `\tree` or `command tree` to invoke the system binary directly.

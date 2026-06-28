@@ -62,6 +62,7 @@ safe_mkdir() {
 }
 safe_mkdir "$XDG_CACHE_HOME/logs"
 safe_mkdir "$XDG_CACHE_HOME/ssh"
+safe_mkdir "$XDG_CACHE_HOME/shell"
 safe_mkdir "$XDG_STATE_HOME/shell"
 
 # ls colors (GNU vs BSD)

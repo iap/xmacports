@@ -50,7 +50,7 @@ if [[ -t 1 ]]; then
       _git_prompt_last_pwd="$PWD"
       _git_prompt_last_time=$now
       local branch mark
-      branch=$(git symbolic-ref --short HEAD 2> /dev/null)
+      branch=$(git branch --show-current 2> /dev/null)
       mark=""
       [[ -n "$branch" ]] && {
         git diff --quiet 2> /dev/null || mark="±"
