@@ -22,7 +22,8 @@ clean:
 	@for f in \
 		"$$HOME/.profile" "$$HOME/.bash_profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" \
 		"$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" \
-		"$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward"; do \
+		"$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward" \
+		"$$HOME/.config/vim/vimrc" "$$HOME/.config/vim/privacy.vim" "$$HOME/.config/npm/config"; do \
 		if [ -L "$$f" ]; then \
 			target=$$(readlink "$$f"); \
 			case "$$target" in "$$HOME/.dotfiles"/*) rm -f "$$f" ;; esac; \
@@ -34,7 +35,8 @@ status:
 	@echo "Dotfiles Status:"
 	@echo
 	@for f in .profile .bash_profile .zprofile .zshrc .bashrc .gitconfig .gitignore_global .forward \
-		.gnupg/gpg.conf .gnupg/gpg-agent.conf .vimrc .ssh/config; do \
+		.gnupg/gpg.conf .gnupg/gpg-agent.conf .vimrc .ssh/config \
+		.config/vim/vimrc .config/vim/privacy.vim .config/npm/config; do \
 		if [ -L "$$HOME/$$f" ]; then \
 			echo "✅ $$HOME/$$f -> $$(readlink "$$HOME/$$f")"; \
 		else \
