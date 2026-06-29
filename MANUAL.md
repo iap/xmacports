@@ -168,9 +168,9 @@ Recommended overlay files:
 Run these checks after changing shell startup or bootstrap behavior:
 
 ```bash
-bash tests/run-tests.sh config
-bash tests/run-tests.sh functions
-bash tests/run-tests.sh compliance
+make test
+make verify
+make audit
 ```
 
 Helpful direct checks:
