@@ -11,7 +11,7 @@ endif
 # Include environment variables
 -include .env.mk
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance switch-shell help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help
 
 bootstrap:
 	@echo "Bootstrapping dotfiles..."
@@ -83,6 +83,10 @@ test-all:
 	@echo "Running comprehensive test suite..."
 	@./tests/run-tests.sh all
 
+verify:
+	@echo "Running dotfiles verification..."
+	@./tests/verify-dotfiles.sh
+
 test-functions:
 	@./tests/run-tests.sh functions
 
@@ -113,6 +117,7 @@ help:
 	@echo "  test-all          - Run comprehensive test suite"
 	@echo "  test-functions    - Run function tests only"
 	@echo "  test-compliance   - Run compliance tests only"
+	@echo "  verify            - Run dotfiles verification"
 	@echo "  shellcheck        - Lint shell scripts"
 	@echo "  shfmt             - Format shell scripts in place"
 	@echo "  fmt-check         - Check formatting without changes"
