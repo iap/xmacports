@@ -27,11 +27,17 @@ The repo does not automate package installation. It assumes required tools are i
 /etc/profile -> ~/.profile -> ~/.bash_profile -> ~/.bashrc
 ```
 
+`.profile.local` is sourced by `.bashrc` after `platform.sh` loads, so user PATH
+additions take precedence over system directories.
+
 ### zsh login shell
 
 ```text
 ~/.profile -> ~/.zprofile -> ~/.zshrc
 ```
+
+`.profile.local` is sourced by `.zshrc` after `platform.sh` loads (via `.zshrc.d/env.sh`),
+so user PATH additions take precedence over system directories.
 
 ### Shared interactive layer
 
@@ -43,6 +49,7 @@ Both shells load shared configuration:
 .config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
+~/.profile.local (after platform.sh, with double-sourcing guard)
 
 # .zshrc loads via .zshrc.d/env.sh:
 .zshrc.d/env.sh       -> .config/env.d/platform.sh
@@ -50,9 +57,12 @@ shared/aliases.sh
 shared/functions.sh
 shared/aliases.sh
 .zshrc.d/prompt.sh
+~/.profile.local (after platform.sh, with double-sourcing guard)
 ```
 
 Both shells now consistently load foundry.sh if available. `.zshrc.d/env.sh` provides intermediate loading with duplicate protection for platform.sh.
+
+`.profile.local` is loaded exactly once per shell session, after `platform.sh` assembles PATH.
 
 ## Environment Rules
 
