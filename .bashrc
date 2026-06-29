@@ -33,6 +33,13 @@ if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
   source "$HOME/.dotfiles/.config/env.d/foundry.sh"
 fi
 
+# Load local profile customizations AFTER platform PATH setup
+# This ensures user PATH additions in .profile.local get proper precedence
+if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ]; then
+  source "$HOME/.profile.local"
+  export DOTFILES_PROFILE_LOCAL_LOADED=1
+fi
+
 # Prompt
 if [[ -t 1 ]]; then
   RED=$'\e[0;31m' GREEN=$'\e[0;32m' YELLOW=$'\e[0;33m' CYAN=$'\e[0;36m' RESET=$'\e[0m'

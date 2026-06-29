@@ -25,6 +25,13 @@ for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
 done
 unset _config_file
 
+# Load local profile customizations AFTER platform PATH setup
+# This ensures user PATH additions in .profile.local get proper precedence
+if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ]; then
+  source "$HOME/.profile.local"
+  export DOTFILES_PROFILE_LOCAL_LOADED=1
+fi
+
 # History
 HISTFILE="${XDG_STATE_HOME:-$HOME/.local/state}/zsh/history"
 HISTSIZE=10000
