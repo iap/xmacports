@@ -77,8 +77,50 @@ for var in XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME; do
 done
 
 if [[ $FAILED -eq 0 ]]; then
-  echo "=== ALL TESTS PASSED ==="
-  exit 0
+  echo ""
+  echo "6. SOPS + age Secret Store"
+
+  if [[ -f "$DOTFILES_ROOT/.sops.yaml" ]]; then
+    echo "   - .sops.yaml present"
+    if grep -qE 'age: +age1' "$DOTFILES_ROOT/.sops.yaml"; then
+      echo "   - age public key configured"
+    else
+      echo "   - WARN: age public key looks like placeholder"
+    fi
+  else
+    echo "   - SKIP: .sops.yaml absent"
+  fi
+
+  if [[ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ]]; then
+    echo "   - secrets.enc.yaml present"
+    if command -v sops > /dev/null 2>&1; then
+      if sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1; then
+        echo "   - secrets.enc.yaml decrypts successfully"
+      else
+        echo "   - FAIL: secrets.enc.yaml failed to decrypt"
+        ((FAILED++))
+      fi
+    else
+      echo "   - SKIP: sops not installed"
+    fi
+  else
+    echo "   - SKIP: secrets.enc.yaml absent"
+  fi
+
+  AGE_KEY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age"
+  if [[ -f "$AGE_KEY_DIR/keys.txt" ]]; then
+    echo "   - Private age key found"
+  else
+    echo "   - SKIP: age private key not yet generated (run make secrets-init)"
+  fi
+
+  if [[ $FAILED -eq 0 ]]; then
+    echo "=== ALL TESTS PASSED ==="
+    exit 0
+  else
+    echo "=== $FAILED TEST(S) FAILED ==="
+    exit 1
+  fi
 else
   echo "=== $FAILED TEST(S) FAILED ==="
   exit 1
