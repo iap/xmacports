@@ -4,9 +4,9 @@
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-DOTFILES_ROOT="${DOTFILES_ROOT:-$(dirname "$SCRIPT_DIR")}"
+DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 export DOTFILES_ROOT
-DOTFILES="$HOME/.dotfiles"
+DOTFILES="$DOTFILES_ROOT"
 
 echo "Dotfiles Test Runner"
 echo "Project root: $DOTFILES_ROOT"
@@ -73,6 +73,16 @@ run_secrets_tests() {
   fi
 }
 
+run_bootstrap_tests() {
+  echo "Running bootstrap idempotency tests..."
+  if [[ -f "$SCRIPT_DIR/test-bootstrap.sh" ]]; then
+    bash "$SCRIPT_DIR/test-bootstrap.sh"
+  else
+    echo "❌ test-bootstrap.sh not found"
+    return 1
+  fi
+}
+
 # Main test execution
 main() {
   local test_type="${1:-all}"
@@ -86,6 +96,9 @@ main() {
       ;;
     "secrets")
       check_prerequisites && run_secrets_tests
+      ;;
+    "bootstrap")
+      check_prerequisites && run_bootstrap_tests
       ;;
     "compliance")
       check_prerequisites && run_config_tests && DOTFILES_ROOT="$DOTFILES_ROOT" bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
@@ -113,6 +126,11 @@ main() {
       run_secrets_tests || true
       echo
 
+      echo "4. Bootstrap Idempotency Tests"
+      echo
+      run_bootstrap_tests || true
+      echo
+
       echo "🎉 Complete test suite finished!"
       ;;
     "help" | "-h" | "--help")
@@ -122,8 +140,9 @@ main() {
       echo "  all         Run all tests (default)"
       echo "  config      Run configuration tests only"
       echo "  functions   Run function tests only"
-      echo "  compliance  Run configuration plus compliance checks"
       echo "  secrets     Run secret management tests only"
+      echo "  bootstrap   Run bootstrap idempotency tests only"
+      echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"
       ;;
     *)

@@ -1,12 +1,17 @@
 #!/bin/bash
 # Foundry wrappers
 
+# Load platform detection
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
+fi
+
 # Define wrapper function for all platforms
 _with_foundry_libs() {
   local cmd="${1:-}"
   shift
   if [[ -d "$HOME/.foundry/lib" ]]; then
-    if [[ "$(uname -s)" == "Darwin" ]]; then
+    if is_macos; then
       # macOS: use DYLD_FALLBACK_LIBRARY_PATH
       (DYLD_FALLBACK_LIBRARY_PATH="$HOME/.foundry/lib${DYLD_FALLBACK_LIBRARY_PATH:+:$DYLD_FALLBACK_LIBRARY_PATH}" command "$cmd" "$@")
     else

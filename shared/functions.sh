@@ -3,6 +3,11 @@
 
 set -u
 
+# Load platform detection (is_macos, is_linux, has_cmd)
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
+fi
+
 mkcd() {
   [ $# -ge 1 ] || {
     echo "Usage: mkcd <dir>" >&2
@@ -117,13 +122,10 @@ unlock_gpg() {
 
 _SECRETS_ENC_FILE="${DOTFILES_ROOT:-$HOME/.dotfiles}/secrets/secrets.enc.yaml"
 _SECRETS_PLAIN_FILE="${DOTFILES_ROOT:-$HOME/.dotfiles}/secrets/secrets.yaml"
+_SECRETS_CACHE=""
 
 _sops_available() {
   command -v sops > /dev/null 2>&1
-}
-
-_age_available() {
-  command -v age > /dev/null 2>&1
 }
 
 _sops_decrypt() {
@@ -147,7 +149,39 @@ _sops_encrypt() {
     log_warn "plaintext secrets file not found: $_SECRETS_PLAIN_FILE"
     return 1
   fi
+  local lockdir="/tmp/.dotfiles-secrets-encrypt-lock"
+  while ! mkdir "$lockdir" 2> /dev/null; do
+    sleep 0.1
+  done
   sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
+  rmdir "$lockdir" 2> /dev/null || true
+}
+
+_secrets_cache_get() {
+  if [ -z "${_SECRETS_CACHE:-}" ]; then
+    _SECRETS_CACHE=$(_sops_decrypt) || return 1
+  fi
+  printf '%s' "$_SECRETS_CACHE"
+}
+
+_secrets_cache_reset() {
+  _SECRETS_CACHE=""
+}
+
+_validate_secret_name() {
+  local name="$1"
+  case "$name" in
+    *[!a-zA-Z0-9_-]*)
+      log_warn "invalid secret name: $name (only [a-zA-Z0-9_-] allowed)"
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+_fail_missing_python() {
+  log_warn "python3 not found or yaml module missing; cannot parse secrets"
+  return 1
 }
 
 # Fetch a secret by key from the encrypted SOPS store.
@@ -158,22 +192,29 @@ secret() {
     return 1
   fi
   local key="${1:-}" ns="${2:-dotfiles}"
+  _validate_secret_name "$key" || return 1
+  _validate_secret_name "$ns" || return 1
+
   local decrypted
-  decrypted=$(_sops_decrypt) || return 1
+  decrypted=$(_secrets_cache_get) || return 1
   if [ -z "$decrypted" ]; then
     log_warn "secret '$ns.$key' returned empty value"
     return 1
   fi
-  echo "$decrypted" | python3 -c "
+  echo "$decrypted" | python3 -c '
 import sys, yaml
-d = yaml.safe_load(sys.stdin) or {}
-n = d.get('${ns}', {})
-v = n.get('${key}')
+try:
+    d = yaml.safe_load(sys.stdin) or {}
+except Exception as e:
+    print("yaml parse error: " + str(e), file=sys.stderr)
+    sys.exit(1)
+n = d.get(sys.argv[1], {})
+v = n.get(sys.argv[2])
 if v is None:
     sys.exit(1)
-print(v, end='')
-" 2> /dev/null || {
-    log_warn "secret '$ns.$key' not found"
+print(v, end="")
+' "$ns" "$key" 2> /dev/null || {
+    log_warn "secret $ns.$key not found"
     return 1
   }
 }
@@ -214,18 +255,23 @@ with_secret() {
 secret_list() {
   local ns="${1:-}"
   local decrypted
-  decrypted=$(_sops_decrypt) || return 1
-  echo "$decrypted" | python3 -c "
+  decrypted=$(_secrets_cache_get) || return 1
+  echo "$decrypted" | python3 -c '
 import sys, yaml
-d = yaml.safe_load(sys.stdin) or {}
-if '${ns}':
-    n = d.get('${ns}', {})
+try:
+    d = yaml.safe_load(sys.stdin) or {}
+except Exception as e:
+    print("yaml parse error: " + str(e), file=sys.stderr)
+    sys.exit(1)
+ns = sys.argv[1] if sys.argv[1:] else ""
+if ns:
+    n = d.get(ns, {})
     for k in n: print(k)
 else:
     for ns, vals in d.items():
-        print(f'[{ns}]')
-        for k in vals: print(f'  {k}')
-" 2> /dev/null
+        print("[" + ns + "]")
+        for k in vals: print("  " + k)
+' "$ns" 2> /dev/null
 }
 
 # Edit the decrypted secrets file in the configured editor.
@@ -267,6 +313,7 @@ secrets_encrypt() {
     return 1
   fi
   _sops_encrypt
+  _secrets_cache_reset
   log_info "encrypted secrets -> $_SECRETS_ENC_FILE"
 }
 
