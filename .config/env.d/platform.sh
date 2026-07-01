@@ -3,9 +3,10 @@
 
 set -u
 
-is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }
-is_linux() { [[ "$(uname -s)" == "Linux" ]]; }
-has_cmd() { command -v "$1" > /dev/null 2>&1; }
+# Load platform detection (is_macos, is_linux, has_cmd, DOTFILES_ROOT)
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
+fi
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"

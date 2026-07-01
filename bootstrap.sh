@@ -3,7 +3,21 @@
 
 set -eu
 
-DOTFILES="$HOME/.dotfiles"
+DOTFILES="${DOTFILES_ROOT:-$HOME/.dotfiles}"
+
+_dotfiles_lock() {
+  local lockdir="/tmp/.dotfiles-bootstrap-lock"
+  while ! mkdir "$lockdir" 2> /dev/null; do
+    sleep 0.1
+  done
+}
+
+_dotfiles_unlock() {
+  rmdir /tmp/.dotfiles-bootstrap-lock 2> /dev/null || true
+}
+
+_dotfiles_lock
+trap _dotfiles_unlock EXIT
 
 echo "Bootstrapping dotfiles..."
 

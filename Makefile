@@ -90,6 +90,9 @@ verify:
 	@echo "Running dotfiles verification..."
 	@./tests/verify-dotfiles.sh
 
+test-bootstrap:
+	@./tests/test-bootstrap.sh
+
 test-functions:
 	@./tests/run-tests.sh functions
 

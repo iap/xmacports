@@ -9,11 +9,7 @@ if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
   source "$HOME/.dotfiles/.zshrc.d/env.sh"
 fi
 
-# Foundry wrappers (consistent with bash)
-if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
-  source "$HOME/.dotfiles/.config/env.d/foundry.sh"
-fi
-
+# Load Shared Functions
 for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
