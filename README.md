@@ -29,6 +29,7 @@ Install required tools manually before bootstrapping:
 - `pinentry` of your choice
 - `shellcheck`
 - `shfmt`
+- `sops` and `age` _(for encrypted secret management)_
 
 ## Layout
 
@@ -49,6 +50,7 @@ Install required tools manually before bootstrapping:
 - `bin/` - small executable helpers
 - `scripts/` - maintenance and verification helpers
 - `templates/` and `examples/` - starter configs for local overrides
+- `secrets/` - SOPS + age encrypted secret store
 
 ## Bootstrap
 
@@ -77,13 +79,18 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 - `make check` - run shfmt and shellcheck
 - `make audit` - inspect permissions
 - `make test-all` - run the full test wrapper
+- `make secrets-init` - bootstrap age keypair and SOPS config
+- `make secrets-encrypt` - encrypt plaintext secrets
+- `make secrets-edit` - open encrypted secrets in editor
 
 ## Security
 
-- Secrets are not exported from shell startup
+- Secrets are not exported from shell startup; use `secret()` or `with_secret()` for on-demand access
 - `umask 077` keeps new files private by default
 - GPG and SSH config files are permission-checked
 - Local/private overlays stay outside the tracked repo
+- Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
+- Pre-commit hook blocks plaintext secret files and validates SOPS encryption
 
 ## Documentation
 

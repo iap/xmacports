@@ -44,3 +44,7 @@ id_ed25519_sk
 *.pem
 *.p12
 *.pfx
+
+# SOPS / age private key files
+*.age-key
+age-keys.txt
