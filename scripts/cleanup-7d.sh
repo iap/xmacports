@@ -3,6 +3,20 @@
 
 set -eu
 
+_dotfiles_lock() {
+  local lockdir="/tmp/.dotfiles-cleanup-lock"
+  while ! mkdir "$lockdir" 2> /dev/null; do
+    sleep 0.1
+  done
+}
+
+_dotfiles_unlock() {
+  rmdir /tmp/.dotfiles-cleanup-lock 2> /dev/null || true
+}
+
+_dotfiles_lock
+trap _dotfiles_unlock EXIT
+
 RANDOM_DELAY_MAX=3600
 sleep $((RANDOM % RANDOM_DELAY_MAX))
 

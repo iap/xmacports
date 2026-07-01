@@ -19,6 +19,14 @@ if [[ -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
   source "$HOME/.dotfiles/.config/env.d/platform.sh"
 fi
 
+# Load Cargo environment (interactive shells only)
+if [ -z "${CARGO_HOME:-}" ] && [ -f "$HOME/.cargo/env" ] && [ -r "$HOME/.cargo/env" ]; then
+  case ":${PATH}:" in
+    *":$HOME/.cargo/bin:"*) ;;
+    *) . "$HOME/.cargo/env" ;;
+  esac
+fi
+
 # Load Shared Functions
 for f in functions.sh aliases.sh; do
   [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
@@ -27,11 +35,6 @@ done
 # Optional developer tool manager.
 # If `mise` exists, activate its shims; otherwise continue silently.
 if has_cmd mise 2> /dev/null; then eval "$(mise activate bash)" 2> /dev/null || true; fi
-
-# Foundry wrappers
-if [[ -f "$HOME/.dotfiles/.config/env.d/foundry.sh" ]]; then
-  source "$HOME/.dotfiles/.config/env.d/foundry.sh"
-fi
 
 # Load local profile customizations AFTER platform PATH setup
 # This ensures user PATH additions in .profile.local get proper precedence

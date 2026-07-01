@@ -3,15 +3,18 @@
 
 set -eu
 
-SCRIPT="$HOME/.dotfiles/scripts/cleanup-7d.sh"
+# Load platform detection
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
+fi
+
+SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup-7d.sh"
 if [ ! -x "$SCRIPT" ]; then
   echo "cleanup script not found or not executable: $SCRIPT" >&2
   exit 1
 fi
 
-OS="$(uname -s)"
-
-if [ "$OS" = "Darwin" ]; then
+if is_macos; then
   PLIST="$HOME/Library/LaunchAgents/com.iap.dotfiles.cleanup.plist"
   LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/logs"
   cat > "$PLIST" << EOF
