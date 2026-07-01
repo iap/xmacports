@@ -33,12 +33,32 @@ while IFS= read -r f; do
       reject "SSH private key detected: $f";;
     *.env.mk)
       : ;; # .env.mk is a Makefile include, not a secrets file
-    *.env|.env|.env.*|*secret*|*secrets*)
-      reject "Potential secrets file detected: $f";;
+    secrets/secrets.enc.yaml)
+      : # SOPS-encrypted file — verify it is actually encrypted below
+      ;;
+    *.enc.yaml|*.enc.json|*.enc)
+      : ;; # Other encrypted files — assume valid if named correctly
+    *.env|.env|.env.*|*secret|secrets.yaml|*secret*.yaml|*secret*.yml|*secret*.json)
+      reject "Plaintext secrets file detected: $f";;
   esac
 done <<EOF
 $staged_files
 EOF
+
+# Verify staged SOPS encrypted files are actually encrypted
+if command -v sops >/dev/null 2>&1; then
+  while IFS= read -r f; do
+    case "$f" in
+      secrets/*.enc.yaml|*.enc.yaml)
+        if ! sops -d "$f" > /dev/null 2>&1; then
+          reject "SOPS encrypted file appears to be plaintext: $f (decryption failed)"
+        fi
+        ;;
+    esac
+  done <<EOF
+$(git diff --cached --name-only --diff-filter=ACM)
+EOF
+fi
 
 # Block PEM/OPENSSH private key content
 if git diff --cached --unified=0 | grep -E "BEGIN (OPENSSH|RSA|DSA|EC|PRIVATE) KEY" >/dev/null; then

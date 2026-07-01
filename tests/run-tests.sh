@@ -63,6 +63,16 @@ run_config_tests() {
   make test
 }
 
+run_secrets_tests() {
+  echo "Running secret management tests..."
+  if [[ -f "$SCRIPT_DIR/test-secrets.sh" ]]; then
+    bash "$SCRIPT_DIR/test-secrets.sh"
+  else
+    echo "❌ test-secrets.sh not found"
+    return 1
+  fi
+}
+
 # Main test execution
 main() {
   local test_type="${1:-all}"
@@ -73,6 +83,9 @@ main() {
       ;;
     "config")
       check_prerequisites && run_config_tests
+      ;;
+    "secrets")
+      check_prerequisites && run_secrets_tests
       ;;
     "compliance")
       check_prerequisites && run_config_tests && DOTFILES_ROOT="$DOTFILES_ROOT" bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
@@ -95,6 +108,11 @@ main() {
       run_function_tests
       echo
 
+      echo "3. Secret Management Tests"
+      echo
+      run_secrets_tests || true
+      echo
+
       echo "🎉 Complete test suite finished!"
       ;;
     "help" | "-h" | "--help")
@@ -102,9 +120,10 @@ main() {
       echo
       echo "Test types:"
       echo "  all         Run all tests (default)"
-      echo "  functions   Run function tests only"
       echo "  config      Run configuration tests only"
+      echo "  functions   Run function tests only"
       echo "  compliance  Run configuration plus compliance checks"
+      echo "  secrets     Run secret management tests only"
       echo "  help        Show this help message"
       ;;
     *)

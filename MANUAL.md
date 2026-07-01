@@ -119,13 +119,91 @@ $HOME/.dotfiles/
 ├── templates/
 │   ├── profile-local.example
 │   └── server-profile.example
-└── examples/
-    ├── gitconfig-local-example
-    ├── forward-local-example
-    ├── zshrc-local-example
-    ├── vimrc-local-example
-    └── ssh-config-example
+├── examples/
+│   ├── gitconfig-local-example
+│   ├── forward-local-example
+│   ├── zshrc-local-example
+│   ├── vimrc-local-example
+│   └── ssh-config-example
+├── secrets/
+│   ├── secrets.secrets.yaml.example
+│   ├── secrets.yaml          (gitignored decrypted working copy)
+│   └── secrets.enc.yaml      (committed encrypted store)
+└── .sops.yaml                (SOPS configuration with public age key)
 ```
+
+## SOPS + age Secret Management
+
+Secrets are managed with [SOPS](https://github.com/getsops/sops) and [age](https://age-encryption.org/). The encrypted store is committed to git; the decrypted working copy is gitignored.
+
+### Setup
+
+Run once per machine:
+
+```bash
+make secrets-init
+```
+
+This generates an age keypair at `~/.config/sops/age/keys.txt`, updates `.sops.yaml` with the public key, and bootstraps the encrypted store.
+
+**Backup the private key immediately:**
+
+```bash
+cp ~/.config/sops/age/keys.txt ~/safe-backup/
+```
+
+### Workflow
+
+```bash
+make secrets-edit      # Open encrypted secrets in editor (via sops)
+make secrets-encrypt   # Re-encrypt secrets/secrets.yaml -> secrets.enc.yaml
+make secrets-decrypt   # Decrypt secrets.enc.yaml -> secrets/secrets.yaml
+make secrets-list      # List secret keys in the default namespace
+```
+
+### Accessing Secrets in Shell
+
+Secrets are **never exported at startup**. Use the on-demand functions in `shared/functions.sh`:
+
+```bash
+# Read a secret value (prints to stdout)
+secret github_token dotfiles
+
+# Run a command with a secret injected as an env var (never exported)
+with_secret GITHUB_TOKEN=github_token -- gh repo list
+
+# List all keys
+secret_list dotfiles
+```
+
+Secret layout in `secrets/secrets.yaml`:
+
+```yaml
+dotfiles:
+  github_token: "..."
+  gitlab_token: "..."
+
+personal:
+  email_smtp_password: "..."
+```
+
+Access via `secret <key> <namespace>` (e.g., `secret github_token dotfiles`).
+
+### Security Model
+
+- Encryption key: age (public-key cryptography)
+- Public key: committed in `.sops.yaml` (safe to share)
+- Private key: stored at `~/.config/sops/age/keys.txt` (never commit)
+- Committed file: `secrets/secrets.enc.yaml` (unreadable without private key)
+- Working copy: `secrets/secrets.yaml` (gitignored, `chmod 600`)
+
+### Multi-Machine Sync
+
+To add a new machine:
+
+1. Copy `~/.config/sops/age/keys.txt` from an existing machine (or import via key backup)
+2. Run `make secrets-encrypt` to sync the committed encrypted file
+3. The new machine can now decrypt `secrets.enc.yaml`
 
 ## Bootstrap Behavior
 

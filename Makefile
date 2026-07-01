@@ -11,7 +11,7 @@ endif
 # Include environment variables
 -include .env.mk
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help secrets-init secrets-encrypt secrets-decrypt secrets-edit secrets-list secrets-genkey
 
 bootstrap:
 	@echo "Bootstrapping dotfiles..."
@@ -83,6 +83,9 @@ test-all:
 	@echo "Running comprehensive test suite..."
 	@./tests/run-tests.sh all
 
+test-secrets:
+	@./tests/test-secrets.sh
+
 verify:
 	@echo "Running dotfiles verification..."
 	@./tests/verify-dotfiles.sh
@@ -92,6 +95,37 @@ test-functions:
 
 test-compliance:
 	@./scripts/compliance-check.sh
+
+secrets-init:
+	@echo "Initialising SOPS + age secret store..."
+	@./scripts/secrets-init.sh
+
+secrets-encrypt:
+	@echo "Encrypting secrets/secrets.yaml -> secrets/secrets.enc.yaml"
+	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
+	@sops -e secrets/secrets.yaml -o secrets/secrets.enc.yaml
+
+secrets-decrypt:
+	@echo "Decrypting secrets/secrets.enc.yaml -> secrets/secrets.yaml"
+	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
+	@mkdir -p secrets
+	@sops -d secrets/secrets.enc.yaml -o secrets/secrets.yaml
+	@chmod 600 secrets/secrets.yaml
+
+secrets-edit:
+	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
+	@sops secrets/secrets.enc.yaml
+
+secrets-list:
+	@bash -c 'source shared/functions.sh && secret_list "$${1:-}"' _
+
+secrets-genkey:
+	@echo "Generating age keypair..."
+	@mkdir -p "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age"
+	@age-keygen -o "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt"
+	@chmod 600 "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt"
+	@echo "Public key: $$(age-keygen -y $${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt 2>/dev/null | grep -E '^age1' | head -1)"
+	@echo "Update .sops.yaml with the public key above."
 
 # Switch login shell between bash and zsh (platform-aware)
 switch-shell:
@@ -117,6 +151,13 @@ help:
 	@echo "  test-all          - Run comprehensive test suite"
 	@echo "  test-functions    - Run function tests only"
 	@echo "  test-compliance   - Run compliance tests only"
+	@echo "  test-secrets      - Run secret management tests only"
+	@echo "  secrets-init      - Bootstrap age keypair and SOPS config"
+	@echo "  secrets-encrypt   - Encrypt secrets/secrets.yaml to secrets.enc.yaml"
+	@echo "  secrets-decrypt   - Decrypt secrets.enc.yaml to secrets.yaml"
+	@echo "  secrets-edit      - Open encrypted secrets in editor"
+	@echo "  secrets-list      - List secret keys"
+	@echo "  secrets-genkey    - Generate new age keypair"
 	@echo "  verify            - Run dotfiles verification"
 	@echo "  shellcheck        - Lint shell scripts"
 	@echo "  shfmt             - Format shell scripts in place"
