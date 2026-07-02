@@ -106,21 +106,20 @@ secrets-init:
 secrets-encrypt:
 	@echo "Encrypting secrets/secrets.yaml -> secrets/secrets.enc.yaml"
 	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
-	@sops -e secrets/secrets.yaml -o secrets/secrets.enc.yaml
+	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secrets_encrypt'
 
 secrets-decrypt:
 	@echo "Decrypting secrets/secrets.enc.yaml -> secrets/secrets.yaml"
 	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
 	@mkdir -p secrets
-	@sops -d secrets/secrets.enc.yaml -o secrets/secrets.yaml
-	@chmod 600 secrets/secrets.yaml
+	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secrets_decrypt'
 
 secrets-edit:
 	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
 	@sops secrets/secrets.enc.yaml
 
 secrets-list:
-	@bash -c 'source shared/functions.sh && secret_list "$${1:-}"' _
+	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secret_list "$${1:-}"'
 
 secrets-genkey:
 	@echo "Generating age keypair..."

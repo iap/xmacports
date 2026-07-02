@@ -74,3 +74,6 @@ if [[ -n "$ZSH_VERSION" ]]; then
     fi
   }
 fi
+
+# Initialize _prompt_last_exit for first prompt
+_prompt_last_exit=0

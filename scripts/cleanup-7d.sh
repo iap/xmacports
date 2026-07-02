@@ -4,14 +4,14 @@
 set -eu
 
 _dotfiles_lock() {
-  local lockdir="/tmp/.dotfiles-cleanup-lock"
+  local lockdir="/tmp/.dotfiles-cleanup-$$"
   while ! mkdir "$lockdir" 2> /dev/null; do
     sleep 0.1
   done
 }
 
 _dotfiles_unlock() {
-  rmdir /tmp/.dotfiles-cleanup-lock 2> /dev/null || true
+  rmdir "/tmp/.dotfiles-cleanup-$$" 2> /dev/null || true
 }
 
 _dotfiles_lock

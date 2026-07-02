@@ -37,7 +37,7 @@ verify_gpg_ssh() {
 }
 
 temp_check() {
-  if [ "$(uname -s)" != "Darwin" ]; then
+  if ! is_macos; then
     echo "temp_check is macOS only"
     return 1
   fi
@@ -49,7 +49,7 @@ temp_check() {
 }
 
 battery_status() {
-  if [ "$(uname -s)" != "Darwin" ]; then
+  if ! is_macos; then
     echo "battery_status is macOS only"
     return 1
   fi
@@ -99,7 +99,7 @@ gitstat() {
 }
 
 envinfo() {
-  if [ "$(uname -s)" = "Darwin" ]; then
+  if is_macos; then
     echo "OS: $(sw_vers -productVersion)"
     echo "MACPORTS: $(port version 2> /dev/null | head -1 || echo 'not bootstrapped')"
   else
@@ -149,7 +149,7 @@ _sops_encrypt() {
     log_warn "plaintext secrets file not found: $_SECRETS_PLAIN_FILE"
     return 1
   fi
-  local lockdir="/tmp/.dotfiles-secrets-encrypt-lock"
+  local lockdir="/tmp/.dotfiles-secrets-encrypt-$$"
   while ! mkdir "$lockdir" 2> /dev/null; do
     sleep 0.1
   done
@@ -318,7 +318,7 @@ secrets_encrypt() {
 }
 
 randomize_mac() {
-  if [ "$(uname -s)" != "Darwin" ]; then
+  if ! is_macos; then
     echo "randomize_mac is macOS only"
     return 1
   fi
@@ -334,7 +334,7 @@ randomize_mac() {
 }
 
 check_privacy() {
-  if [ "$(uname -s)" = "Darwin" ]; then
+  if is_macos; then
     echo "WiFi MAC: $(ifconfig en0 2> /dev/null | grep ether | awk '{print $2}' || echo 'N/A')"
     echo "Private Address: $(system_profiler SPAirPortDataType 2> /dev/null | grep -q 'Private' && echo 'Enabled' || echo 'Check System Settings')"
   else
