@@ -38,9 +38,12 @@ else
   echo "Generating age keypair..."
   /usr/local/bin/age-keygen -o "$SOPS_AGE_KEY" 2> /dev/null ||
     command -v age-keygen > /dev/null 2>&1 && age-keygen -o "$SOPS_AGE_KEY" ||
-    age keygen -o "$SOPS_AGE_KEY"
+    {
+      echo "❌ age-keygen not found in PATH" >&2
+      exit 1
+    }
   chmod 600 "$SOPS_AGE_KEY"
-  AGENT_KEYS=$(age-keygen -y "$SOPS_AGE_KEY" 2> /dev/null || age keygen -y "$SOPS_AGE_KEY" 2> /dev/null || echo "")
+  AGENT_KEYS=$(age-keygen -y "$SOPS_AGE_KEY" 2> /dev/null || echo "")
   if [ -z "$AGENT_KEYS" ]; then
     echo "❌ Failed to extract public key from generated keypair" >&2
     exit 1
