@@ -23,9 +23,12 @@ echo "Bootstrap Idempotency Test"
 date '+%Y-%m-%d %H:%M:%S'
 echo
 
-# Create placeholders so bootstrap has something to back up
-FILES=".profile .bashrc .zshrc .zprofile .vimrc .gitconfig .gitignore_global .forward"
-for f in $FILES; do
+# Save originals and ensure clean state
+echo "Preparing test environment..."
+for f in .profile .bashrc .zshrc .zprofile .vimrc .gitconfig .gitignore_global .forward; do
+  if [ -L "$HOME/$f" ]; then
+    rm -f "$HOME/$f"
+  fi
   touch "$HOME/$f" 2> /dev/null || true
 done
 chmod 600 "$HOME/.forward" "$HOME/.vimrc" 2> /dev/null || true
@@ -73,13 +76,13 @@ for f in .profile .zprofile .bashrc .zshrc .bash_profile .gitconfig .gitignore_g
 done
 echo
 
-# Verify no duplicate backups from second run
+# Verify backup created on first run, no duplicate on second
 echo "4. Backup count"
 backups=$(find "$HOME" -maxdepth 1 -type d -name ".dotfiles-backup-*" 2> /dev/null | wc -l | tr -d ' ')
-if [ "$backups" -le 2 ]; then
-  pass "backup dirs: $backups (expected <= 2)"
+if [ "$backups" -eq 1 ]; then
+  pass "backup dirs: $backups (expected 1)"
 else
-  fail "backup dirs: $backups (expected <= 2, got $backups)"
+  fail "backup dirs: $backups (expected 1, got $backups)"
 fi
 echo
 
@@ -110,6 +113,16 @@ echo
 TOTAL=$((PASSED + FAILED))
 echo "────────────────────────────────"
 echo "Total: $TOTAL  Passed: $PASSED  Failed: $FAILED"
+
+# Cleanup: remove test symlinks and backup dirs
+echo "Cleaning up test artifacts..."
+for f in .profile .zprofile .bashrc .zshrc .bash_profile .gitconfig .gitignore_global .forward .vimrc; do
+  if [ -L "$HOME/$f" ]; then
+    rm -f "$HOME/$f"
+  fi
+done
+find "$HOME" -maxdepth 1 -type d -name ".dotfiles-backup-*" -exec rm -rf {} + 2> /dev/null || true
+
 [[ $FAILED -eq 0 ]] && echo "✅ Bootstrap idempotency OK!" && exit 0 || {
   echo "WARN: $FAILED test(s) failed."
   exit 1

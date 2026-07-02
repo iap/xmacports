@@ -13,6 +13,9 @@ private/
 *.o
 *.out
 
+# XDG cache directory (runtime logs, prompt caches)
+.cache/
+
 # Age / SOPS secret management
 # secrets.yaml      (decrypted working copy — gitignored below)
 *.age
