@@ -61,14 +61,13 @@ chmod 700 "$HOME/.gnupg" "$HOME/.ssh"
 # Common: GPG, vim, SSH
 backup_and_link "$DOTFILES/.config/gpg/gpg.conf" "$HOME/.gnupg/gpg.conf"
 backup_and_link "$DOTFILES/.config/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
+chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf" 2> /dev/null || true
 backup_and_link "$DOTFILES/.vimrc" "$HOME/.vimrc"
 backup_and_link "$DOTFILES/.config/ssh/config" "$HOME/.ssh/config"
+chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
 backup_and_link "$DOTFILES/.config/vim/vimrc" "$HOME/.config/vim/vimrc"
 backup_and_link "$DOTFILES/.config/vim/privacy.vim" "$HOME/.config/vim/privacy.vim"
 backup_and_link "$DOTFILES/.config/npm/config" "$HOME/.config/npm/config"
-
-chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf"
-chmod 600 "$HOME/.ssh/config"
 
 # Common: git hooks
 if [[ -d "$DOTFILES/.githooks" ]]; then

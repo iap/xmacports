@@ -76,14 +76,15 @@ check "zsh env loader survives set -u" zsh -c '
   set -u
   source "'"$DOTFILES"'/.zshrc.d/env.sh"
 '
-check "platform loader dedupes PATH" bash --noprofile --norc -c '
+check "platform loader dedupes PATH" /bin/bash --noprofile --norc -c '
   set -u
+  unset DOTFILES_ENV_LOADED DOTFILES_PLATFORM_LOADED
   PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
   export PATH
   source "'"$DOTFILES"'/.config/env.d/platform.sh"
   local_count=0
   local_seen=""
-  local IFS=":"
+  IFS=":"
   for segment in $PATH; do
     [ -z "$segment" ] && continue
     case ":${local_seen}:" in
@@ -93,7 +94,7 @@ check "platform loader dedupes PATH" bash --noprofile --norc -c '
   done
   [ "$local_count" -eq 0 ]
 '
-check "platform loader discovers /opt/local/bin gpg when present" bash --noprofile --norc -c '
+check "platform loader discovers /opt/local/bin gpg when present" /bin/bash --noprofile --norc -c '
   set -u
   PATH="/usr/bin:/bin"
   export PATH

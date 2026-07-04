@@ -210,10 +210,30 @@ if [ -d "$gnupg_dir" ]; then
     [ -e "$f" ] || continue
     [ "$f" = "$gnupg_dir/pubring.kbx" ] && continue
     p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
-    if [ "$p" = "600" ]; then
-      echo "✅ $f 600"
+    # Socket files and directories in .gnupg should be 700, regular files 600
+    # For symlinks, check the target file permissions
+    if [ -L "$f" ]; then
+      target=$(readlink "$f")
+      case "$target" in
+        /*) target_path="$target" ;;
+        *) target_path="$(dirname "$f")/$target" ;;
+      esac
+      if [ -e "$target_path" ]; then
+        p=$(eval "$perm_of_cmd \"$target_path\"" 2> /dev/null || true)
+      fi
+    fi
+    if [ -S "$f" ] || [ -d "$f" ]; then
+      if [ "$p" = "700" ]; then
+        echo "✅ $f 700 (socket/dir)"
+      else
+        echo "⚠️  $f ${p:-unknown} (expected 700 for socket/dir)"
+      fi
     else
-      echo "⚠️  $f ${p:-unknown} (expected 600)"
+      if [ "$p" = "600" ]; then
+        echo "✅ $f 600"
+      else
+        echo "⚠️  $f ${p:-unknown} (expected 600)"
+      fi
     fi
   done
 else

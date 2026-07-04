@@ -1,0 +1,15 @@
+# mise configuration for dotfiles development
+# Run `mise install` to install declared tools
+
+[tools]
+# Shell development
+shellcheck = "0.10.0"
+shfmt = "3.8.0"
+
+# Secrets management (match CI versions)
+age = "1.2.1"
+sops = "3.9.4"
+
+[env]
+# Ensure mise shims are in PATH
+MISE_EXPERIMENTAL = "1"

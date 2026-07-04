@@ -11,7 +11,12 @@ git_info() {
   local cache_file="${SHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/shell/git_status_${dir_hash}}"
   local cache_timeout="${GIT_PROMPT_CACHE_TIMEOUT:-5}"
 
-  if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - $(/usr/bin/stat -f %m "$cache_file" 2> /dev/null || stat -c %Y "$cache_file" 2> /dev/null || echo 0))) -lt $cache_timeout ]]; then
+  local cache_mtime=0
+  if [[ -f "$cache_file" ]]; then
+    # Cross-platform stat: BSD/macOS uses -f %m, GNU/Linux uses -c %Y
+    cache_mtime=$(/usr/bin/stat -f %m "$cache_file" 2> /dev/null || stat -c %Y "$cache_file" 2> /dev/null || echo 0)
+  fi
+  if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - cache_mtime)) -lt $cache_timeout ]]; then
     cat "$cache_file" 2> /dev/null && return
   fi
 

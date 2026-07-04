@@ -1,29 +1,31 @@
 #!/bin/bash
 # Platform-environment configuration
 
-set -u
-
-# Load platform detection (is_macos, is_linux, has_cmd, DOTFILES_ROOT)
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+# Use a non-exported guard to avoid leaking to child processes
+if [[ -n "${DOTFILES_ENV_LOADED:-}" ]]; then
+  return 0
 fi
+DOTFILES_ENV_LOADED=1
+
+set -u
 
 export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-if [[ -n "${DOTFILES_ENV_LOADED:-}" ]]; then
-  return 0
+# Load platform detection (is_macos, is_linux, has_cmd, DOTFILES_ROOT)
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
 fi
-export DOTFILES_ENV_LOADED=1
 
 unset MACPORTS_PREFIX CPPFLAGS LDFLAGS
 
 # Foundry (Ethereum) - optional local installs only
+# Can be overridden via FOUNDRY_BIN_PATH in ~/.profile.local
 unset FOUNDRY_BIN_PATH
-for foundry_path in "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin"; do
-  if [[ -d "$foundry_path" ]] && [[ -r "$foundry_path" ]]; then
+for foundry_path in "${FOUNDRY_BIN_PATH:-}" "$HOME/.foundry/bin" "$HOME/.config/.foundry/bin"; do
+  if [[ -n "$foundry_path" ]] && [[ -d "$foundry_path" ]] && [[ -r "$foundry_path" ]]; then
     export FOUNDRY_BIN_PATH="$foundry_path"
     break
   fi
@@ -84,6 +86,7 @@ export DOTNET_CLI_TELEMETRY_OPTOUT=1 HOMEBREW_NO_ANALYTICS=1
 export NEXT_TELEMETRY_DISABLED=1 DO_NOT_TRACK=1
 export DISABLE_TELEMETRY=1 NO_UPDATE_NOTIFIER=1
 
+# Path deduplication
 path_dedupe() {
   local current="${PATH:-}" normalized="" segment
   local IFS=':'
@@ -106,6 +109,9 @@ path_prepend_if_present() {
   esac
   PATH="$dir${PATH:+:$PATH}"
 }
+
+# mise shims FIRST (project-scoped tools take precedence over system)
+path_prepend_if_present "$HOME/.local/share/mise/shims"
 
 path_dedupe
 
