@@ -3,9 +3,10 @@
 
 set -u
 
-# Load platform detection (is_macos, is_linux, has_cmd)
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+# Load platform detection AND environment (is_macos, is_linux, has_cmd, DOTFILES_ROOT, PATH setup, etc.)
+# This sources shared/platform.sh internally
+if [[ -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
+  source "$HOME/.dotfiles/.config/env.d/platform.sh"
 fi
 
 mkcd() {

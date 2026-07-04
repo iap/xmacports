@@ -2,6 +2,12 @@
 # Platform detection — single source of truth for OS/command checks.
 # Intended to be sourced from bash or zsh.
 
+# Use a non-exported guard to avoid leaking to child processes
+if [[ -n "${DOTFILES_PLATFORM_LOADED:-}" ]]; then
+  return 0
+fi
+DOTFILES_PLATFORM_LOADED=1
+
 set -u
 
 is_macos() { [[ "$(uname -s)" == "Darwin" ]]; }

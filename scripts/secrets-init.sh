@@ -36,12 +36,12 @@ if [ -f "$SOPS_AGE_KEY" ]; then
   echo "   Remove it first if you want to generate a new keypair."
 else
   echo "Generating age keypair..."
-  /usr/local/bin/age-keygen -o "$SOPS_AGE_KEY" 2> /dev/null ||
-    command -v age-keygen > /dev/null 2>&1 && age-keygen -o "$SOPS_AGE_KEY" ||
-    {
-      echo "❌ age-keygen not found in PATH" >&2
-      exit 1
-    }
+  if command -v age-keygen > /dev/null 2>&1; then
+    age-keygen -o "$SOPS_AGE_KEY"
+  else
+    echo "❌ age-keygen not found in PATH" >&2
+    exit 1
+  fi
   chmod 600 "$SOPS_AGE_KEY"
   AGENT_KEYS=$(age-keygen -y "$SOPS_AGE_KEY" 2> /dev/null || echo "")
   if [ -z "$AGENT_KEYS" ]; then

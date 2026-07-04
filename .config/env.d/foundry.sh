@@ -1,7 +1,7 @@
 #!/bin/bash
 # Foundry wrappers
 
-# Load platform detection
+# Load platform detection (provides is_macos, has_cmd, FOUNDRY_BIN_PATH)
 if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
   source "$HOME/.dotfiles/shared/platform.sh"
 fi
@@ -23,12 +23,12 @@ _with_foundry_libs() {
   fi
 }
 
-# Only proceed if Foundry tools are available
-if [[ -d "$HOME/.foundry/bin" ]] && [[ -r "$HOME/.foundry/bin" ]]; then
+# Only proceed if Foundry tools are available via FOUNDRY_BIN_PATH
+if [[ -n "${FOUNDRY_BIN_PATH:-}" ]] && [[ -d "$FOUNDRY_BIN_PATH" ]] && [[ -r "$FOUNDRY_BIN_PATH" ]]; then
   # Add to PATH only if not already there
   case ":$PATH:" in
-    *":$HOME/.foundry/bin:"*) ;;
-    *) export PATH="$HOME/.foundry/bin:$PATH" ;;
+    *":$FOUNDRY_BIN_PATH:"*) ;;
+    *) export PATH="$FOUNDRY_BIN_PATH:$PATH" ;;
   esac
 fi
 

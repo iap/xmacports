@@ -23,6 +23,9 @@ echo "Bootstrap Idempotency Test"
 date '+%Y-%m-%d %H:%M:%S'
 echo
 
+# Clean up any existing backup dirs from previous runs
+find "$HOME" -maxdepth 1 -type d -name ".dotfiles-backup-*" -exec rm -rf {} + 2> /dev/null || true
+
 # Save originals and ensure clean state
 echo "Preparing test environment..."
 for f in .profile .bashrc .zshrc .zprofile .vimrc .gitconfig .gitignore_global .forward; do

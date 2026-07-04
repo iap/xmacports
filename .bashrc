@@ -14,11 +14,6 @@ shopt -s autocd 2> /dev/null
 shopt -s globstar 2> /dev/null
 shopt -s checkwinsize 2> /dev/null
 
-# Load Unified Platform Configuration
-if [[ -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
-  source "$HOME/.dotfiles/.config/env.d/platform.sh"
-fi
-
 # Load Cargo environment (interactive shells only)
 if [ -z "${CARGO_HOME:-}" ] && [ -f "$HOME/.cargo/env" ] && [ -r "$HOME/.cargo/env" ]; then
   case ":${PATH}:" in
