@@ -61,7 +61,8 @@ else
 fi
 
 safe_mkdir() {
-  mkdir -p "$1" 2> /dev/null && chmod 700 "$1" 2> /dev/null || true
+  mkdir -p "$1" 2>/dev/null
+  chmod 700 "$1" 2>/dev/null || true
 }
 safe_mkdir "$XDG_CACHE_HOME/logs"
 safe_mkdir "$XDG_CACHE_HOME/ssh"

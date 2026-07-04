@@ -18,6 +18,10 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - Back up existing user files before replacing them.
 - Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
 - Keep changes small and reviewable.
+- Use `mise` for project-scoped tooling (shellcheck, shfmt, age, sops) and global runtimes (uv/python, pnpm/node).
+- Use MacPorts only for system packages (git, gpg, coreutils, python3 for system scripts).
+- All external dependencies fetched via `curl`/`wget` with SHA256 verification — never package managers in bootstrap/startup.
+- Pin all versions in `.mise.toml` and CI workflows.
 
 ## Repo Layout
 
@@ -38,6 +42,9 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - Keep macOS and Linux paths explicit.
 - Avoid GNU-only assumptions when a BSD-compatible fallback exists.
 - Do not hardcode package-manager workflows or install commands into normal startup.
+- `mise` shims take precedence over system package managers in PATH.
+- Use `mise exec` or `mise run` to invoke project tools; do not hardcode mise paths.
+- Global runtimes (Python via uv, Node via pnpm) managed by `mise use --global`.
 
 ## No Package Manager Automation
 
@@ -45,7 +52,32 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - It is fine to print manual install guidance when a tool is missing.
 - Keep docs honest about prerequisites.
 - If a required tool is absent, fail clearly and early.
-- `mise` is allowed as an opt-in per-user tool manager for developer runtimes and shims, but it must remain optional and must not be used to provision the base dotfiles environment.
+- `mise` is the **only** allowed tool manager for developer runtimes and shims.
+- MacPorts is restricted to system packages (git, gpg, coreutils).
+- All other dependencies fetched via `curl`/`wget` with SHA256 verification.
+
+## Mise Configuration
+
+### Project Tools (`.mise.toml`)
+- `shellcheck` — linting
+- `shfmt` — formatting
+- `age` / `age-keygen` — secret key generation
+- `sops` — secret encryption
+
+### Global Runtimes (via `mise use --global`)
+- `python` — via `uv` (preferred over system python3)
+- `node` — via `pnpm` (preferred over system node)
+
+### PATH Order (in `.config/env.d/platform.sh`)
+1. mise global shims (`~/.local/share/mise/shims`)
+2. Project mise shims (auto via `mise activate` in shell rc)
+3. User `~/bin`, `~/.local/bin`
+4. Foundry (if installed)
+5. MacPorts (`/opt/local/bin`, `/opt/local/sbin`)
+6. System paths
+
+### Verification
+Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 
 ## Cursor Plans
 
