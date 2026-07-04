@@ -2,7 +2,7 @@
 # Run `mise install` to install declared tools
 
 [tools]
-# Shell development
+# Shell development (lint/format)
 shellcheck = "0.10.0"
 shfmt = "3.8.0"
 
