@@ -8,7 +8,8 @@ FAILURES=0
 WARNINGS=0
 
 check() {
-  local name="$1"; shift
+  local name="$1"
+  shift
   if "$@"; then
     echo "✅ $name"
   else
@@ -18,7 +19,8 @@ check() {
 }
 
 warn() {
-  local name="$1"; shift
+  local name="$1"
+  shift
   if "$@"; then
     echo "✅ $name"
   else
