@@ -73,13 +73,16 @@ check "sops version 3.9.4" bash -c '
 
 # 3. Global runtimes
 check "python via mise (uv)" bash -c '
-  python3 --version 2>&1 | grep -q "3.12"
+  source ~/.dotfiles/.config/env.d/platform.sh
+  PATH="$HOME/.local/share/mise/shims:$PATH" python3 --version 2>&1 | grep -q "3.12"
 '
 check "pnpm via mise" bash -c '
-  pnpm --version 2>&1 | grep -q "9"
+  source ~/.dotfiles/.config/env.d/platform.sh
+  PATH="$HOME/.local/share/mise/shims:$PATH" pnpm --version 2>&1 | grep -q "9"
 '
 check "uv via mise" bash -c '
-  uv --version 2>&1 | grep -q "0.5"
+  source ~/.dotfiles/.config/env.d/platform.sh
+  PATH="$HOME/.local/share/mise/shims:$PATH" uv --version 2>&1 | grep -q "0.5"
 '
 
 # 4. Shell integration
