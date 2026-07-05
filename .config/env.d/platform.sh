@@ -115,23 +115,22 @@ path_prepend_if_present() {
 }
 
 # mise shims FIRST (project-scoped tools take precedence over system)
-path_prepend_if_present "$HOME/.local/share/mise/shims"
-
-path_dedupe
-
+# Prepended LAST so they appear FIRST in final PATH
 for dir in \
-  "$HOME/bin" \
-  "$HOME/.local/bin" \
-  "${FOUNDRY_BIN_PATH:-}" \
-  "/opt/local/bin" \
-  "/usr/local/bin" \
-  "/usr/local/sbin" \
-  "/usr/bin" \
-  "/bin" \
+  "/sbin" \
   "/usr/sbin" \
-  "/sbin"; do
+  "/bin" \
+  "/usr/bin" \
+  "/usr/local/sbin" \
+  "/usr/local/bin" \
+  "/opt/local/bin" \
+  "${FOUNDRY_BIN_PATH:-}" \
+  "$HOME/.local/bin" \
+  "$HOME/bin"; do
   path_prepend_if_present "$dir"
 done
+
+path_prepend_if_present "$HOME/.local/share/mise/shims"
 
 path_dedupe
 export PATH
