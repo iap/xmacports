@@ -31,6 +31,8 @@ echo ""
 echo "3. PATH Integrity"
 
 # Test platform.sh in isolation with clean environment
+# Create user bin directories that platform.sh expects to add to PATH
+mkdir -p "$HOME/bin" "$HOME/.local/bin"
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
   bash -c "unset DOTFILES_ENV_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"\$PATH\"")

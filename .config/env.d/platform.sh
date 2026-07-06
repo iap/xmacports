@@ -15,8 +15,8 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # Load platform detection (is_macos, is_linux, has_cmd, DOTFILES_ROOT)
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
 fi
 
 unset MACPORTS_PREFIX CPPFLAGS LDFLAGS
