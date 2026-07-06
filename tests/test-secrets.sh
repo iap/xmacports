@@ -66,8 +66,20 @@ echo
 
 echo "4. Encrypted file integrity"
 if [ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ] && command -v sops > /dev/null 2>&1; then
-  check "secrets.enc.yaml decrypts without error" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1
-  check "secrets.enc.yaml contains valid YAML when decrypted" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" | python3 -c "import sys,yaml; yaml.safe_load(sys.stdin)" 2> /dev/null
+  # Check if the local age private key matches the one used for encryption
+  AGE_KEYS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age/keys.txt"
+  if [ -f "$AGE_KEYS_FILE" ] && command -v age > /dev/null 2>&1; then
+    EXTRACTED_KEY=$(age-keygen -y "$AGE_KEYS_FILE" 2> /dev/null | grep -E '^age1' | head -1)
+    PUBLIC_KEY=$(grep -E 'age: +age1' "$DOTFILES_ROOT/.sops.yaml" | sed 's/.*age: *//' | tr -d ' ')
+    if [ "$PUBLIC_KEY" = "$EXTRACTED_KEY" ]; then
+      check "secrets.enc.yaml decrypts without error" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1
+      check "secrets.enc.yaml contains valid YAML when decrypted" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" | python3 -c "import sys,yaml; yaml.safe_load(sys.stdin)" 2> /dev/null
+    else
+      echo "   SKIP: age private key doesn't match encrypted file (different keypair in CI)"
+    fi
+  else
+    echo "   SKIP: sops or age private key missing"
+  fi
 else
   echo "   SKIP: sops or encrypted file missing"
 fi
