@@ -2,9 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   test:
@@ -13,92 +16,94 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
+    env:
+      XDG_CONFIG_HOME: ${{ runner.temp }}/.config
+      XDG_DATA_HOME: ${{ runner.temp }}/.local/share
+      XDG_CACHE_HOME: ${{ runner.temp }}/.cache
+      XDG_STATE_HOME: ${{ runner.temp }}/.local/state
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set XDG directories
-        run: |
-          echo "XDG_CONFIG_HOME=${{ runner.temp }}/.config" >> "$GITHUB_ENV"
-          echo "XDG_CACHE_HOME=${{ runner.temp }}/.cache" >> "$GITHUB_ENV"
-          echo "XDG_DATA_HOME=${{ runner.temp }}/.local/share" >> "$GITHUB_ENV"
-          echo "XDG_STATE_HOME=${{ runner.temp }}/.local/state" >> "$GITHUB_ENV"
+      - name: Cache mise
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.local/share/mise
+            ~/.cache/mise
+          key: mise-${{ runner.os }}-${{ hashFiles('.mise.toml') }}
+          restore-keys: |
+            mise-${{ runner.os }}-
 
       - name: Install mise
         uses: jdx/mise-action@v2
         with:
           install: true
-          activate: true
 
-      - name: Install system packages (Ubuntu)
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq python3 python3-yaml git curl ca-certificates
-
-      - name: Generate age keypair (for secret tests)
-        run: |
-          mkdir -p "$XDG_CONFIG_HOME/sops/age"
-          age-keygen -o "$XDG_CONFIG_HOME/sops/age/keys.txt"
-
-      - name: Create XDG runtime directories
-        run: |
-          mkdir -p "$XDG_DATA_HOME" "$XDG_STATE_HOME/shell" "$XDG_STATE_HOME/bash" "$XDG_STATE_HOME/zsh" "$XDG_CACHE_HOME/shell" "$XDG_CACHE_HOME/logs" "$XDG_CACHE_HOME/ssh"
-
-      - name: Prepare test environment
-        run: |
-          set -euo pipefail
-          echo "runner.os=${{ runner.os }}"
-          echo "HOME=$HOME"
-          echo "GITHUB_ENV=$GITHUB_ENV"
-          echo "XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
-          echo "XDG_CACHE_HOME=$XDG_CACHE_HOME"
-          echo "XDG_DATA_HOME=$XDG_DATA_HOME"
-          echo "XDG_STATE_HOME=$XDG_STATE_HOME"
-          echo "PATH=$PATH"
-          echo "mise=$(command -v mise || true)"
-          echo "shellcheck=$((command -v shellcheck; shellcheck --version | head -n 1) 2>/dev/null || true)"
-          echo "shfmt=$((command -v shfmt; shfmt --version 2>/dev/null || true) 2>/dev/null || true)"
-          echo "age=$((command -v age-keygen; age-keygen --version 2>/dev/null || true) 2>/dev/null || true)"
-          echo "sops=$((command -v sops; sops --version 2>/dev/null || true) 2>/dev/null || true)"
-
-      - name: Configure PATH for mise tools
-        run: |
-          set -euo pipefail
-          if command -v mise >/dev/null 2>&1; then
-            eval "$(mise env -C "$GITHUB_WORKSPACE")"
-          fi
-          echo "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}" >> "$GITHUB_ENV"
-          echo "XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}" >> "$GITHUB_ENV"
-          echo "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}" >> "$GITHUB_ENV"
-          echo "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}" >> "$GITHUB_ENV"
-          export PATH="$HOME/.local/share/mise/shims:$HOME/.local/share/mise/installs/shellcheck/0.10.0:$HOME/.local/share/mise/installs/shfmt/3.8.0:$HOME/.local/share/mise/installs/age/1.2.1:$HOME/.local/share/mise/installs/sops/3.9.4:${PATH:-}"
-          echo "sops=$(command -v sops || true)"
-          echo "age-keygen=$(command -v age-keygen || true)"
-
-      - name: Create XDG runtime directories and known paths
+      - name: Activate mise and setup environment
         shell: bash
         run: |
           set -euo pipefail
+          eval "$(mise activate bash)"
+
           mkdir -p "$XDG_CONFIG_HOME/sops/age"
           mkdir -p "$XDG_CACHE_HOME/logs" "$XDG_CACHE_HOME/ssh" "$XDG_CACHE_HOME/shell"
           mkdir -p "$XDG_DATA_HOME/shell" "$XDG_STATE_HOME/shell"
           mkdir -p "$HOME/.local/share/mise/.cache" "$HOME/.local/share/mise/exe"
 
+          age-keygen -o "$XDG_CONFIG_HOME/sops/age/keys.txt"
+
+          echo "MISE_ACTIVATED=true" >> "$GITHUB_ENV"
+
+      - name: Install system packages (Ubuntu)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in {1..5}; do
+            if sudo apt-get update -qq; then break; fi
+            echo "apt update failed, retrying in 10s... (attempt $i/5)"
+            sleep 10
+          done
+          sudo apt-get install -y -qq python3 python3-yaml git curl ca-certificates
+
+      - name: Setup MacPorts (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -d /opt/local/bin ]]; then
+            echo "/opt/local/bin" >> "$GITHUB_PATH"
+            echo "/opt/local/sbin" >> "$GITHUB_PATH"
+          fi
+
       - name: Shell syntax tests
         shell: bash
-        run: make test
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          make test
 
       - name: Dotfiles verification
         shell: bash
-        run: make verify
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          make verify
 
       - name: Shellcheck
         shell: bash
-        run: make shellcheck
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          make shellcheck
 
       - name: shfmt check
         shell: bash
-        run: make fmt-check
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          make fmt-check
 
       - name: Secret management tests
         shell: bash
@@ -106,14 +111,17 @@ jobs:
           SOPS_AGE_KEY_FILE: ${{ env.XDG_CONFIG_HOME }}/sops/age/keys.txt
         run: |
           set -euo pipefail
-          age-keygen -o "$XDG_CONFIG_HOME/sops/age/keys.txt"
+          eval "$(mise activate bash)"
           make test-secrets
 
       - name: Compliance check
         shell: bash
         env:
           DOTFILES_ROOT: ${{ github.workspace }}
-        run: make test-compliance
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          make test-compliance
 
       - name: Log runner summary
         if: always()
