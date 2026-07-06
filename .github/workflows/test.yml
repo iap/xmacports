@@ -30,12 +30,18 @@ jobs:
           restore-keys: |
             mise-${{ runner.os }}-
 
-      - name: Install mise
-        uses: jdx/mise-action@v2
-        with:
-          install: true
-          reshim: true
-          cache: false
+      - name: Install mise and tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Install mise
+          if ! command -v mise >/dev/null 2>&1; then
+            curl -fsSL https://mise.jdx.dev/install.sh | sh
+          fi
+          eval "$(mise activate bash)"
+          mise reshim
+          # Install tools from .mise.toml
+          mise install
 
       - name: Activate mise and setup environment
         shell: bash
