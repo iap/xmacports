@@ -96,11 +96,23 @@ if [[ $FAILED -eq 0 ]]; then
   if [[ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ]]; then
     echo "   - secrets.enc.yaml present"
     if command -v sops > /dev/null 2>&1; then
-      if sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1; then
-        echo "   - secrets.enc.yaml decrypts successfully"
+      # Check if the local age private key matches the one used for encryption
+      AGE_KEY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age"
+      if [[ -f "$AGE_KEY_DIR/keys.txt" ]] && command -v age > /dev/null 2>&1; then
+        EXTRACTED_KEY=$(age-keygen -y "$AGE_KEY_DIR/keys.txt" 2> /dev/null | grep -E '^age1' | head -1)
+        PUBLIC_KEY=$(grep -E 'age: +age1' "$DOTFILES_ROOT/.sops.yaml" | sed 's/.*age: *//' | tr -d ' ')
+        if [[ "$PUBLIC_KEY" = "$EXTRACTED_KEY" ]]; then
+          if sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1; then
+            echo "   - secrets.enc.yaml decrypts successfully"
+          else
+            echo "   - FAIL: secrets.enc.yaml failed to decrypt"
+            ((FAILED++))
+          fi
+        else
+          echo "   - SKIP: age private key doesn't match encrypted file (different keypair in CI)"
+        fi
       else
-        echo "   - FAIL: secrets.enc.yaml failed to decrypt"
-        ((FAILED++))
+        echo "   - SKIP: age private key not available for decryption test"
       fi
     else
       echo "   - SKIP: sops not installed"
