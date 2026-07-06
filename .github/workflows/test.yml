@@ -32,6 +32,8 @@ jobs:
 
       - name: Install mise and tools
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           # Install mise
@@ -45,6 +47,8 @@ jobs:
 
       - name: Activate mise and setup environment
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
@@ -92,6 +96,8 @@ jobs:
 
       - name: Shell syntax tests
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
@@ -99,6 +105,8 @@ jobs:
 
       - name: Dotfiles verification
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
@@ -106,6 +114,8 @@ jobs:
 
       - name: Shellcheck
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
@@ -113,6 +123,8 @@ jobs:
 
       - name: shfmt check
         shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
@@ -121,6 +133,7 @@ jobs:
       - name: Secret management tests
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           SOPS_AGE_KEY_FILE: ${{ env.XDG_CONFIG_HOME }}/sops/age/keys.txt
         run: |
           set -euo pipefail
@@ -130,6 +143,7 @@ jobs:
       - name: Compliance check
         shell: bash
         env:
+          GITHUB_TOKEN: ${{ github.token }}
           DOTFILES_ROOT: ${{ github.workspace }}
         run: |
           set -euo pipefail
