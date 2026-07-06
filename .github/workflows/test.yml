@@ -95,6 +95,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make test
 
@@ -103,6 +104,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make verify
 
@@ -111,6 +113,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make shellcheck
 
@@ -119,6 +122,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make fmt-check
 
@@ -129,6 +133,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make test-secrets
 
@@ -139,6 +144,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mise reshim
           export PATH="$HOME/.local/share/mise/shims:$PATH"
           make test-compliance
 
