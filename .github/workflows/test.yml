@@ -27,6 +27,7 @@ jobs:
         uses: jdx/mise-action@v2
         with:
           install: true
+          activate: true
 
       - name: Install system packages (Ubuntu)
         if: runner.os == 'Linux'
@@ -46,9 +47,9 @@ jobs:
       - name: Run test suite
         run: |
           set -euo pipefail
-          make test
-          make verify
-          make shellcheck
-          make fmt-check
-          make test-secrets
-          make test-compliance
+          mise exec -- make test
+          mise exec -- make verify
+          mise exec -- make shellcheck
+          mise exec -- make fmt-check
+          mise exec -- make test-secrets
+          mise exec -- make test-compliance
