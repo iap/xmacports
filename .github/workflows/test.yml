@@ -34,13 +34,13 @@ jobs:
         uses: jdx/mise-action@v2
         with:
           install: true
+          reshim: true
 
       - name: Activate mise and setup environment
         shell: bash
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
 
           export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${RUNNER_TEMP:-/tmp}/.config}"
           export XDG_DATA_HOME="${XDG_DATA_HOME:-${RUNNER_TEMP:-/tmp}/.local/share}"
