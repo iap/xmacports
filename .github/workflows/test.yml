@@ -44,12 +44,87 @@ jobs:
         run: |
           mkdir -p "$XDG_DATA_HOME" "$XDG_STATE_HOME/shell" "$XDG_STATE_HOME/bash" "$XDG_STATE_HOME/zsh" "$XDG_CACHE_HOME/shell" "$XDG_CACHE_HOME/logs" "$XDG_CACHE_HOME/ssh"
 
-      - name: Run test suite
+      - name: Prepare test environment
         run: |
           set -euo pipefail
-          mise exec -- make test
-          mise exec -- make verify
-          mise exec -- make shellcheck
-          mise exec -- make fmt-check
-          mise exec -- make test-secrets
-          mise exec -- make test-compliance
+          echo "runner.os=${{ runner.os }}"
+          echo "HOME=$HOME"
+          echo "GITHUB_ENV=$GITHUB_ENV"
+          echo "XDG_CONFIG_HOME=$XDG_CONFIG_HOME"
+          echo "XDG_CACHE_HOME=$XDG_CACHE_HOME"
+          echo "XDG_DATA_HOME=$XDG_DATA_HOME"
+          echo "XDG_STATE_HOME=$XDG_STATE_HOME"
+          echo "PATH=$PATH"
+          echo "mise=$(command -v mise || true)"
+          echo "shellcheck=$((command -v shellcheck; shellcheck --version | head -n 1) 2>/dev/null || true)"
+          echo "shfmt=$((command -v shfmt; shfmt --version 2>/dev/null || true) 2>/dev/null || true)"
+          echo "age=$((command -v age-keygen; age-keygen --version 2>/dev/null || true) 2>/dev/null || true)"
+          echo "sops=$((command -v sops; sops --version 2>/dev/null || true) 2>/dev/null || true)"
+
+      - name: Configure PATH for mise tools
+        run: |
+          set -euo pipefail
+          if command -v mise >/dev/null 2>&1; then
+            eval "$(mise env -C "$GITHUB_WORKSPACE")"
+          fi
+          echo "XDG_CACHE_HOME=${XDG_CACHE_HOME:-$HOME/.cache}" >> "$GITHUB_ENV"
+          echo "XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-$HOME/.config}" >> "$GITHUB_ENV"
+          echo "XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share}" >> "$GITHUB_ENV"
+          echo "XDG_STATE_HOME=${XDG_STATE_HOME:-$HOME/.local/state}" >> "$GITHUB_ENV"
+          export PATH="$HOME/.local/share/mise/shims:$HOME/.local/share/mise/installs/shellcheck/0.10.0:$HOME/.local/share/mise/installs/shfmt/3.8.0:$HOME/.local/share/mise/installs/age/1.2.1:$HOME/.local/share/mise/installs/sops/3.9.4:${PATH:-}"
+          echo "sops=$(command -v sops || true)"
+          echo "age-keygen=$(command -v age-keygen || true)"
+
+      - name: Create XDG runtime directories and known paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$XDG_CONFIG_HOME/sops/age"
+          mkdir -p "$XDG_CACHE_HOME/logs" "$XDG_CACHE_HOME/ssh" "$XDG_CACHE_HOME/shell"
+          mkdir -p "$XDG_DATA_HOME/shell" "$XDG_STATE_HOME/shell"
+          mkdir -p "$HOME/.local/share/mise/.cache" "$HOME/.local/share/mise/exe"
+
+      - name: Shell syntax tests
+        shell: bash
+        run: make test
+
+      - name: Dotfiles verification
+        shell: bash
+        run: make verify
+
+      - name: Shellcheck
+        shell: bash
+        run: make shellcheck
+
+      - name: shfmt check
+        shell: bash
+        run: make fmt-check
+
+      - name: Secret management tests
+        shell: bash
+        env:
+          SOPS_AGE_KEY_FILE: ${{ env.XDG_CONFIG_HOME }}/sops/age/keys.txt
+        run: |
+          set -euo pipefail
+          age-keygen -o "$XDG_CONFIG_HOME/sops/age/keys.txt"
+          make test-secrets
+
+      - name: Compliance check
+        shell: bash
+        env:
+          DOTFILES_ROOT: ${{ github.workspace }}
+        run: make test-compliance
+
+      - name: Log runner summary
+        if: always()
+        shell: bash
+        run: |
+          echo "runner.os=${{ runner.os }}"
+          echo "XDG_CONFIG_HOME=${XDG_CONFIG_HOME:-}"
+          echo "XDG_CACHE_HOME=${XDG_CACHE_HOME:-}"
+          echo "XDG_DATA_HOME=${XDG_DATA_HOME:-}"
+          echo "XDG_STATE_HOME=${XDG_STATE_HOME:-}"
+          echo "workspace=${{ github.workspace }}"
+          ls -la "$HOME/.local/share/mise" || true
+          ls -la "$HOME/.local/share/mise/shims" || true
+          ls -la "$XDG_DATA_HOME/shell" "$XDG_STATE_HOME/shell" "$XDG_CACHE_HOME/shell" "$XDG_CACHE_HOME/logs" 2>/dev/null || true
