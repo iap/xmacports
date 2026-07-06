@@ -35,6 +35,7 @@ jobs:
         with:
           install: true
           reshim: true
+          cache: false
 
       - name: Activate mise and setup environment
         shell: bash
