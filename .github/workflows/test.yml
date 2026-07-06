@@ -16,11 +16,6 @@ jobs:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest]
-    env:
-      XDG_CONFIG_HOME: ${{ runner.temp }}/.config
-      XDG_DATA_HOME: ${{ runner.temp }}/.local/share
-      XDG_CACHE_HOME: ${{ runner.temp }}/.cache
-      XDG_STATE_HOME: ${{ runner.temp }}/.local/state
 
     steps:
       - uses: actions/checkout@v4
@@ -46,6 +41,11 @@ jobs:
           set -euo pipefail
           eval "$(mise activate bash)"
 
+          export XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${RUNNER_TEMP:-/tmp}/.config}"
+          export XDG_DATA_HOME="${XDG_DATA_HOME:-${RUNNER_TEMP:-/tmp}/.local/share}"
+          export XDG_CACHE_HOME="${XDG_CACHE_HOME:-${RUNNER_TEMP:-/tmp}/.cache}"
+          export XDG_STATE_HOME="${XDG_STATE_HOME:-${RUNNER_TEMP:-/tmp}/.local/state}"
+
           mkdir -p "$XDG_CONFIG_HOME/sops/age"
           mkdir -p "$XDG_CACHE_HOME/logs" "$XDG_CACHE_HOME/ssh" "$XDG_CACHE_HOME/shell"
           mkdir -p "$XDG_DATA_HOME/shell" "$XDG_STATE_HOME/shell"
@@ -53,6 +53,10 @@ jobs:
 
           age-keygen -o "$XDG_CONFIG_HOME/sops/age/keys.txt"
 
+          echo "XDG_CONFIG_HOME=$XDG_CONFIG_HOME" >> "$GITHUB_ENV"
+          echo "XDG_DATA_HOME=$XDG_DATA_HOME" >> "$GITHUB_ENV"
+          echo "XDG_CACHE_HOME=$XDG_CACHE_HOME" >> "$GITHUB_ENV"
+          echo "XDG_STATE_HOME=$XDG_STATE_HOME" >> "$GITHUB_ENV"
           echo "MISE_ACTIVATED=true" >> "$GITHUB_ENV"
 
       - name: Install system packages (Ubuntu)
