@@ -15,8 +15,11 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # Load platform detection (is_macos, is_linux, has_cmd, DOTFILES_ROOT)
-if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
-  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
+# In CI, DOTFILES_ROOT should be set to GITHUB_WORKSPACE
+DOTFILES_ROOT="${DOTFILES_ROOT:-${GITHUB_WORKSPACE:-$HOME/.dotfiles}}"
+export DOTFILES_ROOT
+if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
+  source "$DOTFILES_ROOT/shared/platform.sh"
 fi
 
 unset MACPORTS_PREFIX CPPFLAGS LDFLAGS
