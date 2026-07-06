@@ -95,36 +95,28 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make test
+          mise exec -- make test
 
       - name: Dotfiles verification
         shell: bash
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make verify
+          mise exec -- make verify
 
       - name: Shellcheck
         shell: bash
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make shellcheck
+          mise exec -- make shellcheck
 
       - name: shfmt check
         shell: bash
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make fmt-check
+          mise exec -- make fmt-check
 
       - name: Secret management tests
         shell: bash
@@ -133,9 +125,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make test-secrets
+          mise exec -- make test-secrets
 
       - name: Compliance check
         shell: bash
@@ -144,9 +134,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise reshim
-          export PATH="$HOME/.local/share/mise/shims:$PATH"
-          make test-compliance
+          mise exec -- make test-compliance
 
       - name: Log runner summary
         if: always()
