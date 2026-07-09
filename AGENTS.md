@@ -79,6 +79,27 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 ### Verification
 Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 
+## Git Commit Signing
+
+- Prefer **signed commits** so history is verifiable and shows "Verified" on GitHub/GitLab.
+- The signing preference lives in gitconfig — set per-repo (local) or globally:
+  - local: `git config --local commit.gpgsign true`
+  - global: `git config --global commit.gpgsign true`
+  - also enable `tag.gpgsign true` if tags should be signed.
+- The signing backend and key are configured with `gpg.format` and `user.signingkey`
+  (again, either `--local` or `--global`).
+- Author commits with a **verified email** — one the forge (GitHub/GitLab)
+  recognizes as yours. Both platforms can restrict accepted commits to
+  **verified email domains**, so use an address tied to your account; a
+  mismatched email makes a valid signature show as "Unverified".
+- Some users prefer **SSH signing** over GPG: set `gpg.format = ssh`,
+  point `user.signingkey` at the SSH public key path, and register the key on
+  GitHub/GitLab. SSH signing reuses keys devs already have and avoids the GPG
+  agent/pinentry setup.
+- Verify before pushing: `git log --show-signature -1` or `git verify-commit HEAD`.
+- Do not rewrite or force-push already-published signed history unless coordinated;
+  re-signing rewrites commit hashes and diverges from every clone/remote.
+
 ## Cursor Plans
 
 - Use `.cursor/plans/` only for temporary plan drafts.
