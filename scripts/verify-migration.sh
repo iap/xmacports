@@ -91,8 +91,8 @@ check "Bash loads mise shims" bash -c '
 '
 
 # 5. CI workflow
-check "CI uses mise-action" bash -c '
-  grep -q "jdx/mise-action" ~/.dotfiles/.github/workflows/test.yml
+check "CI installs mise tools directly" bash -c '
+  grep -q "mise install" ~/.dotfiles/.github/workflows/test.yml
 '
 
 # 6. Test suite
