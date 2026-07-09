@@ -58,6 +58,12 @@ backup_and_link "$DOTFILES/.forward" "$HOME/.forward"
 mkdir -p "$HOME/bin" "$HOME/.local/bin" "$HOME/.gnupg" "$HOME/.ssh" "$HOME/.config/vim" "$HOME/.config/npm"
 chmod 700 "$HOME/.gnupg" "$HOME/.ssh"
 
+# Common: bin executables (link into ~/bin, which is on PATH)
+for bin_file in "$DOTFILES/bin/"*; do
+  [[ -f "$bin_file" ]] || continue
+  backup_and_link "$bin_file" "$HOME/bin/$(basename "$bin_file")"
+done
+
 # Common: GPG, vim, SSH
 backup_and_link "$DOTFILES/.config/gpg/gpg.conf" "$HOME/.gnupg/gpg.conf"
 backup_and_link "$DOTFILES/.config/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
