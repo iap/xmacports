@@ -32,10 +32,9 @@ echo "3. PATH Integrity"
 
 # Test platform.sh in isolation with clean environment
 # Create user bin directories that platform.sh expects to add to PATH
-mkdir -p "$HOME/bin" "$HOME/.local/bin"
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "unset DOTFILES_ENV_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"\$PATH\"")
+  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_ENV_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"\$PATH\"")
 
 PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
 if [[ "$PATH_COUNT" -eq 0 ]]; then
