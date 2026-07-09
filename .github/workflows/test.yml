@@ -111,7 +111,7 @@ jobs:
           set -euo pipefail
           eval "$(mise activate bash)"
           mkdir -p "$HOME/bin" "$HOME/.local/bin"
-          mise exec -- make verify
+          mise exec -- bash -c 'mkdir -p "$HOME/bin" "$HOME/.local/bin" && make verify'
 
       - name: Shellcheck
         shell: bash
