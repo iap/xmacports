@@ -38,7 +38,7 @@ ls -ld "$HOME/bin" "$HOME/.local/bin" >&2
 # Only extract the PATH line from subshell output, ignore debug lines
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "echo 'DEBUG subshell HOME=$HOME'; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_ENV_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
+  bash -c "echo 'DEBUG subshell HOME=$HOME'; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
 
 PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
 if [[ "$PATH_COUNT" -eq 0 ]]; then
