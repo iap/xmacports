@@ -94,12 +94,6 @@ jobs:
             echo "/opt/local/sbin" >> "$GITHUB_PATH"
           fi
 
-      - name: Create user bin directories (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          mkdir -p "$HOME/bin" "$HOME/.local/bin"
-
       - name: Shell syntax tests
         shell: bash
         env:
@@ -116,6 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
+          mkdir -p "$HOME/bin" "$HOME/.local/bin"
           mise exec -- make verify
 
       - name: Shellcheck
