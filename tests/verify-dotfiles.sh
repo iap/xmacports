@@ -37,7 +37,7 @@ echo "DEBUG: HOME=$HOME" >&2
 ls -ld "$HOME/bin" "$HOME/.local/bin" >&2
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "echo 'DEBUG subshell HOME=$HOME'; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_ENV_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"")
+  bash -c "echo 'DEBUG subshell HOME=$HOME'; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"")
 
 PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
 if [[ "$PATH_COUNT" -eq 0 ]]; then
