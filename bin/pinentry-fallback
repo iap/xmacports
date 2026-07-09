@@ -29,7 +29,7 @@ if [ -t 0 ]; then
     fi
   done
 
-  # Fallback to curses if tty not available
+  # If a TTY is available, also try the curses pinentry
   for p in $PINENTRY_PATHS; do
     if [ -x "$p/pinentry-curses" ]; then
       exec "$p/pinentry-curses" "$@"
