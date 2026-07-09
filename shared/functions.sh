@@ -1,12 +1,11 @@
 #!/bin/bash
-# Shared functions
+# Shared functions — sources unified platform.sh for platform detection
 
 set -u
 
-# Load platform detection AND environment (is_macos, is_linux, has_cmd, DOTFILES_ROOT, PATH setup, etc.)
-# This sources shared/platform.sh internally
-if [[ -f "$HOME/.dotfiles/.config/env.d/platform.sh" ]]; then
-  source "$HOME/.dotfiles/.config/env.d/platform.sh"
+# Load platform detection and environment from the single source of truth
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
 fi
 
 mkcd() {

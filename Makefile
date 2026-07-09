@@ -79,6 +79,18 @@ lint: shellcheck
 
 check: fmt-check shellcheck
 
+cleanup:
+	@./scripts/cleanup.sh 7d
+
+cleanup-zsh:
+	@./scripts/cleanup.sh zsh
+
+cleanup-bench:
+	@./scripts/cleanup.sh bench
+
+cleanup-all:
+	@./scripts/cleanup.sh all
+
 test-all:
 	@echo "Running comprehensive test suite..."
 	@./tests/run-tests.sh all
