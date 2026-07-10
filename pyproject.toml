@@ -1,0 +1,14 @@
+[project]
+name = "dotfiles"
+version = "0.1.0"
+description = "Dotfiles shell config with SOPS+age secret management"
+requires-python = ">=3.11"
+dependencies = ["pyyaml>=6.0"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["scripts"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]

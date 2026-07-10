@@ -17,6 +17,8 @@ if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
   source "$HOME/.dotfiles/shared/platform.sh"
 fi
 
+SECRET_PARSE_PY="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/secret-parse.py"
+
 _SECRETS_ENC_FILE="${DOTFILES_ROOT:-$HOME/.dotfiles}/secrets/secrets.enc.yaml"
 _SECRETS_PLAIN_FILE="${DOTFILES_ROOT:-$HOME/.dotfiles}/secrets/secrets.yaml"
 _SECRETS_CACHE=""
@@ -78,13 +80,22 @@ _validate_secret_name() {
   return 0
 }
 
-_fail_missing_python() {
-  log_warn "python3 not found or yaml module missing; cannot parse secrets"
-  return 1
-}
-
-_check_python() {
-  command -v python3 > /dev/null 2>&1 && python3 -c "import yaml" 2> /dev/null
+_secret_yaml() {
+  local decrypted
+  decrypted=$(_secrets_cache_get) || return 1
+  [ -z "$decrypted" ] && {
+    log_warn "secret store returned empty value"
+    return 1
+  }
+  command -v python3 > /dev/null 2>&1 || {
+    log_warn "python3 not found; cannot parse secrets"
+    return 1
+  }
+  [ -f "$SECRET_PARSE_PY" ] || {
+    log_warn "secret-parse.py not found at $SECRET_PARSE_PY"
+    return 1
+  }
+  printf '%s' "$decrypted"
 }
 
 # Fetch a secret by key from the encrypted SOPS store.
@@ -98,26 +109,7 @@ secret() {
   _validate_secret_name "$key" || return 1
   _validate_secret_name "$ns" || return 1
 
-  local decrypted
-  decrypted=$(_secrets_cache_get) || return 1
-  if [ -z "$decrypted" ]; then
-    log_warn "secret '$ns.$key' returned empty value"
-    return 1
-  fi
-  _check_python || _fail_missing_python || return 1
-  echo "$decrypted" | python3 -c '
-import sys, yaml
-try:
-    d = yaml.safe_load(sys.stdin) or {}
-except Exception as e:
-    print("yaml parse error: " + str(e), file=sys.stderr)
-    sys.exit(1)
-n = d.get(sys.argv[1], {})
-v = n.get(sys.argv[2])
-if v is None:
-    sys.exit(1)
-print(v, end="")
-' "$ns" "$key" 2> /dev/null || {
+  _secret_yaml | python3 "$SECRET_PARSE_PY" get "$ns" "$key" 2> /dev/null || {
     log_warn "secret $ns.$key not found"
     return 1
   }
@@ -158,24 +150,7 @@ with_secret() {
 # Usage: secret_list [namespace]
 secret_list() {
   local ns="${1:-}"
-  local decrypted
-  decrypted=$(_secrets_cache_get) || return 1
-  echo "$decrypted" | python3 -c '
-import sys, yaml
-try:
-    d = yaml.safe_load(sys.stdin) or {}
-except Exception as e:
-    print("yaml parse error: " + str(e), file=sys.stderr)
-    sys.exit(1)
-ns = sys.argv[1] if sys.argv[1:] else ""
-if ns:
-    n = d.get(ns, {})
-    for k in n: print(k)
-else:
-    for ns, vals in d.items():
-        print("[" + ns + "]")
-        for k in vals: print("  " + k)
-' "$ns" 2> /dev/null
+  _secret_yaml | python3 "$SECRET_PARSE_PY" list "$ns" 2> /dev/null
 }
 
 # Edit the decrypted secrets file in the configured editor.
