@@ -41,7 +41,6 @@ for f in \
   "$DOTFILES/.bashrc" \
   "$DOTFILES/.profile" \
   "$DOTFILES/.config/env.d/platform.sh" \
-  "$DOTFILES/.zshrc.d/env.sh" \
   "$DOTFILES/.zshrc.d/prompt.sh" \
   "$DOTFILES/shared/functions.sh" \
   "$DOTFILES/shared/aliases.sh"; do
@@ -53,7 +52,6 @@ echo "2. Syntax"
 for f in \
   "$DOTFILES/.zshrc" \
   "$DOTFILES/.zprofile" \
-  "$DOTFILES/.zshrc.d/env.sh" \
   "$DOTFILES/.zshrc.d/prompt.sh"; do
   check "zsh syntax: $(basename $f)" zsh -n "$f"
 done
@@ -74,7 +72,7 @@ check "platform loader survives set -u" bash --noprofile --norc -c '
 '
 check "zsh env loader survives set -u" zsh -c '
   set -u
-  source "'"$DOTFILES"'/.zshrc.d/env.sh"
+  source "'"$DOTFILES"'/shared/platform.sh"
 '
 check "platform loader dedupes PATH" /bin/bash --noprofile --norc -c '
   set -u
