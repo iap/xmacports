@@ -8,7 +8,7 @@ if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
   source "$HOME/.dotfiles/shared/platform.sh"
 fi
 
-SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup-7d.sh"
+SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup.sh"
 if [ ! -x "$SCRIPT" ]; then
   echo "cleanup script not found or not executable: $SCRIPT" >&2
   exit 1
@@ -27,6 +27,7 @@ if is_macos; then
     <key>ProgramArguments</key>
     <array>
       <string>$SCRIPT</string>
+      <string>7d</string>
     </array>
     <key>StartCalendarInterval</key>
     <dict>
@@ -48,7 +49,7 @@ EOF
   launchctl load "$PLIST"
   echo "Installed launchd job: com.iap.dotfiles.cleanup"
 else
-  CRON_LINE="17 3 * * * $SCRIPT"
+  CRON_LINE="17 3 * * * $SCRIPT 7d"
   (
     crontab -l 2> /dev/null | grep -v -F "$SCRIPT"
     echo "$CRON_LINE"
