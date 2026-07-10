@@ -150,11 +150,13 @@ _sops_encrypt() {
     return 1
   fi
   local lockdir="/tmp/.dotfiles-secrets-encrypt-$$"
+  trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
   while ! mkdir "$lockdir" 2> /dev/null; do
     sleep 0.1
   done
   sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
   rmdir "$lockdir" 2> /dev/null || true
+  trap - EXIT
 }
 
 _secrets_cache_get() {
@@ -184,6 +186,10 @@ _fail_missing_python() {
   return 1
 }
 
+_check_python() {
+  command -v python3 > /dev/null 2>&1 && python3 -c "import yaml" 2> /dev/null
+}
+
 # Fetch a secret by key from the encrypted SOPS store.
 # Usage: secret <key> [namespace]
 secret() {
@@ -201,6 +207,7 @@ secret() {
     log_warn "secret '$ns.$key' returned empty value"
     return 1
   fi
+  _check_python || _fail_missing_python || return 1
   echo "$decrypted" | python3 -c '
 import sys, yaml
 try:

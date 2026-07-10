@@ -133,10 +133,10 @@ echo
 
 echo "6. Color aliases"
 check "ls alias set in platform.sh" bash -c '
-  grep -q "alias ls" '"$DOTFILES"'/.config/env.d/platform.sh
+  grep -q "alias ls" '"$DOTFILES"'/shared/platform.sh
 '
 check "grep alias set in platform.sh" bash -c '
-  grep -q "alias grep" '"$DOTFILES"'/.config/env.d/platform.sh
+  grep -q "alias grep" '"$DOTFILES"'/shared/platform.sh
 '
 echo
 
