@@ -101,6 +101,14 @@ cleanup_7d() {
 
 # --- ZSH cleanup ---
 cleanup_zsh() {
+  local force_mode=false
+  # Check all args for --force/-f (since script subcommand shifts args)
+  for arg in "$@"; do
+    case "$arg" in
+      --force | -f) force_mode=true ;;
+    esac
+  done
+
   echo "=== ZSH Cleanup ==="
 
   KEEP_FILES=(
@@ -109,14 +117,16 @@ cleanup_zsh() {
     "$HOME/.zsh_history"
   )
 
-  REMOVE_FILES=()
+  declare -a REMOVE_FILES
   while IFS= read -r -d '' f; do
     REMOVE_FILES+=("$f")
   done < <(find "$HOME" -maxdepth 1 \( \
     -name '.zshrc.backup.*' \
     -o -name '.zshrc.local.backup.*' \
     -o -name '.zshrc.local.template' \
-    \) -print0 2> /dev/null)
+    \) -print0 2> /dev/null || true)
+  # Ensure array is initialized even if find returns nothing
+  REMOVE_FILES=("${REMOVE_FILES[@]:-}")
 
   echo "Files to KEEP (essential):"
   for file in "${KEEP_FILES[@]}"; do
@@ -161,55 +171,56 @@ cleanup_zsh() {
   fi
 
   echo
-  read -p "Proceed with ZSH cleanup? (y/N): " -n 1 -r
-  echo
 
-  if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo "Starting ZSH cleanup..."
-
-    for file in "${REMOVE_FILES[@]}"; do
-      if [[ -e "$file" ]]; then
-        rm -f "$file"
-        log "REMOVED: $file"
-        echo "  Removed $file"
-      fi
-    done
-
-    if [[ -f "$HOME/.zcompdump" ]]; then
-      rm -f "$HOME/.zcompdump"
-      log "REMOVED: .zcompdump (will regenerate)"
-      echo "  Removed .zcompdump (will regenerate automatically)"
-    fi
-
-    if [[ -d "$HOME/.zsh_sessions" ]]; then
-      old_sessions=$(find ~/.zsh_sessions -name "*.session" -mtime +30 2> /dev/null | wc -l | tr -d ' ')
-      old_histories=$(find ~/.zsh_sessions -name "*.history" -mtime +30 2> /dev/null | wc -l | tr -d ' ')
-
-      if [[ $old_sessions -gt 0 || $old_histories -gt 0 ]]; then
-        find ~/.zsh_sessions -name "*.session" -mtime +30 -delete 2> /dev/null || true
-        find ~/.zsh_sessions -name "*.history" -mtime +30 -delete 2> /dev/null || true
-        log "CLEANED: .zsh_sessions (removed $old_sessions sessions, $old_histories histories older than 30 days)"
-        echo "  Cleaned old session data ($old_sessions sessions, $old_histories histories)"
-      else
-        echo "  No old session data to clean"
-      fi
-    fi
-
+  if [[ "$force_mode" != true ]]; then
+    read -p "Proceed with ZSH cleanup? (y/N): " -n 1 -r
     echo
-    echo "ZSH cleanup completed successfully."
-    echo "Log saved to: $CLEANUP_LOG"
-    echo
-    echo "Next steps:"
-    echo "  - Restart your terminal to regenerate .zcompdump"
-    echo "  - Your command history and current config are preserved"
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo "ZSH cleanup cancelled."
+      log "CANCELLED: User cancelled ZSH cleanup"
+      return 0
+    fi
   else
-    echo "ZSH cleanup cancelled."
-    log "CANCELLED: User cancelled ZSH cleanup"
+    echo "Force mode enabled - proceeding without prompt"
+  fi
+
+  echo "Starting ZSH cleanup..."
+
+  for file in "${REMOVE_FILES[@]}"; do
+    if [[ -e "$file" ]]; then
+      rm -f "$file"
+      log "REMOVED: $file"
+      echo "  Removed $file"
+    fi
+  done
+
+  if [[ -f "$HOME/.zcompdump" ]]; then
+    rm -f "$HOME/.zcompdump"
+    log "REMOVED: .zcompdump (will regenerate)"
+    echo "  Removed .zcompdump (will regenerate automatically)"
+  fi
+
+  if [[ -d "$HOME/.zsh_sessions" ]]; then
+    old_sessions=$(find ~/.zsh_sessions -name "*.session" -mtime +30 2> /dev/null | wc -l | tr -d ' ')
+    old_histories=$(find ~/.zsh_sessions -name "*.history" -mtime +30 2> /dev/null | wc -l | tr -d ' ')
+
+    if [[ $old_sessions -gt 0 || $old_histories -gt 0 ]]; then
+      find ~/.zsh_sessions -name "*.session" -mtime +30 -delete 2> /dev/null || true
+      find ~/.zsh_sessions -name "*.history" -mtime +30 -delete 2> /dev/null || true
+      log "CLEANED: .zsh_sessions (removed $old_sessions sessions, $old_histories histories older than 30 days)"
+      echo "  Cleaned old session data ($old_sessions sessions, $old_histories histories)"
+    else
+      echo "  No old session data to clean"
+    fi
   fi
 
   echo
-  echo "Current ZSH files:"
-  find ~ -maxdepth 1 -name "*zsh*" -o -name ".zcomp*" | sort
+  echo "ZSH cleanup completed successfully."
+  echo "Log saved to: $CLEANUP_LOG"
+  echo
+  echo "Next steps:"
+  echo "  - Restart your terminal to regenerate .zcompdump"
+  echo "  - Your command history and current config are preserved"
 }
 
 # --- Benchmark shell startup ---
@@ -241,7 +252,7 @@ case "${1:-}" in
     cleanup_7d
     ;;
   zsh)
-    cleanup_zsh
+    cleanup_zsh "$@"
     ;;
   bench | benchmark)
     benchmark
@@ -257,6 +268,7 @@ case "${1:-}" in
     echo "Usage: $0 [7d|zsh|bench|all]"
     echo "  7d      - 7-day cleanup (backups, logs, history, caches)"
     echo "  zsh     - Interactive ZSH cleanup (backup files, completion, sessions)"
+    echo "          - Use --force to skip interactive prompt"
     echo "  bench   - Benchmark bash/zsh startup time"
     echo "  all     - Run all (default)"
     exit 1
