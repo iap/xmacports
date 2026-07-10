@@ -5,18 +5,22 @@ if [[ -f "$HOME/.profile" ]]; then
   source "$HOME/.profile"
 fi
 
-if [[ -f "$HOME/.dotfiles/.zshrc.d/env.sh" ]]; then
-  source "$HOME/.dotfiles/.zshrc.d/env.sh"
-fi
-
-# Load Shared Functions
+# Load Shared modules (platform is the single source of truth; the rest are
+# functions, secrets, prompt, aliases). All carry their own load guards.
 for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
 
+# Load per-host environment overrides from XDG config (foundry, proxy, ...).
+if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
+  for _config_file in "${XDG_CONFIG_HOME:-$HOME/.config}"/env.d/*.sh; do
+    [[ -f "$_config_file" ]] && source "$_config_file"
+  done
+  unset _config_file
+fi
+
 for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
-  [[ "$(basename "$_config_file")" == "env.sh" ]] && continue
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
