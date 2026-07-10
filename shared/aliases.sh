@@ -30,3 +30,30 @@ tree() {
 alias gitinfo='git branch --show-current 2>/dev/null && git status --porcelain 2>/dev/null | wc -l | tr -d " " && echo "changes"'
 
 alias sysinfo='echo "OS: $(uname -sr)" && echo "Shell: $SHELL" && echo "User bin: $HOME/bin" && echo "Local bin: $HOME/.local/bin"'
+
+# --- secret hygiene: keep creds out of shell history + safe masking ---
+# bash: drop export/secret/token lines from history
+if [[ -n "${BASH_VERSION:-}" ]]; then
+  HISTIGNORE="${HISTIGNORE:+$HISTIGNORE:}export *:secret *:*TOKEN*:*SECRET*:*API_KEY*"
+# zsh: ignore lines starting with space + patterns
+elif [[ -n "${ZSH_VERSION:-}" ]]; then
+  setopt HIST_IGNORE_SPACE
+  HISTORY_IGNORE="${HISTORY_IGNORE:+$HISTORY_IGNORE
+}export .*
+secret .*
+.*TOKEN.*
+.*SECRET.*
+.*API_KEY.*"
+fi
+
+# mask a value for safe display (never reveals the secret)
+mask() {
+  local v="${1:-}"
+  if [ -z "$v" ]; then
+    echo "(empty)"
+    return
+  fi
+  local prefix="${v:0:4}"
+  local tail="${v: -4}"
+  printf '%s****...****%s\n' "$prefix" "$tail"
+}

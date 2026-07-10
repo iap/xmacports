@@ -21,3 +21,6 @@ shared/*.sh              text eol=lf
 .gitignore_global        text eol=lf
 *.md                     text eol=lf
 Makefile                 text eol=lf
+
+# SOPS-encrypted secrets — treat as binary (no eol translation, clean diffs)
+secrets/secrets.enc.yaml  -text diff=sops
