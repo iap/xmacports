@@ -6,6 +6,9 @@
 shellcheck = "0.10.0"
 shfmt = "3.8.0"
 
+# Python tooling for scripts/ (secret-parse.py)
+ruff = "latest"
+
 # Secrets management (match CI versions)
 age = "1.2.1"
 sops = "3.9.4"

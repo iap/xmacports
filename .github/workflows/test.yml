@@ -130,6 +130,16 @@ jobs:
           eval "$(mise activate bash)"
           mise exec -- make fmt-check
 
+      - name: Python lint (ruff)
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          eval "$(mise activate bash)"
+          mise reshim
+          mise exec -- make python-lint
+
       - name: Secret management tests
         shell: bash
         env:
