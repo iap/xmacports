@@ -14,7 +14,7 @@ if is_macos; then
   rm -f "$PLIST"
   echo "Removed launchd job: com.iap.dotfiles.cleanup"
 else
-  SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup-7d.sh"
+  SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup.sh"
   crontab -l 2> /dev/null | grep -v -F "$SCRIPT" | crontab -
   echo "Removed cron job for: $SCRIPT"
 fi
