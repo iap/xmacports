@@ -30,10 +30,10 @@ fi
 echo ""
 echo "3. PATH Integrity"
 # Test platform.sh in isolation with clean environment
-# Create user bin directories INSIDE the subshell before sourcing platform.sh
+# Create user bin directories INSIDE the test subshell so they exist when platform.sh runs
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; echo 'DEBUG subshell HOME=$HOME'; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
+  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
 
 PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
 if [[ "$PATH_COUNT" -eq 0 ]]; then
