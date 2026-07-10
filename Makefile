@@ -11,7 +11,7 @@ endif
 # Include environment variables
 -include .env.mk
 
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help secrets-init secrets-encrypt secrets-decrypt secrets-edit secrets-list secrets-genkey
+.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help secrets-init secrets-encrypt secrets-decrypt secrets-edit secrets-list secrets-genkey python-lint python-fmt python-fmt-check
 
 bootstrap:
 	@echo "Bootstrapping dotfiles..."
@@ -75,9 +75,23 @@ fmt-check:
 
 fmt: shfmt
 
-lint: shellcheck
+lint: shellcheck python-lint
 
-check: fmt-check shellcheck
+check: fmt-check shellcheck python-fmt-check
+
+python-lint:
+	@echo "Running ruff..."
+	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
+	@ruff check scripts/
+
+python-fmt:
+	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
+	@ruff format scripts/
+
+python-fmt-check:
+	@echo "Running ruff format check..."
+	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
+	@ruff format --check scripts/
 
 cleanup:
 	@./scripts/cleanup.sh 7d

@@ -176,8 +176,9 @@ check "short_pwd truncates long paths" zsh -c '
 '
 check "git_info returns branch in git repo" zsh -c '
   SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
-  source '"$DOTFILES"'/.zshrc.d/prompt.sh
-  cd '"$DOTFILES"'
+  source "'"$DOTFILES"'/shared/functions.sh"
+  source "'"$DOTFILES"'/.zshrc.d/prompt.sh"
+  cd "'"$DOTFILES"'"
   out=$(git_info)
   rm -rf /tmp/dotfiles-test-$$
   [[ "$out" == *"main"* || "$out" == *"master"* || -n "$out" ]]
