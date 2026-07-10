@@ -110,7 +110,7 @@ jobs:
         run: |
           set -euo pipefail
           eval "$(mise activate bash)"
-          mise exec -- make verify
+          make verify
 
       - name: Shellcheck
         shell: bash
