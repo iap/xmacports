@@ -33,7 +33,7 @@ echo "3. PATH Integrity"
 # Create user bin directories INSIDE the test subshell so they exist when platform.sh runs
 test_path=$(HOME="$HOME" \
   PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; echo \"DEBUG: HOME=\$HOME, created dirs:\" >&2; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\" >&2; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
+  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; echo \"DEBUG: HOME=\$HOME, created dirs:\" >&2; ls -ld \"$HOME/bin\" \"$HOME/.local/bin\" >&2; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"DEBUG: PATH after platform.sh=\$PATH\" >&2; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
 
 PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
 if [[ "$PATH_COUNT" -eq 0 ]]; then
