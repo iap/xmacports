@@ -4,6 +4,9 @@
 
 This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git, SSH, GPG, editor config, and small helper scripts. Keep it file-based. Do not turn it into a package-manager or provisioning system. Keep private secrets out of git. Keep the repo small, clear, and reviewable.
 
+> [!IMPORTANT]
+> Mask credentials, secrets, and API keys in conversation: never echo raw values, show provider prefix + `****` + last 4 (e.g. `ghp_****...****rMJ`). Reference secrets by name from the encrypted store, never store pasted keys in plaintext. Keep this rule mirrored in persistent memory and update both when it changes.
+
 ## Precedence
 
 1. Follow higher-priority user or system instructions first.
@@ -88,10 +91,12 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
   - also enable `tag.gpgsign true` if tags should be signed.
 - The signing backend and key are configured with `gpg.format` and `user.signingkey`
   (again, either `--local` or `--global`).
-- Author commits with a **verified email** — one the forge (GitHub/GitLab)
-  recognizes as yours. Both platforms can restrict accepted commits to
-  **verified email domains**, so use an address tied to your account; a
-  mismatched email makes a valid signature show as "Unverified".
+- Author commits with the email that matches the GPG key's uid,
+  not the forge's private noreply address. A valid signature shows
+  "Unverified" on GitHub/GitLab only when the **public key is not
+  uploaded** to the account — upload it (Settings → SSH and GPG keys) to
+  get the green "Verified" check. The commit email need not be a forge-owned
+  domain as long as the signing key is registered.
 - Some users prefer **SSH signing** over GPG: set `gpg.format = ssh`,
   point `user.signingkey` at the SSH public key path, and register the key on
   GitHub/GitLab. SSH signing reuses keys devs already have and avoids the GPG
