@@ -6,8 +6,9 @@
 shellcheck = "0.10.0"
 shfmt = "3.8.0"
 
-# Python tooling for scripts/ (secret-parse.py)
-ruff = "latest"
+# Python tooling for scripts/ (secret-parse.py) is managed via `uv tool install ruff`
+# (see Makefile python-lint + CI), not mise — mise's aqua backend can't
+# verify ruff's Sigstore attestation in this environment.
 
 # Secrets management (match CI versions)
 age = "1.2.1"
