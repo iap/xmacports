@@ -36,8 +36,8 @@ additions take precedence over system directories.
 ~/.profile -> ~/.zprofile -> ~/.zshrc
 ```
 
-`.profile.local` is sourced by `.zshrc` after `platform.sh` loads (via `.zshrc.d/env.sh`),
-so user PATH additions take precedence over system directories.
+`.profile.local` is sourced by `.zshrc` after `platform.sh` loads, so user PATH
+additions take precedence over system directories.
 
 ### Shared interactive layer
 
@@ -49,19 +49,22 @@ Both shells load shared configuration:
 .config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
+shared/prompt.sh
 ~/.profile.local (after platform.sh, with double-sourcing guard)
 
-# .zshrc loads via .zshrc.d/env.sh:
-.zshrc.d/env.sh       -> .config/env.d/platform.sh
+# .zshrc loads via its own entrypoint:
+.profile
+.zprofile
+.zshrc
+.zshrc.d/prompt.sh
+.config/env.d/platform.sh
 .config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
-.zshrc.d/prompt.sh
 ~/.profile.local (after platform.sh, with double-sourcing guard)
 ```
 
-Both shells now consistently load foundry.sh if available. `.zshrc.d/env.sh` provides intermediate loading with duplicate protection for platform.sh.
-
+Both shells now consistently load `foundry.sh` and `prompt.sh` if available.
 `.profile.local` is loaded exactly once per shell session, after `platform.sh` assembles PATH.
 
 ## Environment Rules
@@ -90,7 +93,6 @@ $HOME/.dotfiles/
 ├── .zshrc
 ├── .forward
 ├── .zshrc.d/
-│   ├── env.sh
 │   └── prompt.sh
 ├── .config/
 │   ├── env.d/
@@ -219,6 +221,38 @@ The bootstrap flow:
 
 The bootstrap must stay idempotent. Running it twice should not duplicate backups or corrupt existing links.
 
+## NixOS / WSL Notes
+
+This repo is shell- and file-based, so it works on NixOS and WSL, but the
+package-manager assumptions differ from macOS and generic Linux.
+
+### NixOS
+
+- Do not install `python3`, `node`, or shell tools with `apt` or other
+  foreign package managers.
+- Prefer declarative Nix shells or profiles for development tooling:
+  - Python: via `uv` / `mise`, not system `python3`
+  - Node: via `pnpm` / `mise`, not system `node`
+  - Linters: `shellcheck`, `shfmt`, `sops`, `age` via `nix-shell` or `mise`
+- If you need `python3` for system scripts, use `nix-shell -p python3` or add
+  it to your Nix user profile.
+
+### WSL
+
+- Windows paths live under `/mnt/c/...`, `/mnt/d/...`, etc.
+- For interactive shells, Windows Terminal with the WSL profile is the
+  recommended terminal.
+- This host does not support mirrored networking mode; WSL networking is
+  NAT-based.
+- Prefer WSL-native CLI tool installs (`nix`, `mise`, `pnpm`) over
+  Windows-side binaries when the tool must be invoked from shell startup.
+
+### What this repo does not do
+
+- It does not provision packages for NixOS or WSL.
+- `MacPorts` is macOS-only and is ignored automatically on other platforms.
+- `mise` remains optional; if absent, the shell continues without shims.
+
 ## Optional Private Overlay
 
 If you maintain private shell config in a separate repository, keep it outside the tracked repo and treat it as optional. Do not make core startup depend on it.
@@ -255,7 +289,7 @@ Helpful direct checks:
 
 ```bash
 bash --noprofile --norc -c 'set -u; source .config/env.d/platform.sh'
-zsh -c 'set -u; source .zshrc.d/env.sh'
+zsh -c 'set -u; source .zshrc'
 make check
 ```
 

@@ -7,6 +7,8 @@ DOTFILES="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
 _dotfiles_lock() {
   local lockdir="/tmp/.dotfiles-bootstrap-$$"
+  # Recover from stale locks left by a previous interrupted run in this shell.
+  rmdir "$lockdir" 2> /dev/null || true
   while ! mkdir "$lockdir" 2> /dev/null; do
     sleep 0.1
   done

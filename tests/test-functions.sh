@@ -53,7 +53,11 @@ for f in \
   "$DOTFILES/.zshrc" \
   "$DOTFILES/.zprofile" \
   "$DOTFILES/.zshrc.d/prompt.sh"; do
-  check "zsh syntax: $(basename $f)" zsh -n "$f"
+  if command -v zsh >/dev/null 2>&1; then
+    check "zsh syntax: $(basename $f)" zsh -n "$f"
+  else
+    echo "   SKIP: zsh not installed"
+  fi
 done
 for f in \
   "$DOTFILES/.bashrc" \
@@ -70,27 +74,28 @@ check "platform loader survives set -u" bash --noprofile --norc -c '
   set -u
   source "'"$DOTFILES"'/.config/env.d/platform.sh"
 '
-check "zsh env loader survives set -u" zsh -c '
-  set -u
-  source "'"$DOTFILES"'/shared/platform.sh"
-'
+if command -v zsh >/dev/null 2>&1; then
+  check "zsh env loader survives set -u" zsh -c '
+    set -u
+    source "'"$DOTFILES"'/shared/platform.sh"
+  '
+else
+  echo "   SKIP: zsh not installed"
+fi
 check "platform loader dedupes PATH" /bin/bash --noprofile --norc -c '
   set -u
   unset DOTFILES_ENV_LOADED DOTFILES_PLATFORM_LOADED
   PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
   export PATH
   source "'"$DOTFILES"'/.config/env.d/platform.sh"
-  local_count=0
-  local_seen=""
-  IFS=":"
-  for segment in $PATH; do
-    [ -z "$segment" ] && continue
-    case ":${local_seen}:" in
-      *":${segment}:"*) local_count=$((local_count + 1)) ;;
-      *) local_seen="${local_seen:+${local_seen}:}${segment}" ;;
+  seen=""
+  IFS=":" read -r -a segs <<< "$PATH"
+  for s in "${segs[@]}"; do
+    case ":$seen:" in
+      *":$s:"*) exit 1 ;;
     esac
+    seen="${seen:+$seen:}$s"
   done
-  [ "$local_count" -eq 0 ]
 '
 check "platform loader discovers /opt/local/bin gpg when present" /bin/bash --noprofile --norc -c '
   set -u
@@ -161,28 +166,36 @@ check "gitstat works in git repo" bash -c '
   [[ "$out" == *"REPO:"* && "$out" == *"BRANCH:"* ]]
 '
 # Also verify shared functions load correctly under zsh
-check "shared functions load in zsh" zsh -c '
-  source '"$DOTFILES"'/shared/functions.sh
-  out=$(log_info "zsh-test")
-  [[ "$out" == *"zsh-test"* ]]
-'
+if command -v zsh >/dev/null 2>&1; then
+  check "shared functions load in zsh" zsh -c '
+    source '"$DOTFILES"'/shared/functions.sh
+    out=$(log_info "zsh-test")
+    [[ "$out" == *"zsh-test"* ]]
+  '
+else
+  echo "   SKIP: zsh not installed"
+fi
 echo
 
 echo "8. ZSH prompt"
-check "short_pwd truncates long paths" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/prompt.sh
-  out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
-  [[ ${#out} -le 31 ]]
-'
-check "git_info returns branch in git repo" zsh -c '
-  SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
-  source "'"$DOTFILES"'/shared/functions.sh"
-  source "'"$DOTFILES"'/.zshrc.d/prompt.sh"
-  cd "'"$DOTFILES"'"
-  out=$(git_info)
-  rm -rf /tmp/dotfiles-test-$$
-  [[ "$out" == *"main"* || "$out" == *"master"* || -n "$out" ]]
-'
+if command -v zsh >/dev/null 2>&1; then
+  check "short_pwd truncates long paths" zsh -c '
+    source '"$DOTFILES"'/.zshrc.d/prompt.sh
+    out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
+    [[ ${#out} -le 31 ]]
+  '
+  check "git_info returns branch in git repo" zsh -c '
+    SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
+    source "'"$DOTFILES"'/shared/functions.sh"
+    source "'"$DOTFILES"'/.zshrc.d/prompt.sh"
+    cd "'"$DOTFILES"'"
+    out=$(git_info)
+    rm -rf /tmp/dotfiles-test-$$
+    [[ "$out" == *"main"* || "$out" == *"master"* || -n "$out" ]]
+  '
+else
+  echo "   SKIP: zsh not installed"
+fi
 echo
 
 echo "9. Aliases"

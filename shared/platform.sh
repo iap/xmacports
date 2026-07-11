@@ -125,7 +125,12 @@ path_prepend_if_present() {
 }
 
 # --- Build PATH ---
-# System dirs first (prepended LAST so they appear FIRST in final PATH)
+# Order below is intentionally lowest-priority first; final PATH has
+# highest-priority entries at the front after dedupe.
+# 1. System dirs
+# 2. Foundry (if installed)
+# 3. User bins
+# 4. mise shims (highest priority)
 for dir in \
   "/sbin" \
   "/usr/sbin" \

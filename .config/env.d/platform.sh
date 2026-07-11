@@ -11,4 +11,6 @@ fi
 # Source the single source of truth
 if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
   source "$HOME/.dotfiles/shared/platform.sh"
+elif [[ -f "${DOTFILES:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
+  source "${DOTFILES:-$HOME/.dotfiles}/shared/platform.sh"
 fi

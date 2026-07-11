@@ -31,8 +31,9 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - `bootstrap.sh` links tracked files into `$HOME` and applies permissions.
 - `.profile` is the shared POSIX base for login shells.
 - `.bash_profile`, `.bashrc`, `.zprofile`, and `.zshrc` are shell entrypoints.
+- `.zshrc.d/` holds zsh-specific prompt/helpers.
 - `.config/env.d/` holds shared environment loaders.
-- `shared/` holds cross-shell functions and aliases.
+- `shared/` holds cross-shell functions, aliases, prompt, and secrets.
 - `bin/` holds small executables expected on `PATH`.
 - `scripts/` holds maintenance and verification helpers.
 - `tests/` holds syntax and behavior checks.
@@ -82,6 +83,15 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 ### Verification
 Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 
+## Secret Management
+
+- Secrets are managed with SOPS + age, not plaintext files.
+- The encrypted store is `secrets/secrets.enc.yaml`; the decrypted working copy is gitignored.
+- The private age key lives at `~/.config/sops/age/keys.txt` and must never be committed.
+- Access secrets on demand with `secret()`, `with_secret()`, `secret_list()`, `secrets_edit()`, `secrets_encrypt()`, `secrets_decrypt()`.
+- Never export secrets at shell startup; keep secret loading lazy and scoped.
+- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files decrypt correctly.
+
 ## Git Commit Signing
 
 - Prefer **signed commits** so history is verifiable and shows "Verified" on GitHub/GitLab.
@@ -127,3 +137,5 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - Keep docs, tests, and code in sync.
 - Introduce new dependencies only when they are strictly necessary.
 - Use explicit file ownership and clear naming over clever shell indirection.
+- Prefer platform- and cwd-aware paths; avoid assuming a fixed repo location.
+- Avoid hardcoded absolute paths unless they are truly system-specific and documented.

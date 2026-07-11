@@ -143,7 +143,7 @@ with_secret() {
 
   local value
   value=$(secret "$key" "$ns") || return 1
-  env "${env_var}=${value}" "$@"
+  env "$env_var=$value" "$@"
 }
 
 # List all top-level namespaces and keys in the encrypted store.
