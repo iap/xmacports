@@ -132,7 +132,6 @@ warn "shellcheck not in MacPorts" bash -c '! port installed shellcheck 2>/dev/nu
 warn "shfmt not in MacPorts" bash -c '! port installed shfmt 2>/dev/null | grep -q "active"'
 warn "age not in MacPorts" bash -c '! port installed age 2>/dev/null | grep -q "active"'
 warn "sops not in MacPorts" bash -c '! port installed sops 2>/dev/null | grep -q "active"'
-warn "gitleaks not in MacPorts" bash -c '! port installed gitleaks 2>/dev/null | grep -q "active"'
 
 echo
 echo "=== Summary ==="
