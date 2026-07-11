@@ -9,8 +9,8 @@ shfmt = "3.8.0"
 # Global runtimes — mise is the only allowed runtime manager (AGENTS.md).
 # CI provisions these via `mise install`; no apt/MacPorts fallback needed.
 python = "3.12"
-pnpm = "9"
-uv = "0.5"
+pnpm = "9.0.2"
+uv = "0.5.4"
 
 # Python tooling for scripts/ (secret-parse.py) is managed via `uv tool install ruff`
 # (see Makefile python-lint + CI), not mise — mise's aqua backend can't
