@@ -27,6 +27,9 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
+# pnpm global bin dir (required for `pnpm add -g`; pnpm errors without it)
+export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
+
 # --- Editor & Locale ---
 export EDITOR="${EDITOR:-vi}"
 export VISUAL="${VISUAL:-$EDITOR}"
@@ -146,6 +149,7 @@ for dir in \
   "/usr/local/bin" \
   "/opt/local/bin" \
   "${FOUNDRY_BIN_PATH:-}" \
+  "$PNPM_HOME" \
   "$HOME/.local/bin" \
   "$HOME/bin"; do
   path_prepend_if_present "$dir"
