@@ -140,11 +140,13 @@ jobs:
           # can't verify ruff's Sigstore attestation in CI).
           if ! command -v uv >/dev/null 2>&1; then
             curl -fsSL https://astral.sh/uv/install.sh | sh
-            # uv installer does NOT add itself to the current shell's PATH;
-            # source its env so 'uv' is usable in this same step.
+            # The uv installer honors XDG_DATA_HOME (set earlier) and places
+            # its bin + tool symlinks (e.g. ruff) under $XDG_DATA_HOME/../bin.
+            # It does NOT add that to the current shell's PATH, so source its
+            # env and export PATH here, within this same step.
             # shellcheck disable=SC1090
-            source "$HOME/.local/bin/env" 2>/dev/null || true
-            export PATH="$HOME/.local/bin:$PATH"
+            source "$XDG_DATA_HOME/../bin/env" 2>/dev/null || true
+            export PATH="$XDG_DATA_HOME/../bin:$PATH"
           fi
           uv tool install ruff
           make python-lint
