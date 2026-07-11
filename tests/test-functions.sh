@@ -174,12 +174,12 @@ check "short_pwd truncates long paths" zsh -c '
   out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
   [[ ${#out} -le 31 ]]
 '
-check "git_info returns branch in git repo" zsh -c '
+check "git_prompt_info returns branch in git repo" zsh -c '
   SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
   source "'"$DOTFILES"'/shared/functions.sh"
   source "'"$DOTFILES"'/.zshrc.d/prompt.sh"
   cd "'"$DOTFILES"'"
-  out=$(git_info)
+  out=$(git_prompt_info)
   rm -rf /tmp/dotfiles-test-$$
   [[ "$out" == *"main"* || "$out" == *"master"* || -n "$out" ]]
 '

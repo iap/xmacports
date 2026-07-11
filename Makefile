@@ -167,7 +167,11 @@ switch-shell:
 	fi; \
 	[ -z "$$TARGET" ] && { echo "❌ Target shell not found"; exit 1; }; \
 	grep -qF "$$TARGET" /etc/shells || { echo "Adding $$TARGET to /etc/shells..."; sudo sh -c "echo $$TARGET >> /etc/shells"; }; \
-	chsh -s "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."
+	if [ "$$OS" = "Darwin" ]; then \
+		sudo dscl . -create $$HOME UserShell "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."; \
+	else \
+		chsh -s "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."; \
+	fi
 
 help:
 	@echo "Available targets:"

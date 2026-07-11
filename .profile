@@ -20,5 +20,6 @@ export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # DOTFILES_ROOT: where this repo lives. Defaults to ~/.dotfiles.
-# Override in ~/.profile.local if your checkout is elsewhere.
+# Machine-specific overrides live in ~/.profile.local, loaded by the
+# interactive shell loaders (.bashrc / .zshrc) after this file runs.
 export DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
