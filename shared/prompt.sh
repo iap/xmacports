@@ -77,7 +77,7 @@ _prompt_render_bash() {
 if [[ -n "${ZSH_VERSION:-}" ]]; then
   autoload -Uz colors 2> /dev/null && colors
   PROMPT='$(_prompt_render_zsh $_prompt_last_exit)'
-  RPROMPT='${CYAN}%D{%H:%M}${RESET}'
+  RPROMPT='%F{cyan}%D{%H:%M}%f'
   precmd() {
     _prompt_last_exit=$?
     [[ $COLUMNS -gt 80 && -t 1 ]] && echo
