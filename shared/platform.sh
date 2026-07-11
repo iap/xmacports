@@ -1,7 +1,9 @@
 #!/bin/bash
 # Unified platform detection and environment setup — single source of truth.
-# Sources from .profile (login), .bashrc/.zshrc (interactive), and scripts.
-# Replaces: shared/platform.sh + .config/env.d/platform.sh
+# Sourced by bash (.bashrc -> functions.sh) and zsh (.zshrc shared/*.sh loop).
+# Keep all logic POSIX/portable: no bash-only word-splitting (zsh does not
+# split unquoted $var), so PATH helpers work identically in both shells.
+# Replaces the legacy .config/env.d/platform.sh wrapper.
 
 set -u
 
@@ -101,11 +103,20 @@ export DISABLE_TELEMETRY=1
 export NO_UPDATE_NOTIFIER=1
 
 # --- Path utilities ---
+# Portable PATH dedupe — uses only POSIX parameter expansion (no unquoted
+# word-splitting), so it works in bash, zsh, and dash. The naive
+# `for seg in $PATH` form silently fails under zsh (no word-split), leaving
+# duplicates untouched.
 path_dedupe() {
-  local current="${PATH:-}" normalized="" segment
-  local IFS=':'
-  for segment in $current; do
-    [[ -n "$segment" ]] || continue
+  [ -z "${PATH:-}" ] && return 0
+  local normalized="" segment remaining="$PATH"
+  while [ -n "$remaining" ]; do
+    segment="${remaining%%:*}"
+    case "$remaining" in
+      *:*) remaining="${remaining#*:}" ;;
+      *) remaining="" ;;
+    esac
+    [ -n "$segment" ] || continue
     case ":$normalized:" in
       *":$segment:"*) ;;
       *) normalized="${normalized:+$normalized:}$segment" ;;
