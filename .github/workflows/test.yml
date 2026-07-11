@@ -136,9 +136,14 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          eval "$(mise activate bash)"
-          mise reshim
-          mise exec -- make python-lint
+          # ruff is a Python tool, provisioned via uv (mise's aqua backend
+          # can't verify ruff's Sigstore attestation in CI).
+          if ! command -v uv >/dev/null 2>&1; then
+            curl -fsSL https://astral.sh/uv/install.sh | sh
+            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          fi
+          uv tool install ruff
+          make python-lint
 
       - name: Secret management tests
         shell: bash
