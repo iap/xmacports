@@ -30,7 +30,7 @@ if [[ "$_ss_up" -eq 1 ]]; then
   export http_proxy="$PROXY_URL"
   export https_proxy="$PROXY_URL"
   export all_proxy="$PROXY_URL"
-  # Keep localhost and the Hermes gateway off the proxy.
+  # Keep localhost and loopback addresses off the proxy.
   export NO_PROXY="localhost,127.0.0.1,::1"
   export no_proxy="$NO_PROXY"
   export DOTFILES_PROXY_LOADED=1

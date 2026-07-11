@@ -74,6 +74,7 @@ chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
 backup_and_link "$DOTFILES/.config/vim/vimrc" "$HOME/.config/vim/vimrc"
 backup_and_link "$DOTFILES/.config/vim/privacy.vim" "$HOME/.config/vim/privacy.vim"
 backup_and_link "$DOTFILES/.config/npm/config" "$HOME/.config/npm/config"
+backup_and_link "$DOTFILES/.config/env.d" "$HOME/.config/env.d"
 
 # Common: git hooks
 if [[ -d "$DOTFILES/.githooks" ]]; then
