@@ -82,7 +82,7 @@ jobs:
             echo "apt update failed, retrying in 10s... (attempt $i/5)"
             sleep 10
           done
-          sudo apt-get install -y -qq python3 python3-yaml git curl ca-certificates zsh
+          sudo apt-get install -y -qq git curl ca-certificates zsh
 
       - name: Setup MacPorts (macOS)
         if: runner.os == 'macOS'
@@ -136,14 +136,12 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          # ruff is a Python tool, provisioned via uv (mise's aqua backend
-          # can't verify ruff's Sigstore attestation in CI).
+          # mise install (setup step) already provides uv=0.5 from .mise.toml;
+          # activate mise so the uv shim is on PATH.
+          eval "$(mise activate bash)"
+          # Defensive fallback only if uv is somehow absent.
           if ! command -v uv >/dev/null 2>&1; then
             curl -fsSL https://astral.sh/uv/install.sh | sh
-            # The uv installer honors XDG_DATA_HOME (set earlier) and places
-            # its bin + tool symlinks (e.g. ruff) under $XDG_DATA_HOME/../bin.
-            # It does NOT add that to the current shell's PATH, so source its
-            # env and export PATH here, within this same step.
             # shellcheck disable=SC1090
             source "$XDG_DATA_HOME/../bin/env" 2>/dev/null || true
             export PATH="$XDG_DATA_HOME/../bin:$PATH"

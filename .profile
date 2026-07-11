@@ -2,7 +2,11 @@
 # Central base configuration for all shells
 
 # Ensure user-local bins are available to non-interactive shells too.
-export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$HOME/bin:$PATH"
+# Idempotent: skip if already present (guards against re-source duplication).
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$HOME/bin:$PATH" ;;
+esac
 
 if [ -n "${DOTFILES_PROFILE_LOADED:-}" ]; then
   return 0 2> /dev/null || exit 0
