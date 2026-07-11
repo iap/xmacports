@@ -47,7 +47,7 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - Do not hardcode package-manager workflows or install commands into normal startup.
 - `mise` shims take precedence over system package managers in PATH.
 - Use `mise exec` or `mise run` to invoke project tools; do not hardcode mise paths.
-- Global runtimes (Python via uv, Node via pnpm) managed by `mise use --global`.
+- Global runtimes (Python via `uv`, Node supplied by `pnpm`'s bundled Node.js) managed by `mise use --global`.
 
 ## No Package Manager Automation
 
@@ -69,9 +69,9 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ### Global Runtimes (via `mise use --global`)
 - `python` — via `uv` (preferred over system python3)
-- `node` — via `pnpm` (preferred over system node)
+- `node` — via `pnpm` (pnpm bundles its own Node.js; no separate `mise use --global node` pin is required)
 
-### PATH Order (in `.config/env.d/platform.sh`)
+### PATH Order (in `shared/platform.sh`)
 1. mise global shims (`~/.local/share/mise/shims`)
 2. Project mise shims (auto via `mise activate` in shell rc)
 3. User `~/bin`, `~/.local/bin`

@@ -27,6 +27,7 @@ Install required tools manually before bootstrapping:
 - `git`
 - `gpg` and `gpgconf`
 - `pinentry` of your choice
+- `mise` — the only allowed tool/runtime manager ([install](https://mise.jdx.dev/install.html)); run `mise install` after cloning to fetch shellcheck, shfmt, ruff, and runtime pins from `.mise.toml`
 - `shellcheck`
 - `shfmt`
 - `sops` and `age` _(for encrypted secret management)_
