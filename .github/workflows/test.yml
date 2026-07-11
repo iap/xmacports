@@ -140,7 +140,11 @@ jobs:
           # can't verify ruff's Sigstore attestation in CI).
           if ! command -v uv >/dev/null 2>&1; then
             curl -fsSL https://astral.sh/uv/install.sh | sh
-            echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+            # uv installer does NOT add itself to the current shell's PATH;
+            # source its env so 'uv' is usable in this same step.
+            # shellcheck disable=SC1090
+            source "$HOME/.local/bin/env" 2>/dev/null || true
+            export PATH="$HOME/.local/bin:$PATH"
           fi
           uv tool install ruff
           make python-lint
