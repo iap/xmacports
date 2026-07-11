@@ -13,8 +13,8 @@ fi
 DOTFILES_SECRETS_LOADED=1
 
 # Load platform detection for DOTFILES_ROOT
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
 fi
 
 SECRET_PARSE_PY="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/secret-parse.py"

@@ -4,13 +4,13 @@
 set -u
 
 # Load platform detection and environment from the single source of truth
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
 fi
 
 # Load secret management (SOPS + age) from its own module
-if [[ -f "$HOME/.dotfiles/shared/secrets.sh" ]]; then
-  source "$HOME/.dotfiles/shared/secrets.sh"
+if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/secrets.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/secrets.sh"
 fi
 
 mkcd() {

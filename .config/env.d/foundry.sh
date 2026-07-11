@@ -2,8 +2,8 @@
 # Foundry wrappers
 
 # Load platform detection (provides is_macos, has_cmd, FOUNDRY_BIN_PATH)
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
 fi
 
 # Define wrapper function for all platforms
