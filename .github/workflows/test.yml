@@ -144,8 +144,11 @@ jobs:
             curl -fsSL https://astral.sh/uv/install.sh | sh
             # shellcheck disable=SC1090
             source "$XDG_DATA_HOME/../bin/env" 2>/dev/null || true
-            export PATH="$XDG_DATA_HOME/../bin:$PATH"
           fi
+          # `uv tool install ruff` places the ruff binary under $XDG_DATA_HOME/../bin
+          # (uv honors XDG_DATA_HOME). That dir is NOT on the mise-activated PATH,
+          # so export it here so `make python-lint` can find ruff in this step.
+          export PATH="$XDG_DATA_HOME/../bin:$PATH"
           uv tool install ruff
           make python-lint
 
