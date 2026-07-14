@@ -4,6 +4,9 @@
 
 **[GitHub](https://github.com/iap/xmacports) | [GitLab](https://gitlab.com/iap/xmacports)**
 
+> [!IMPORTANT]
+> Clone this repo into `$HOME/.dotfiles` exactly. Bootstrap and startup files assume that path — following the repo directory name (e.g. `xmacports`, `dotfiles`) will break linking and shell startup.
+
 ## What This Repo Does
 
 - Links shell, Git, SSH, GPG, and editor configuration into `$HOME`
@@ -19,8 +22,9 @@ cd "$HOME/.dotfiles"
 make bootstrap
 make test
 ```
+This is verified: cloning into any other directory name leaves the shell environment unconfigured.
 
-Install required tools manually before bootstrapping:
+### Install required tools manually before bootstrapping:
 
 - `bash`
 - `zsh`
@@ -31,6 +35,8 @@ Install required tools manually before bootstrapping:
 - `shellcheck`
 - `shfmt`
 - `sops` and `age` _(for encrypted secret management)_
+- `glab` _(optional — GitLab CLI for repo/mirror management; [install](https://gitlab.com/gitlab-org/cli#installation))_
+- `gh` _(optional — GitHub CLI for repo/release management; [install](https://cli.github.com/))_
 
 ## Layout
 

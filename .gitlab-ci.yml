@@ -1,0 +1,12 @@
+# GitLab CI — secret-leak gate for the GitLab→GitHub push mirror.
+#
+# Why this exists: the push mirror replicates EVERY branch to GitHub. Secret
+# Detection scans committed files for leaked credentials and runs on GitLab
+# pushes, so a leaked secret is caught at the source BEFORE it propagates to
+# GitHub. (shellcheck/shfmt/ruff coverage already lives in GitHub Actions,
+# fired via the same mirror — this CI does NOT duplicate that.)
+#
+# The component adds a `secret_detection` job with its own default rules
+# (runs on branch/tag commits and merge-request events). No inputs required.
+include:
+  - component: gitlab.com/components/secret-detection/secret-detection@2.3.0
