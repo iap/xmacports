@@ -27,3 +27,7 @@ secrets.yaml
 secrets/secrets.yaml
 
 # Private age key (lives outside the repo at ~/.config/sops/age/keys.txt)
+
+# Internal process output (review/audit artifacts) — local-only, not part of
+# the dotfiles deliverable; never commit or mirror these.
+reviews/
