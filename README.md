@@ -99,6 +99,20 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
 - Pre-commit hook blocks plaintext secret files and validates SOPS encryption
 
+## Signed Merges
+
+`main` is protected (no direct push; merge = Maintainers; no force-push) and every
+commit must be GPG-signed by the personal key. Merge feature branches **locally**
+with the `smerge` alias instead of GitLab's merge button, so the resulting merge
+commit is authored by and signed with the personal key (the GitLab UI would stamp
+its noreply identity + GitLab's key):
+
+    git smerge <feature-branch>        # --no-ff -S merge into main, then push
+
+The alias lives in `.gitconfig` (after the dotfiles are linked to `~/.gitconfig`).
+Rebased/rewritten branches are re-signed during the rebase, so history stays
+consistently signed.
+
 ## Documentation
 
 - `MANUAL.md` - detailed startup order, architecture, and troubleshooting
