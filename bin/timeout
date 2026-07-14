@@ -1,0 +1,28 @@
+#!/bin/sh
+# timeout — shim for GNU coreutils `gtimeout` on macOS (MacPorts).
+#
+# GNU coreutils installs with a `g` prefix on macOS (timeout -> gtimeout).
+# This wrapper lets scripts call `timeout` portably. On Linux, where the
+# real `timeout` exists on PATH, this file is shadowed/irrelevant — but to
+# stay safe it execs `gtimeout` if present, else the system `timeout`, else
+# errors clearly instead of silently hanging.
+#
+# Usage is identical to GNU timeout:
+#   timeout 30 glab mr list
+#   timeout -s KILL 10 slow-cmd
+
+set -e
+
+# Prefer the MacPorts-prefixed coreutils binary.
+if command -v gtimeout > /dev/null 2>&1; then
+  exec gtimeout "$@"
+fi
+
+# Fall back to a real `timeout` if one is on PATH (e.g. Linux).
+if command -v timeout > /dev/null 2>&1; then
+  exec timeout "$@"
+fi
+
+echo "timeout: neither gtimeout (MacPorts coreutils) nor timeout found on PATH" >&2
+echo "install on macOS: sudo port install coreutils" >&2
+exit 127
