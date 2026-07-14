@@ -47,13 +47,20 @@ secret .*
 fi
 
 # mask a value for safe display (never reveals the secret)
+# Per AGENTS.md policy: emit provider prefix (text before first '_') + **** + last 4.
+# Secrets without a '_' (no provider prefix) fall back to a fixed '***' so no real
+# leading characters are ever shown. Never leaks the secret body.
 mask() {
   local v="${1:-}"
   if [ -z "$v" ]; then
     echo "(empty)"
     return
   fi
-  local prefix="${v:0:4}"
-  local tail="${v: -4}"
+  local prefix tail
+  case "$v" in
+    *_*) prefix="${v%%_*}" ;;
+    *) prefix="***" ;;
+  esac
+  tail="${v: -4}"
   printf '%s****...****%s\n' "$prefix" "$tail"
 }
