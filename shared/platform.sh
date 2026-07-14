@@ -40,6 +40,8 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 MAKE_JOBS=""
 if has_cmd nproc; then
   MAKE_JOBS=$(nproc 2> /dev/null || echo 2)
+elif is_macos; then
+  MAKE_JOBS=$(sysctl -n hw.ncpu 2> /dev/null || echo 2)
 elif [[ -f /proc/cpuinfo ]]; then
   MAKE_JOBS=$(grep -c ^processor /proc/cpuinfo 2> /dev/null || echo 2)
 else
