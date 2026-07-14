@@ -7,7 +7,7 @@ fi
 
 # Load Shared modules (platform is the single source of truth; the rest are
 # functions, secrets, prompt, aliases). All carry their own load guards.
-for _config_file in "$HOME/.dotfiles/shared/"*.sh; do
+for _config_file in "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/"*.sh; do
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
@@ -20,7 +20,7 @@ if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
   unset _config_file
 fi
 
-for _config_file in "$HOME/.dotfiles/.zshrc.d/"*.sh; do
+for _config_file in "${DOTFILES_ROOT:-$HOME/.dotfiles}/.zshrc.d/"*.sh; do
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file

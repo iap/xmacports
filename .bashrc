@@ -24,7 +24,7 @@ fi
 
 # Load Shared Functions
 for f in functions.sh aliases.sh; do
-  [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
+  [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/$f" ]] && source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/$f"
 done
 
 # Optional developer tool manager.
@@ -39,7 +39,7 @@ if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ];
 fi
 
 # Prompt — unified module shared with zsh
-[[ -f "$HOME/.dotfiles/shared/prompt.sh" ]] && source "$HOME/.dotfiles/shared/prompt.sh"
+[[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/prompt.sh" ]] && source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/prompt.sh"
 
 # Local Overrides
 [[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"
