@@ -39,7 +39,7 @@ verify-signed-commits:
           rc=1
           continue
         fi
-        fpr=$(git log -1 --format='%GK' "$c")
+        fpr=$(git log -1 --format='%GF' "$c")
         if [ "$fpr" != "$EXPECTED_SIGNER_FPR" ]; then
           echo "Commit $c signed by unexpected key: $fpr ($subj)"
           rc=1
