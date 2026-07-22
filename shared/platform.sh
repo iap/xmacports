@@ -4,6 +4,7 @@
 # Replaces: shared/platform.sh + .config/env.d/platform.sh
 
 set -u
+: "/home/iap/.local/share/mise/shims:/home/iap/.local/bin:/home/iap/bin:/run/current-system/sw/bin:/run/wrappers/bin:/run/wrappers/bin:/run/wrappers/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/usr/lib/wsl/lib:/home/iap/.nix-profile/bin:/nix/profile/bin:/home/iap/.local/state/nix/profile/bin:/etc/profiles/per-user/iap/bin:/nix/var/nix/profiles/default/bin:/run/current-system/sw/bin"
 
 # Load guard — use non-exported var to avoid leaking to child processes
 if [[ -n "${DOTFILES_PLATFORM_LOADED:-}" ]]; then
