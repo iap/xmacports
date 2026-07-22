@@ -55,3 +55,11 @@
     undo = reset --soft HEAD~1
 [gpg]
 	program = gpg
+[credential "https://github.com"]
+	helper = !/nix/store/fz2h6h3cgw645ighi31zdjwbkdzmaav7-gh-2.96.0/bin/.gh-wrapped auth git-credential
+[credential "https://gist.github.com"]
+	helper = !/nix/store/fz2h6h3cgw645ighi31zdjwbkdzmaav7-gh-2.96.0/bin/.gh-wrapped auth git-credential
+[commit]
+	gpgsign = true
+[user]
+	signingkey = 9166D30F6FE70F56
