@@ -90,24 +90,25 @@ fi
 echo
 
 # Verify GPG/SSH permissions
+_perm() {
+  local dir="$1"
+  local perms
+  perms=$(stat -c "%a" "$dir" 2>/dev/null || stat -f "%Lp" "$dir" 2>/dev/null || echo "")
+  if [ "$perms" = "700" ]; then
+    pass "$dir is 700"
+  else
+    fail "$dir is ${perms:-unknown} (expected 700)"
+  fi
+}
+
 echo "5. Security permissions"
 if [ -d "$HOME/.gnupg" ]; then
-  perms=$(stat -f %Lp "$HOME/.gnupg" 2> /dev/null || stat -c %a "$HOME/.gnupg" 2> /dev/null || echo '?')
-  if [ "$perms" = "700" ]; then
-    pass ".gnupg is 700"
-  else
-    fail ".gnupg is $perms (expected 700)"
-  fi
+  _perm "$HOME/.gnupg"
 else
   fail ".gnupg missing"
 fi
 if [ -d "$HOME/.ssh" ]; then
-  perms=$(stat -f %Lp "$HOME/.ssh" 2> /dev/null || stat -c %a "$HOME/.ssh" 2> /dev/null || echo '?')
-  if [ "$perms" = "700" ]; then
-    pass ".ssh is 700"
-  else
-    fail ".ssh is $perms (expected 700)"
-  fi
+  _perm "$HOME/.ssh"
 else
   fail ".ssh missing"
 fi
