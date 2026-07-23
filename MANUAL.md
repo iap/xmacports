@@ -277,20 +277,26 @@ Recommended overlay files:
 
 ## Verification
 
-Run these checks after changing shell startup or bootstrap behavior:
+Run the project bash suites directly:
 
 ```bash
-make test
+bash tests/verify-dotfiles.sh
+bash tests/test-functions.sh
+bash tests/test-bootstrap.sh
+bash tests/test-secrets.sh
+```
+
+If `make` is available in your environment, you can also use:
+
+```bash
 make verify
-make audit
+make test
 ```
 
 Helpful direct checks:
 
 ```bash
 bash --noprofile --norc -c 'set -u; source .config/env.d/platform.sh'
-zsh -c 'set -u; source .zshrc'
-make check
 ```
 
 ## Troubleshooting

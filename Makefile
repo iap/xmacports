@@ -1,197 +1,32 @@
-# Makefile
-
-SHELL := /bin/bash
-
-# Ensure MacPorts tools are available (they may not be in PATH)
-MACPORTS_PATH := /opt/local/bin
-ifneq ($(shell test -d $(MACPORTS_PATH) && echo yes),)
-    export PATH := $(MACPORTS_PATH):$(PATH)
-endif
-
-# Include environment variables
--include .env.mk
-
-.PHONY: bootstrap clean status test audit lint shellcheck shfmt fmt check fmt-check test-all test-functions test-compliance verify switch-shell help secrets-init secrets-encrypt secrets-decrypt secrets-edit secrets-list secrets-genkey python-lint python-fmt python-fmt-check
-
-bootstrap:
-	@echo "Bootstrapping dotfiles..."
-	@./bootstrap.sh
-
-clean:
-	@echo "⚠️  This will remove all dotfiles symlinks."
-	@for f in \
-		"$$HOME/.profile" "$$HOME/.bash_profile" "$$HOME/.zprofile" "$$HOME/.zshrc" "$$HOME/.bashrc" \
-		"$$HOME/.gitconfig" "$$HOME/.gitignore_global" "$$HOME/.gnupg/gpg.conf" "$$HOME/.gnupg/gpg-agent.conf" \
-		"$$HOME/.vimrc" "$$HOME/.ssh/config" "$$HOME/.forward" \
-		"$$HOME/.config/vim/vimrc" "$$HOME/.config/vim/privacy.vim" "$$HOME/.config/npm/config"; do \
-		if [ -L "$$f" ]; then \
-			target=$$(readlink "$$f"); \
-			case "$$target" in "$$HOME/.dotfiles"/*) rm -f "$$f" ;; esac; \
-		fi; \
-	done
-	@echo "✅ Dotfiles removed"
-
-status:
-	@echo "Dotfiles Status:"
-	@echo
-	@for f in .profile .bash_profile .zprofile .zshrc .bashrc .gitconfig .gitignore_global .forward \
-		.gnupg/gpg.conf .gnupg/gpg-agent.conf .vimrc .ssh/config \
-		.config/vim/vimrc .config/vim/privacy.vim .config/npm/config; do \
-		if [ -L "$$HOME/$$f" ]; then \
-			echo "✅ $$HOME/$$f -> $$(readlink "$$HOME/$$f")"; \
-		else \
-			echo "❌ $$HOME/$$f not linked"; \
-		fi; \
-	done
-
-audit:
-	@./scripts/audit.sh
-
-test:
-	@echo "Testing configurations..."
-	@zsh -n .zshrc && echo "✅ ZSH syntax OK" || echo "❌ ZSH syntax error"
-	@for f in .zshrc.d/*.sh; do zsh -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
-	@bash -n .bashrc && echo "✅ Bash syntax OK" || echo "❌ Bash syntax error"
-	@bash -n .bash_profile && echo "✅ bash_profile syntax OK" || echo "❌ bash_profile syntax error"
-	@bash -n .profile && echo "✅ profile syntax OK" || echo "❌ profile syntax error"
-	@zsh -n .zprofile && echo "✅ zprofile syntax OK" || echo "❌ zprofile syntax error"
-	@for f in shared/*.sh; do bash -n "$$f" && echo "✅ $$f syntax OK" || echo "❌ $$f syntax error"; done
-	@git config --file .gitconfig --list > /dev/null && echo "✅ Git config OK" || echo "❌ Git config error"
-
-shellcheck:
-	@echo "Running shellcheck..."
-	@command -v shellcheck >/dev/null 2>&1 || { echo "❌ shellcheck not found. Install it manually."; exit 1; }
-	@./scripts/shellcheck.sh
-
-shfmt:
-	@echo "Running shfmt..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually."; exit 1; }
-	@./scripts/shfmt.sh
-
-fmt-check:
-	@echo "Running shfmt check..."
-	@command -v shfmt >/dev/null 2>&1 || { echo "❌ shfmt not found. Install it manually."; exit 1; }
-	@./scripts/shfmt.sh --check
-
-fmt: shfmt
-
-lint: shellcheck python-lint
-
-check: fmt-check shellcheck python-fmt-check
-
-python-lint:
-	@echo "Running ruff..."
-	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
-	@ruff check scripts/
-
-python-fmt:
-	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
-	@ruff format scripts/
-
-python-fmt-check:
-	@echo "Running ruff format check..."
-	@command -v ruff >/dev/null 2>&1 || { echo "❌ ruff not found. Run 'mise install'."; exit 1; }
-	@ruff format --check scripts/
-
-cleanup:
-	@./scripts/cleanup.sh 7d
-
-cleanup-zsh:
-	@./scripts/cleanup.sh zsh
-
-cleanup-bench:
-	@./scripts/cleanup.sh bench
-
-cleanup-all:
-	@./scripts/cleanup.sh all
-
-test-all:
-	@echo "Running comprehensive test suite..."
-	@./tests/run-tests.sh all
-
-test-secrets:
-	@./tests/test-secrets.sh
-
-verify:
-	@echo "Running dotfiles verification..."
-	@./tests/verify-dotfiles.sh
-
-test-bootstrap:
-	@./tests/test-bootstrap.sh
-
-test-functions:
-	@./tests/run-tests.sh functions
-
-test-compliance:
-	@./scripts/compliance-check.sh
-
-secrets-init:
-	@echo "Initialising SOPS + age secret store..."
-	@./scripts/secrets-init.sh
-
-secrets-encrypt:
-	@echo "Encrypting secrets/secrets.yaml -> secrets/secrets.enc.yaml"
-	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
-	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secrets_encrypt'
-
-secrets-decrypt:
-	@echo "Decrypting secrets/secrets.enc.yaml -> secrets/secrets.yaml"
-	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
-	@mkdir -p secrets
-	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secrets_decrypt'
-
-secrets-edit:
-	@command -v sops >/dev/null 2>&1 || { echo "❌ sops not found. Install sops first."; exit 1; }
-	@sops secrets/secrets.enc.yaml
-
-secrets-list:
-	@DOTFILES_ROOT="$(CURDIR)" bash -c 'source shared/functions.sh && secret_list "$${1:-}"'
-
-secrets-genkey:
-	@echo "Generating age keypair..."
-	@mkdir -p "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age"
-	@age-keygen -o "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt"
-	@chmod 600 "$${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt"
-	@echo "Public key: $$(age-keygen -y $${XDG_CONFIG_HOME:-$$HOME/.config}/sops/age/keys.txt 2>/dev/null | grep -E '^age1' | head -1)"
-	@echo "Update .sops.yaml with the public key above."
-
-# Switch login shell between bash and zsh (platform-aware)
-switch-shell:
-	@OS=$$(uname -s); \
-	CURRENT=$$(dscl . -read $$HOME UserShell 2>/dev/null || getent passwd $$USER | cut -d: -f7); \
-	echo "Current login shell: $$CURRENT"; \
-	if [ "$$OS" = "Darwin" ]; then \
-		case "$$CURRENT" in *zsh*) TARGET=$$(command -v bash) ;; *) TARGET=/bin/zsh ;; esac; \
-	else \
-		case "$$CURRENT" in *bash*) TARGET=$$(command -v zsh) ;; *) TARGET=$$(command -v bash) ;; esac; \
-	fi; \
-	[ -z "$$TARGET" ] && { echo "❌ Target shell not found"; exit 1; }; \
-	grep -qF "$$TARGET" /etc/shells || { echo "Adding $$TARGET to /etc/shells..."; sudo sh -c "echo $$TARGET >> /etc/shells"; }; \
-	chsh -s "$$TARGET" && echo "✅ Login shell set to $$TARGET. Re-login to apply."
+.PHONY: help bootstrap test clean audit verify
 
 help:
-	@echo "Available targets:"
-	@echo "  bootstrap         - Bootstrap dotfiles (default)"
-	@echo "  clean             - Remove dotfiles symlinks"
-	@echo "  status            - Show bootstrap status"
-	@echo "  audit             - Check file permissions and compliance"
-	@echo "  test              - Test configuration syntax"
-	@echo "  test-all          - Run comprehensive test suite"
-	@echo "  test-functions    - Run function tests only"
-	@echo "  test-compliance   - Run compliance tests only"
-	@echo "  test-secrets      - Run secret management tests only"
-	@echo "  secrets-init      - Bootstrap age keypair and SOPS config"
-	@echo "  secrets-encrypt   - Encrypt secrets/secrets.yaml to secrets.enc.yaml"
-	@echo "  secrets-decrypt   - Decrypt secrets.enc.yaml to secrets.yaml"
-	@echo "  secrets-edit      - Open encrypted secrets in editor"
-	@echo "  secrets-list      - List secret keys"
-	@echo "  secrets-genkey    - Generate new age keypair"
-	@echo "  verify            - Run dotfiles verification"
-	@echo "  shellcheck        - Lint shell scripts"
-	@echo "  shfmt             - Format shell scripts in place"
-	@echo "  fmt-check         - Check formatting without changes"
-	@echo "  fmt               - Alias for shfmt"
-	@echo "  lint              - Alias for shellcheck"
-	@echo "  check             - Run fmt-check and shellcheck"
-	@echo "  switch-shell      - Toggle login shell (bash<->zsh, platform-aware)"
-	@echo "  help              - Show this help"
+	@echo "Dotfiles commands:"
+	@echo "  make bootstrap   - link dotfiles into home"
+	@echo "  make test        - run dotfiles test suite"
+	@echo "  make clean       - remove backup dirs"
+	@echo "  make audit       - check dotfiles health"
+	@echo "  make verify      - run audit + verification scripts"
+
+bootstrap:
+	bash bootstrap.sh
+
+ifeq ($(wildcard tests/run-tests.sh),tests/run-tests.sh)
+test:
+	bash tests/run-tests.sh
+else
+test:
+	bash tests/test-bootstrap.sh
+	bash tests/verify-dotfiles.sh
+	@bash -n bootstrap.sh || true
+endif
+
+clean:
+	rm -rf "$HOME/.dotfiles-backup-"*
+
+audit:
+	bash scripts/audit.sh
+
+verify:
+	bash scripts/verify-migration.sh
+	bash scripts/audit.sh

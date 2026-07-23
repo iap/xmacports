@@ -74,14 +74,31 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 
 ## Maintenance
 
-- `make status` - show linked files
-- `make test` - syntax checks for startup files
-- `make check` - run shfmt and shellcheck
-- `make audit` - inspect permissions
-- `make test-all` - run the full test wrapper
-- `make secrets-init` - bootstrap age keypair and SOPS config
-- `make secrets-encrypt` - encrypt plaintext secrets
-- `make secrets-edit` - open encrypted secrets in editor
+Direct test commands that work without `make`:
+
+```bash
+bash tests/verify-dotfiles.sh
+bash tests/test-functions.sh
+bash tests/test-bootstrap.sh
+bash tests/test-secrets.sh
+```
+
+If `make` is available:
+
+```bash
+make status
+make test
+make verify
+make audit
+```
+
+Optional maintenance:
+
+```bash
+make secrets-init
+make secrets-encrypt
+make secrets-edit
+```
 
 ## Security
 

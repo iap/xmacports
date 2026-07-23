@@ -92,6 +92,13 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - Never export secrets at shell startup; keep secret loading lazy and scoped.
 - Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files decrypt correctly.
 
+## Git Configuration
+
+- Git reads config in this order: system → global (`~/.gitconfig`) → local (`.git/config`).
+- **Local overrides global** for the same key. In this repo, `.git/config` is the authoritative source for `user.email` and `user.name`.
+- The tracked `.gitconfig` should not duplicate repo-local identity if `.git/config` already sets it; keep global config for shared defaults and signing settings only.
+- **Recommendation**: set signing preferences globally or in tracked `.gitconfig`, but set identity (`user.email`, `user.name`) in `.git/config` to avoid accidentally applying one identity to every repo on this machine.
+
 ## Git Commit Signing
 
 - Prefer **signed commits** so history is verifiable and shows "Verified" on GitHub/GitLab.

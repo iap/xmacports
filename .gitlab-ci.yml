@@ -1,0 +1,19 @@
+stages:
+  - verify
+
+variables:
+  DOTFILES_CI: "1"
+
+.default:
+  tags:
+    - linux
+
+verify:lint:
+  extends: .default
+  stage: verify
+  image: alpine:latest
+  script:
+    - bash tests/verify-dotfiles.sh
+    - bash tests/test-functions.sh
+    - bash tests/test-bootstrap.sh
+    - bash tests/test-secrets.sh
