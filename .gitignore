@@ -27,3 +27,7 @@ secrets.yaml
 secrets/secrets.yaml
 
 # Private age key (lives outside the repo at ~/.config/sops/age/keys.txt)
+test_hook_simple.sh test_precommit_hook.sh
+*.tmp *.temp
+test_ci.txt
+.dotfiles
