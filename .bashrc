@@ -24,7 +24,7 @@ fi
 
 # Load Shared Functions
 for f in functions.sh aliases.sh; do
-  [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/$f" ]] && source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/$f"
+  [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
 done
 
 # Optional developer tool manager.
@@ -38,8 +38,17 @@ if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ];
   export DOTFILES_PROFILE_LOCAL_LOADED=1
 fi
 
+
+# Load per-host environment overrides from XDG config when this file is sourced
+# directly, e.g. interactive bash without a login shell.
+if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
+  for _config_file in "${XDG_CONFIG_HOME:-$HOME/.config}"/env.d/*.sh; do
+    [[ -f "$_config_file" ]] && source "$_config_file"
+  done
+  unset _config_file
+fi
 # Prompt — unified module shared with zsh
-[[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/prompt.sh" ]] && source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/prompt.sh"
+[[ -f "$HOME/.dotfiles/shared/prompt.sh" ]] && source "$HOME/.dotfiles/shared/prompt.sh"
 
 # Local Overrides
 [[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"

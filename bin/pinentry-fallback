@@ -1,8 +1,17 @@
 #!/bin/sh
-# Pinentry fallback script
+# Pinentry fallback script — platform-aware selection
 
 # MacPorts pinentry paths (not in default PATH)
 PINENTRY_PATHS="/opt/local/bin /usr/local/bin /usr/bin"
+
+# Platform detection
+_is_macos() {
+  [ "$(uname -s)" = "Darwin" ]
+}
+
+_is_linux() {
+  [ "$(uname -s)" = "Linux" ]
+}
 
 # MacPorts app bundle path for pinentry-mac (discover version dynamically)
 _find_pinentry_mac_bundle() {
@@ -11,31 +20,41 @@ _find_pinentry_mac_bundle() {
 
 PINENTRY_MAC_BUNDLE=$(_find_pinentry_mac_bundle)
 
-# Try pinentry-mac first (GUI) - check both PATH and app bundle
-if [ -n "$PINENTRY_MAC_BUNDLE" ] && [ -x "$PINENTRY_MAC_BUNDLE" ]; then
-  exec "$PINENTRY_MAC_BUNDLE" "$@"
-fi
-for p in $PINENTRY_PATHS; do
-  if [ -x "$p/pinentry-mac" ]; then
-    exec "$p/pinentry-mac" "$@"
+# macOS: prefer pinentry-mac, then tty, then curses
+if _is_macos; then
+  if [ -n "$PINENTRY_MAC_BUNDLE" ] && [ -x "$PINENTRY_MAC_BUNDLE" ]; then
+    exec "$PINENTRY_MAC_BUNDLE" "$@"
   fi
-done
+  for p in $PINENTRY_PATHS; do
+    if [ -x "$p/pinentry-mac" ]; then
+      exec "$p/pinentry-mac" "$@"
+    fi
+  done
+fi
 
-if [ -t 0 ]; then
-  # Prefer pinentry-tty for terminal (simpler than curses, fewer glitches)
+# Linux/WSL: prefer pinentry-tty over curses (more robust in non-GUI terminals)
+if _is_linux; then
   for p in $PINENTRY_PATHS; do
     if [ -x "$p/pinentry-tty" ]; then
       exec "$p/pinentry-tty" "$@"
     fi
   done
+fi
 
-  # If a TTY is available, also try the curses pinentry
+# Generic fallback: prefer tty when a TTY is available, then curses
+if [ -t 0 ]; then
   for p in $PINENTRY_PATHS; do
-    if [ -x "$p/pinentry-curses" ]; then
-      exec "$p/pinentry-curses" "$@"
+    if [ -x "$p/pinentry-tty" ]; then
+      exec "$p/pinentry-tty" "$@"
     fi
   done
 fi
+
+for p in $PINENTRY_PATHS; do
+  if [ -x "$p/pinentry-curses" ]; then
+    exec "$p/pinentry-curses" "$@"
+  fi
+done
 
 # Fallback: try any pinentry on PATH
 if command -v pinentry > /dev/null 2>&1; then

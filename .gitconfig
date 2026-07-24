@@ -53,21 +53,13 @@
 
     unstage = reset HEAD
     undo = reset --soft HEAD~1
-
-    # Signed merge: merge a feature branch into main with --no-ff AND a GPG
-    # signature, then push. Use this instead of GitLab's merge button so the
-    # resulting merge commit is authored by and signed with your personal key
-    # (GitLab's UI would stamp its noreply identity + GitLab's key).
-    # Usage: git smerge <feature-branch>   (defaults target = main)
-    smerge = "!f() { \
-        target=\"${2:-main}\"; \
-        src=\"${1:?usage: git smerge <feature-branch> [target=main]}\"; \
-        git fetch -q origin \"$target\"; \
-        git checkout \"$target\" && git merge --no-ff -S -m \"Merge branch '$src' into '$target'\" \"$src\" \
-          && git log -1 --format='%h signed=%G? author=%ae' \
-          && echo 'Pushing signed merge to origin...' \
-          && git push origin \"$target\"; \
-      }; f"
-
 [gpg]
-	program = /opt/local/bin/gpg
+	program = gpg
+[credential "https://github.com"]
+	helper = !gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = !gh auth git-credential
+[commit]
+	gpgsign = true
+[user]
+	signingkey = 9166D30F6FE70F56

@@ -1,9 +1,7 @@
 #!/bin/bash
 # Unified platform detection and environment setup — single source of truth.
-# Sourced by bash (.bashrc -> functions.sh) and zsh (.zshrc shared/*.sh loop).
-# Keep all logic POSIX/portable: no bash-only word-splitting (zsh does not
-# split unquoted $var), so PATH helpers work identically in both shells.
-# Replaces the legacy .config/env.d/platform.sh wrapper.
+# Sources from .profile (login), .bashrc/.zshrc (interactive), and scripts.
+# Replaces: shared/platform.sh + .config/env.d/platform.sh
 
 set -u
 
@@ -27,9 +25,6 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
-# pnpm global bin dir (required for `pnpm add -g`; pnpm errors without it)
-export PNPM_HOME="${PNPM_HOME:-$HOME/.local/share/pnpm}"
-
 # --- Editor & Locale ---
 export EDITOR="${EDITOR:-vi}"
 export VISUAL="${VISUAL:-$EDITOR}"
@@ -40,8 +35,6 @@ export LC_ALL="${LC_ALL:-en_US.UTF-8}"
 MAKE_JOBS=""
 if has_cmd nproc; then
   MAKE_JOBS=$(nproc 2> /dev/null || echo 2)
-elif is_macos; then
-  MAKE_JOBS=$(sysctl -n hw.ncpu 2> /dev/null || echo 2)
 elif [[ -f /proc/cpuinfo ]]; then
   MAKE_JOBS=$(grep -c ^processor /proc/cpuinfo 2> /dev/null || echo 2)
 else
@@ -108,20 +101,11 @@ export DISABLE_TELEMETRY=1
 export NO_UPDATE_NOTIFIER=1
 
 # --- Path utilities ---
-# Portable PATH dedupe — uses only POSIX parameter expansion (no unquoted
-# word-splitting), so it works in bash, zsh, and dash. The naive
-# `for seg in $PATH` form silently fails under zsh (no word-split), leaving
-# duplicates untouched.
 path_dedupe() {
-  [ -z "${PATH:-}" ] && return 0
-  local normalized="" segment remaining="$PATH"
-  while [ -n "$remaining" ]; do
-    segment="${remaining%%:*}"
-    case "$remaining" in
-      *:*) remaining="${remaining#*:}" ;;
-      *) remaining="" ;;
-    esac
-    [ -n "$segment" ] || continue
+  local current="${PATH:-}" normalized="" segment
+  local IFS=':'
+  for segment in $current; do
+    [[ -n "$segment" ]] || continue
     case ":$normalized:" in
       *":$segment:"*) ;;
       *) normalized="${normalized:+$normalized:}$segment" ;;
@@ -141,7 +125,12 @@ path_prepend_if_present() {
 }
 
 # --- Build PATH ---
-# System dirs first (prepended LAST so they appear FIRST in final PATH)
+# Order below is intentionally lowest-priority first; final PATH has
+# highest-priority entries at the front after dedupe.
+# 1. System dirs
+# 2. Foundry (if installed)
+# 3. User bins
+# 4. mise shims (highest priority)
 for dir in \
   "/sbin" \
   "/usr/sbin" \
@@ -151,7 +140,6 @@ for dir in \
   "/usr/local/bin" \
   "/opt/local/bin" \
   "${FOUNDRY_BIN_PATH:-}" \
-  "$PNPM_HOME" \
   "$HOME/.local/bin" \
   "$HOME/bin"; do
   path_prepend_if_present "$dir"

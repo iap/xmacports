@@ -4,9 +4,6 @@
 
 **[GitHub](https://github.com/iap/xmacports) | [GitLab](https://gitlab.com/iap/xmacports)**
 
-> [!IMPORTANT]
-> Clone this repo into `$HOME/.dotfiles` exactly. Bootstrap and startup files assume that path — following the repo directory name (e.g. `xmacports`, `dotfiles`) will break linking and shell startup.
-
 ## What This Repo Does
 
 - Links shell, Git, SSH, GPG, and editor configuration into `$HOME`
@@ -22,21 +19,17 @@ cd "$HOME/.dotfiles"
 make bootstrap
 make test
 ```
-This is verified: cloning into any other directory name leaves the shell environment unconfigured.
 
-### Install required tools manually before bootstrapping:
+Install required tools manually before bootstrapping:
 
 - `bash`
 - `zsh`
 - `git`
 - `gpg` and `gpgconf`
 - `pinentry` of your choice
-- `mise` — the only allowed tool/runtime manager ([install](https://mise.jdx.dev/install.html)); run `mise install` after cloning to fetch shellcheck, shfmt, ruff, and runtime pins from `.mise.toml`
 - `shellcheck`
 - `shfmt`
 - `sops` and `age` _(for encrypted secret management)_
-- `glab` _(optional — GitLab CLI for repo/mirror management; [install](https://gitlab.com/gitlab-org/cli#installation))_
-- `gh` _(optional — GitHub CLI for repo/release management; [install](https://cli.github.com/))_
 
 ## Layout
 
@@ -81,14 +74,31 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 
 ## Maintenance
 
-- `make status` - show linked files
-- `make test` - syntax checks for startup files
-- `make check` - run shfmt and shellcheck
-- `make audit` - inspect permissions
-- `make test-all` - run the full test wrapper
-- `make secrets-init` - bootstrap age keypair and SOPS config
-- `make secrets-encrypt` - encrypt plaintext secrets
-- `make secrets-edit` - open encrypted secrets in editor
+Direct test commands that work without `make`:
+
+```bash
+bash tests/verify-dotfiles.sh
+bash tests/test-functions.sh
+bash tests/test-bootstrap.sh
+bash tests/test-secrets.sh
+```
+
+If `make` is available:
+
+```bash
+make status
+make test
+make verify
+make audit
+```
+
+Optional maintenance:
+
+```bash
+make secrets-init
+make secrets-encrypt
+make secrets-edit
+```
 
 ## Security
 
@@ -98,20 +108,6 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 - Local/private overlays stay outside the tracked repo
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
 - Pre-commit hook blocks plaintext secret files and validates SOPS encryption
-
-## Signed Merges
-
-`main` is protected (no direct push; merge = Maintainers; no force-push) and every
-commit must be GPG-signed by the personal key. Merge feature branches **locally**
-with the `smerge` alias instead of GitLab's merge button, so the resulting merge
-commit is authored by and signed with the personal key (the GitLab UI would stamp
-its noreply identity + GitLab's key):
-
-    git smerge <feature-branch>        # --no-ff -S merge into main, then push
-
-The alias lives in `.gitconfig` (after the dotfiles are linked to `~/.gitconfig`).
-Rebased/rewritten branches are re-signed during the rebase, so history stays
-consistently signed.
 
 ## Documentation
 

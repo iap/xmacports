@@ -31,8 +31,9 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - `bootstrap.sh` links tracked files into `$HOME` and applies permissions.
 - `.profile` is the shared POSIX base for login shells.
 - `.bash_profile`, `.bashrc`, `.zprofile`, and `.zshrc` are shell entrypoints.
+- `.zshrc.d/` holds zsh-specific prompt/helpers.
 - `.config/env.d/` holds shared environment loaders.
-- `shared/` holds cross-shell functions and aliases.
+- `shared/` holds cross-shell functions, aliases, prompt, and secrets.
 - `bin/` holds small executables expected on `PATH`.
 - `scripts/` holds maintenance and verification helpers.
 - `tests/` holds syntax and behavior checks.
@@ -47,7 +48,7 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - Do not hardcode package-manager workflows or install commands into normal startup.
 - `mise` shims take precedence over system package managers in PATH.
 - Use `mise exec` or `mise run` to invoke project tools; do not hardcode mise paths.
-- Global runtimes (Python via `uv`, Node supplied by `pnpm`'s bundled Node.js) managed by `mise use --global`.
+- Global runtimes (Python via uv, Node via pnpm) managed by `mise use --global`.
 
 ## No Package Manager Automation
 
@@ -69,9 +70,9 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ### Global Runtimes (via `mise use --global`)
 - `python` — via `uv` (preferred over system python3)
-- `node` — via `pnpm` (pnpm bundles its own Node.js; no separate `mise use --global node` pin is required)
+- `node` — via `pnpm` (preferred over system node)
 
-### PATH Order (in `shared/platform.sh`)
+### PATH Order (in `.config/env.d/platform.sh`)
 1. mise global shims (`~/.local/share/mise/shims`)
 2. Project mise shims (auto via `mise activate` in shell rc)
 3. User `~/bin`, `~/.local/bin`
@@ -81,6 +82,22 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ### Verification
 Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
+
+## Secret Management
+
+- Secrets are managed with SOPS + age, not plaintext files.
+- The encrypted store is `secrets/secrets.enc.yaml`; the decrypted working copy is gitignored.
+- The private age key lives at `~/.config/sops/age/keys.txt` and must never be committed.
+- Access secrets on demand with `secret()`, `with_secret()`, `secret_list()`, `secrets_edit()`, `secrets_encrypt()`, `secrets_decrypt()`.
+- Never export secrets at shell startup; keep secret loading lazy and scoped.
+- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files decrypt correctly.
+
+## Git Configuration
+
+- Git reads config in this order: system → global (`~/.gitconfig`) → local (`.git/config`).
+- **Local overrides global** for the same key. In this repo, `.git/config` is the authoritative source for `user.email` and `user.name`.
+- The tracked `.gitconfig` should not duplicate repo-local identity if `.git/config` already sets it; keep global config for shared defaults and signing settings only.
+- **Recommendation**: set signing preferences globally or in tracked `.gitconfig`, but set identity (`user.email`, `user.name`) in `.git/config` to avoid accidentally applying one identity to every repo on this machine.
 
 ## Git Commit Signing
 
@@ -127,3 +144,5 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - Keep docs, tests, and code in sync.
 - Introduce new dependencies only when they are strictly necessary.
 - Use explicit file ownership and clear naming over clever shell indirection.
+- Prefer platform- and cwd-aware paths; avoid assuming a fixed repo location.
+- Avoid hardcoded absolute paths unless they are truly system-specific and documented.

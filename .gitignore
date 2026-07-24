@@ -1,33 +1,35 @@
-# Protect sensitive information - never commit personal data
-*.local
-*.private
-*_local
-*_private
-bootstrap-private.sh
+# Editor/IDE
+.vscode/
+.idea/
 
-# Personal directories (do not track)
-personal/
-private/
+# Env
+.env
+.env.*
 
-# Object and binary files
-*.o
-*.out
+# Test/runtime artifacts
+.tmp_*
+/tmp/
 
-# XDG cache directory (runtime logs, prompt caches)
-.cache/
+# Backup/snapshot dirs
+.dotfiles-backup-*
 
-# Age / SOPS secret management
-# secrets.yaml      (decrypted working copy — gitignored below)
-*.age
-*.age-key
-*.key.enc
-
-# Decrypted working copy of secrets (both legacy and new locations)
-secrets.yaml
+# Secrets cache
+.secrets.json
+.secrets/*
 secrets/secrets.yaml
+secrets/secrets.yaml.*
 
-# Private age key (lives outside the repo at ~/.config/sops/age/keys.txt)
+# macOS metadata
+.DS_Store
+.AppleDouble
+.LSOverride
 
-# Internal process output (review/audit artifacts) — local-only, not part of
-# the dotfiles deliverable; never commit or mirror these.
-reviews/
+# Windows metadata
+Thumbs.db
+desktop.ini
+
+# Nix/GC roots
+result
+
+# Logs
+*.log
