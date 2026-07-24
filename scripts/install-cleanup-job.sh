@@ -4,11 +4,12 @@
 set -eu
 
 # Load platform detection
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
+if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
+  source "$DOTFILES_ROOT/shared/platform.sh"
 fi
 
-SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup.sh"
+SCRIPT="${DOTFILES_ROOT}/scripts/cleanup.sh"
 if [ ! -x "$SCRIPT" ]; then
   echo "cleanup script not found or not executable: $SCRIPT" >&2
   exit 1

@@ -6,7 +6,10 @@ DOTFILES="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
 _dotfiles_lock() {
   local lockfile="/tmp/.dotfiles-bootstrap.lock"
-  if ! (set -o noclobber; : > "$lockfile") 2>/dev/null; then
+  if ! (
+    set -o noclobber
+    : > "$lockfile"
+  ) 2> /dev/null; then
     echo "ERROR: another bootstrap may be running ($lockfile exists)" >&2
     exit 1
   fi
@@ -14,7 +17,7 @@ _dotfiles_lock() {
 }
 
 _dotfiles_unlock() {
-  rm -f "/tmp/.dotfiles-bootstrap.lock" 2>/dev/null || true
+  rm -f "/tmp/.dotfiles-bootstrap.lock" 2> /dev/null || true
 }
 
 _dotfiles_lock
@@ -69,10 +72,10 @@ done
 
 backup_and_link "$DOTFILES/.config/gpg/gpg.conf" "$HOME/.gnupg/gpg.conf"
 backup_and_link "$DOTFILES/.config/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
-chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf" 2>/dev/null || true
+chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf" 2> /dev/null || true
 backup_and_link "$DOTFILES/.vimrc" "$HOME/.vimrc"
 backup_and_link "$DOTFILES/.config/ssh/config" "$HOME/.ssh/config"
-chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
+chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
 backup_and_link "$DOTFILES/.config/vim/vimrc" "$HOME/.config/vim/vimrc"
 backup_and_link "$DOTFILES/.config/vim/privacy.vim" "$HOME/.config/vim/privacy.vim"
 backup_and_link "$DOTFILES/.config/npm/config" "$HOME/.config/npm/config"

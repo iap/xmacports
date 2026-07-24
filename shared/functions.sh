@@ -4,8 +4,8 @@
 set -u
 
 # Load platform detection and environment from the single source of truth
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
+  source "$DOTFILES_ROOT/shared/platform.sh"
 fi
 
 # Load secret management (SOPS + age) from its own module

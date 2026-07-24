@@ -2,8 +2,8 @@
 " This file is sourced when vim is started with XDG_CONFIG_HOME set
 
 " Source the main vimrc
-if filereadable(expand('~/.dotfiles/.vimrc'))
-    source ~/.dotfiles/.vimrc
+if filereadable(expand('$HOME/.dotfiles/.vimrc'))
+    source $HOME/.dotfiles/.vimrc
 endif
 
 " XDG Base Directory overrides

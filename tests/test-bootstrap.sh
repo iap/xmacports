@@ -76,7 +76,7 @@ echo
 echo "4. One replacement should create exactly one backup dir"
 rm -f "$HOME/.profile"
 printf 'replaced-by-test\n' > "$HOME/.profile"
-if DOTFILES_ROOT="$DOTFILES" bash "$DOTFILES/bootstrap.sh" >/tmp/bootstrap-test-output-$$.log 2>&1; then
+if DOTFILES_ROOT="$DOTFILES" bash "$DOTFILES/bootstrap.sh" > /tmp/bootstrap-test-output-$$.log 2>&1; then
   pass "replacement run exits 0"
 else
   fail "replacement run did not exit 0"
@@ -86,17 +86,17 @@ if [ -L "$HOME/.profile" ]; then
 else
   fail ".profile is not a symlink after replacement"
 fi
-if grep -q "Backup:" /tmp/bootstrap-test-output-$$.log 2>/dev/null; then
+if grep -q "Backup:" /tmp/bootstrap-test-output-$$.log 2> /dev/null; then
   pass "bootstrap reported a backup path"
 else
   fail "bootstrap did not report a backup path"
 fi
-rm -f /tmp/bootstrap-test-output-$$.log 2>/dev/null || true
+rm -f /tmp/bootstrap-test-output-$$.log 2> /dev/null || true
 echo
 
 echo "5. Security permissions"
 if [ -d "$HOME/.gnupg" ]; then
-  gnupg_perms=$(find "$HOME/.gnupg" -maxdepth 0 -printf "%m" 2>/dev/null || echo "unknown")
+  gnupg_perms=$(stat -f %Lp "$HOME/.gnupg" 2> /dev/null || stat -c %a "$HOME/.gnupg" 2> /dev/null || echo "unknown")
   if [ "$gnupg_perms" = "700" ]; then
     pass ".gnupg is 700"
   else
@@ -106,7 +106,7 @@ else
   fail ".gnupg missing"
 fi
 if [ -d "$HOME/.ssh" ]; then
-  ssh_perms=$(find "$HOME/.ssh" -maxdepth 0 -printf "%m" 2>/dev/null || echo "unknown")
+  ssh_perms=$(stat -f %Lp "$HOME/.ssh" 2> /dev/null || stat -c %a "$HOME/.ssh" 2> /dev/null || echo "unknown")
   if [ "$ssh_perms" = "700" ]; then
     pass ".ssh is 700"
   else

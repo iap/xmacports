@@ -4,8 +4,9 @@
 set -eu
 
 # Load platform detection
-if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
-  source "$HOME/.dotfiles/shared/platform.sh"
+DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
+if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
+  source "$DOTFILES_ROOT/shared/platform.sh"
 fi
 
 if is_macos; then
@@ -14,7 +15,7 @@ if is_macos; then
   rm -f "$PLIST"
   echo "Removed launchd job: com.iap.dotfiles.cleanup"
 else
-  SCRIPT="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/cleanup.sh"
+  SCRIPT="${DOTFILES_ROOT}/scripts/cleanup.sh"
   crontab -l 2> /dev/null | grep -v -F "$SCRIPT" | crontab -
   echo "Removed cron job for: $SCRIPT"
 fi

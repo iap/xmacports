@@ -12,8 +12,11 @@ else
 fi
 _LOCKFILE="${_LOCK_DIR}/.dotfiles-verify.lock"
 
-mkdir -p "$_LOCK_DIR" 2>/dev/null || true
-if ! (set -o noclobber; : > "$_LOCKFILE") 2>/dev/null; then
+mkdir -p "$_LOCK_DIR" 2> /dev/null || true
+if ! (
+  set -o noclobber
+  : > "$_LOCKFILE"
+) 2> /dev/null; then
   echo "WARN: verify already running ($_LOCKFILE exists)" >&2
   exit 0
 fi
@@ -30,11 +33,12 @@ if [ ! -r "$DOTFILES_ROOT/.bashrc" ] || [ ! -r "$DOTFILES_ROOT/.profile" ]; then
 fi
 
 echo "[2/3] Checking symlink targets under $TARGET"
-find -L "$TARGET" -maxdepth 1 -type l 2>/dev/null | while IFS= read -r link; do
-  target="$(readlink "$link" 2>/dev/null || true)"
-  if [ -n "$target" ] && [ "$target" != "$DOTFILES"/* ]; then
-    echo "MISMATCH: $link -> $target"
-  fi
+find -L "$TARGET" -maxdepth 1 -type l 2> /dev/null | while IFS= read -r link; do
+  target="$(readlink "$link" 2> /dev/null || true)"
+  case "$target" in
+    "$DOTFILES_ROOT"/*) ;;
+    *) echo "MISMATCH: $link -> $target" ;;
+  esac
 done | sort -u || true
 
 echo "[3/3] Runtime path checks"

@@ -1,7 +1,11 @@
+# SSH client configuration
+# GPG agent socket is set via SSH_AUTH_SOCK in shared/platform.sh
+# This avoids hardcoded paths that differ between Linux and macOS
+
 Host *
-    IdentityAgent /run/user/1000/gnupg/S.gpg-agent.ssh
+    # Use environment variable set by platform.sh for GPG agent integration
+    # The SSH_AUTH_SOCK is discovered dynamically via gpgconf --list-dirs agent-ssh-socket
     IdentitiesOnly yes
-    IdentityFile ~/.ssh/id_gpg_rsa
     Protocol 2
     Ciphers aes256-ctr,aes192-ctr,aes128-ctr,aes256-gcm@openssh.com,aes128-gcm@openssh.com
     MACs hmac-sha2-256,hmac-sha2-512,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com
