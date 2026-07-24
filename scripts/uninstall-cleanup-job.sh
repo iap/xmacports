@@ -4,8 +4,8 @@
 set -eu
 
 # Load platform detection
-if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
-  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
 fi
 
 if is_macos; then

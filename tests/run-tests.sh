@@ -56,11 +56,12 @@ run_function_tests() {
 
 run_config_tests() {
   echo "Running configuration tests..."
-  cd "$DOTFILES_ROOT" || {
-    echo "❌ Failed to change to dotfiles directory"
+  if [[ -f "$SCRIPT_DIR/test-bootstrap.sh" ]]; then
+    bash "$SCRIPT_DIR/test-bootstrap.sh"
+  else
+    echo "❌ test-bootstrap.sh not found"
     return 1
-  }
-  make test
+  fi
 }
 
 run_secrets_tests() {

@@ -4,13 +4,13 @@
 set -u
 
 # Load platform detection and environment from the single source of truth
-if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh" ]]; then
-  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/platform.sh"
+if [[ -f "$HOME/.dotfiles/shared/platform.sh" ]]; then
+  source "$HOME/.dotfiles/shared/platform.sh"
 fi
 
 # Load secret management (SOPS + age) from its own module
-if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/secrets.sh" ]]; then
-  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/secrets.sh"
+if [[ -f "$HOME/.dotfiles/shared/secrets.sh" ]]; then
+  source "$HOME/.dotfiles/shared/secrets.sh"
 fi
 
 mkcd() {
@@ -112,6 +112,15 @@ envinfo() {
   fi
   echo "SHELL: $SHELL"
   echo "GIT: $(git --version 2> /dev/null | cut -d' ' -f3 || echo 'not bootstrapped')"
+}
+
+git_info() {
+  git rev-parse --git-dir > /dev/null 2>&1 || return 1
+  local branch mark
+  branch=$(git branch --show-current 2> /dev/null)
+  git diff --quiet 2> /dev/null || mark="±"
+  [ -z "$mark" ] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
+  echo "${branch}${mark}"
 }
 
 unlock_gpg() {

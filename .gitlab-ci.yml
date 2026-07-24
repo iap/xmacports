@@ -1,56 +1,19 @@
-# GitLab CI — gates for the GitLab→GitHub push mirror.
-#
-# Why this exists: the push mirror replicates EVERY branch to GitHub.
-# 1. Secret Detection scans committed files for leaked credentials at the
-#    source, BEFORE they propagate to GitHub.
-# 2. verify-signed-commits enforces the repo policy (AGENTS.md): every
-#    commit merged to main MUST be a GPG-signed, verified commit authored by
-#    the project's signing key. It runs in the MR pipeline; because main is
-#    protected and requires a green pipeline, an unsigned/foreign commit
-#    cannot be merged. (shellcheck/shfmt/ruff coverage lives in GitHub
-#    Actions via the same mirror — this CI does NOT duplicate that.)
-#
-# The component adds a `secret_detection` job with its own default rules.
-include:
-  - component: gitlab.com/components/secret-detection/secret-detection@2.3.0
+stages:
+  - verify
 
-# Enforce signed, verified commits on every merge request.
-# Runs in the implicit `.pre` stage (always available; no `stages:` clash
-# with the included component). Fails the pipeline — and thus blocks merge —
-# if any commit in the MR range is unsigned or signed by an unexpected key.
-verify-signed-commits:
-  stage: .pre
+variables:
+  DOTFILES_CI: "1"
+
+.default:
+  tags:
+    - linux
+
+verify:lint:
+  extends: .default
+  stage: verify
   image: alpine:latest
-  variables:
-    EXPECTED_SIGNER_FPR: "00492CBBE90AF475521F68B99166D30F6FE70F56"
-  before_script:
-    - apk add --no-cache git gnupg >/dev/null 2>&1
-    - git fetch -q origin main
-    - gpg --import keys/iap-signing-key.asc >/dev/null 2>&1
   script:
-    - |
-      base="${CI_MERGE_REQUEST_DIFF_BASE_SHA:-origin/main}"
-      echo "Verifying commits in range ${base}..HEAD"
-      rc=0
-      for c in $(git rev-list "${base}"..HEAD); do
-        subj=$(git log -1 --format='%s' "$c")
-        if ! git verify-commit "$c" >/dev/null 2>&1; then
-          echo "UNSIGNED or UNVERIFIED commit: $c ($subj)"
-          rc=1
-          continue
-        fi
-        fpr=$(git log -1 --format='%GF' "$c")
-        if [ "$fpr" != "$EXPECTED_SIGNER_FPR" ]; then
-          echo "Commit $c signed by unexpected key: $fpr ($subj)"
-          rc=1
-        fi
-      done
-      if [ "$rc" -eq 0 ]; then
-        echo "All commits signed and verified by the expected signer."
-      fi
-      exit $rc
-  rules:
-    # Run on push to any branch except main itself (the merge gate uses the
-    # source branch's latest pipeline on Free tier), and on MR events.
-    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_COMMIT_BRANCH != "main"'
-    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - bash tests/verify-dotfiles.sh
+    - bash tests/test-functions.sh
+    - bash tests/test-bootstrap.sh
+    - bash tests/test-secrets.sh

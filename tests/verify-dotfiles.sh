@@ -29,14 +29,11 @@ fi
 
 echo ""
 echo "3. PATH Integrity"
-# Test platform.sh in isolation with clean environment
-# Create user bin directories INSIDE the test subshell so they exist when platform.sh runs
-# Also symlink $HOME/.dotfiles to the actual repo so the wrapper finds it
-test_path=$(HOME="$HOME" \
-  PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "mkdir -p \"$HOME/bin\" \"$HOME/.local/bin\"; ln -sfn '$DOTFILES_ROOT' \"$HOME/.dotfiles\"; unset DOTFILES_PLATFORM_LOADED; source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \"PATH=\$PATH\"" | grep '^PATH=' | cut -d= -f2-)
+# Source platform.sh with a known baseline PATH to verify it adds user bins.
+test_path=$(PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
+  bash -c "source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \$PATH")
 
-PATH_COUNT=$(echo "$test_path" | tr ':' '\n' | sort | uniq -d | wc -l | tr -d ' ')
+PATH_COUNT=$(echo "$test_path" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
 if [[ "$PATH_COUNT" -eq 0 ]]; then
   echo "   - PASS: No duplicate PATH entries after platform.sh"
 else
@@ -44,7 +41,6 @@ else
   ((FAILED++))
 fi
 
-# platform.sh should add user bin directories to PATH
 if [[ ":$test_path:" == *":$HOME/bin:"* ]] && [[ ":$test_path:" == *":$HOME/.local/bin:"* ]]; then
   echo "   - PASS: User bin directories added by platform.sh"
 else
@@ -67,12 +63,14 @@ done
 
 echo ""
 echo "5. XDG Directory Compliance"
-
+# Source platform.sh so XDG vars are set.
+XDG_PATH=$(bash -c "source '$DOTFILES_ROOT/.config/env.d/platform.sh'; env" | grep -E "^XDG_")
 for var in XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME; do
-  if [[ -n "${!var:-}" ]]; then
-    echo "   - PASS: $var set to ${!var}"
+  val=$(echo "$XDG_PATH" | grep "^${var}=" | cut -d= -f2-)
+  if [[ -n "$val" ]]; then
+    echo "   - PASS: $val"
   else
-    echo "   - FAIL: $var not set"
+    echo "   - FAIL: $var not set after sourcing platform.sh"
     ((FAILED++))
   fi
 done
@@ -83,7 +81,7 @@ if [[ $FAILED -eq 0 ]]; then
 
   if [[ -f "$DOTFILES_ROOT/.sops.yaml" ]]; then
     echo "   - .sops.yaml present"
-    if grep -qE 'age: +age1' "$DOTFILES_ROOT/.sops.yaml"; then
+    if grep -qE "age: +age1" "$DOTFILES_ROOT/.sops.yaml"; then
       echo "   - age public key configured"
     else
       echo "   - WARN: age public key looks like placeholder"
@@ -95,11 +93,10 @@ if [[ $FAILED -eq 0 ]]; then
   if [[ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ]]; then
     echo "   - secrets.enc.yaml present"
     if command -v sops > /dev/null 2>&1; then
-      # Check if the local age private key matches the one used for encryption
       AGE_KEY_DIR="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age"
       if [[ -f "$AGE_KEY_DIR/keys.txt" ]] && command -v age > /dev/null 2>&1; then
-        EXTRACTED_KEY=$(age-keygen -y "$AGE_KEY_DIR/keys.txt" 2> /dev/null | grep -E '^age1' | head -1)
-        PUBLIC_KEY=$(grep -E 'age: +age1' "$DOTFILES_ROOT/.sops.yaml" | sed 's/.*age: *//' | tr -d ' ')
+        EXTRACTED_KEY=$(age-keygen -y "$AGE_KEY_DIR/keys.txt" 2> /dev/null | grep -E "^age1" | head -1)
+        PUBLIC_KEY=$(grep -E "age: +age1" "$DOTFILES_ROOT/.sops.yaml" | sed "s/.*age: *//" | tr -d " ")
         if [[ "$PUBLIC_KEY" = "$EXTRACTED_KEY" ]]; then
           if sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1; then
             echo "   - secrets.enc.yaml decrypts successfully"
@@ -108,7 +105,7 @@ if [[ $FAILED -eq 0 ]]; then
             ((FAILED++))
           fi
         else
-          echo "   - SKIP: age private key doesn't match encrypted file (different keypair in CI)"
+          echo "   - SKIP: age private key does not match encrypted file (different keypair in CI)"
         fi
       else
         echo "   - SKIP: age private key not available for decryption test"

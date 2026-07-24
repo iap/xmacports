@@ -102,7 +102,21 @@ else
 fi
 echo
 
-echo "6. Keybase removal"
+echo "6. with_secret quoting"
+if [ -f "$DOTFILES_ROOT/shared/secrets.sh" ]; then
+  check "with_secret preserves spaces in secret value" bash -c '
+    set -u
+    source "$DOTFILES_ROOT/shared/secrets.sh"
+    secret() { printf "%s" "a b c"; }
+    result=$(with_secret FOO=mykey -- printenv FOO)
+    [ "$result" = "a b c" ]
+  '
+else
+  echo "   SKIP: shared/secrets.sh absent"
+fi
+echo
+
+echo "7. Keybase removal"
 if [ -f "$DOTFILES_ROOT/shared/functions.sh" ]; then
   if bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && ! declare -f _secret_kvstore > /dev/null'; then
     pass "no _secret_kvstore function"
