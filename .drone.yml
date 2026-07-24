@@ -11,10 +11,7 @@ steps:
   - name: test
     image: alpine:latest
     commands:
-      - apk add --no-cache bash git python3 py3-pyyaml zsh make curl ca-certificates
-      - curl -fsSL https://github.com/getsops/sops/releases/latest/download/sops-linux-amd64 -o /usr/local/bin/sops
+      - apk add --no-cache bash git python3 py3-pyyaml zsh make curl ca-certificates age
+      - curl -fsSL https://github.com/getsops/sops/releases/latest/download/sops-v3.13.3.linux.amd64 -o /usr/local/bin/sops
       - chmod +x /usr/local/bin/sops
-      - curl -fsSL https://github.com/FiloSottile/age/releases/latest/download/age-linux-amd64.tar.gz -o /tmp/age.tar.gz
-      - tar -xzf /tmp/age.tar.gz -C /usr/local/bin --strip-components=1 age/age age/age-keygen
-      - rm -f /tmp/age.tar.gz
       - make test
