@@ -1,4 +1,4 @@
-.PHONY: help bootstrap test clean audit verify shellcheck fmt-check python-lint test-secrets test-compliance
+.PHONY: help bootstrap test clean audit verify shellcheck fmt-check python-lint test-secrets test-compliance sast
 
 help:
 	@echo "Dotfiles commands:"
@@ -10,6 +10,7 @@ help:
 	@echo "  make python-lint   - lint Python scripts with ruff"
 	@echo "  make test-secrets  - run SOPS/age secret tests"
 	@echo "  make test-compliance - run compliance checks"
+	@echo "  make sast           - run static analysis / security checks"
 
 bootstrap:
 	bash bootstrap.sh
@@ -60,3 +61,5 @@ test-secrets:
 
 test-compliance:
 	DOTFILES_ROOT="$(CURDIR)" bash tests/run-tests.sh compliance
+
+sast: shellcheck fmt-check
