@@ -1,7 +1,7 @@
 #!/bin/bash
 # Unified platform detection and environment setup — single source of truth.
 # Sources from .profile (login), .bashrc/.zshrc (interactive), and scripts.
-# Replaces: shared/platform.sh + .config/env.d/platform.sh
+# Replaces: .config/env.d/platform.sh
 
 set -u
 
@@ -63,11 +63,19 @@ if has_cmd gpgconf; then
 fi
 
 # --- GPG_TTY ---
+# Only set GPG_TTY when stdin is a real TTY. In non-interactive
+# (headless/CI) sessions, leave it UNSET: a dummy like /dev/tty
+# makes pinentry try to open a device that doesn't exist and fail with
+# "Device not configured". GnuPG falls back correctly when it is unset.
 if [[ -t 0 ]]; then
-  GPG_TTY_VALUE=$(tty 2> /dev/null || echo /dev/tty)
-  export GPG_TTY="$GPG_TTY_VALUE"
+  GPG_TTY_VALUE=$(tty 2> /dev/null || true)
+  if [[ -n "$GPG_TTY_VALUE" ]]; then
+    export GPG_TTY="$GPG_TTY_VALUE"
+  else
+    unset GPG_TTY
+  fi
 else
-  export GPG_TTY=/dev/tty
+  unset GPG_TTY
 fi
 
 # --- Safe mkdir helper ---

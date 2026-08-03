@@ -72,7 +72,7 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - `python` — via `uv` (preferred over system python3)
 - `node` — via `pnpm` (preferred over system node)
 
-### PATH Order (in `.config/env.d/platform.sh`)
+### PATH Order (in `shared/platform.sh`)
 1. mise global shims (`~/.local/share/mise/shims`)
 2. Project mise shims (auto via `mise activate` in shell rc)
 3. User `~/bin`, `~/.local/bin`

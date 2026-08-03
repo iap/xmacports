@@ -13,19 +13,6 @@ for _config_file in "$DOTFILES_ROOT/shared/"*.sh; do
 done
 unset _config_file
 
-# Load per-host environment overrides from XDG config (foundry, proxy, ...).
-if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
-  for _config_file in "${XDG_CONFIG_HOME:-$HOME/.config}"/env.d/*.sh; do
-    [[ -f "$_config_file" ]] && source "$_config_file"
-  done
-  unset _config_file
-fi
-
-for _config_file in "$DOTFILES_ROOT/.zshrc.d/"*.sh; do
-  [[ -f "$_config_file" ]] && source "$_config_file"
-done
-unset _config_file
-
 # Load local profile customizations AFTER platform PATH setup
 # This ensures user PATH additions in .profile.local get proper precedence
 if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ]; then
@@ -68,6 +55,18 @@ unset _zcompdump
 
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-zA-Z}={A-Za-z}'
+
+# GPG/SSH attention: surface a wrong GPG_TTY in non-TTY sessions.
+# NOTE: ssh-add -l only LISTS keys already in the agent; it does NOT
+# load or unlock anything. For a real TTY unlock, trigger a signing op,
+# e.g. `ssh -T git@gitlab.com`, which caches the passphrase 300s.
+# For headless/CI use the dedicated ~/.ssh/id_ed25519 key (no TTY needed).
+if [[ -n "${SSH_AUTH_SOCK:-}" ]] && [[ -S "${SSH_AUTH_SOCK:-}" ]] && has_cmd ssh-add; then
+  # Warn (not silently background) if GPG_TTY is a bogus device in a non-TTY shell.
+  if [[ ! -t 0 ]] && [[ "${GPG_TTY:-}" == "/dev/tty" ]]; then
+    echo "[dotfiles] warning: GPG_TTY=/dev/tty but no TTY — pinentry will fail. Unset it for headless use." >&2
+  fi
+fi
 
 # GPG verification (non-blocking)
 if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh > /dev/null; then

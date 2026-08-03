@@ -5,6 +5,11 @@ if [[ -f "$HOME/.profile" ]]; then
   source "$HOME/.profile"
 fi
 
+# Load zsh-specific interactive config after shared defaults.
+if [[ -f "$HOME/.zshrc" ]]; then
+  source "$HOME/.zshrc"
+fi
+
 # Initialize logging only when the directory is writable.
 if [[ -n "${DOTFILES_LOG_DIR:-}" ]]; then
   if mkdir -p "$DOTFILES_LOG_DIR" 2> /dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then

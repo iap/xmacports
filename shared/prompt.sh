@@ -76,6 +76,7 @@ _prompt_render_bash() {
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
   autoload -Uz colors 2> /dev/null && colors
+  # shellcheck disable=SC2034  # PROMPT and RPROMPT are zsh special variables
   PROMPT='$(_prompt_render_zsh $_prompt_last_exit)'
   RPROMPT='%F{cyan}%D{%H:%M}%f'
   precmd() {

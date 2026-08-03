@@ -6,7 +6,6 @@ set -u
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 export DOTFILES_ROOT
-DOTFILES="$DOTFILES_ROOT"
 
 echo "Dotfiles Test Runner"
 echo "Project root: $DOTFILES_ROOT"
@@ -74,7 +73,7 @@ run_secrets_tests() {
   fi
 }
 
-run_bootstrap_tests() {
+run_bootstrap_idempotency_tests() {
   echo "Running bootstrap idempotency tests..."
   if [[ -f "$SCRIPT_DIR/test-bootstrap.sh" ]]; then
     bash "$SCRIPT_DIR/test-bootstrap.sh"
@@ -99,10 +98,10 @@ main() {
       check_prerequisites && run_secrets_tests
       ;;
     "bootstrap")
-      check_prerequisites && run_bootstrap_tests
+      check_prerequisites && run_bootstrap_idempotency_tests
       ;;
     "compliance")
-      check_prerequisites && run_config_tests && DOTFILES_ROOT="$DOTFILES_ROOT" bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
+      check_prerequisites && run_config_tests && bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
       ;;
     "all" | "")
       echo "Running complete test suite..."
@@ -114,22 +113,26 @@ main() {
 
       echo "1. Configuration Tests"
       echo
+
       run_config_tests || true
       echo
 
       echo "2. Function Tests"
       echo
+
       run_function_tests
       echo
 
       echo "3. Secret Management Tests"
       echo
+
       run_secrets_tests || true
       echo
 
       echo "4. Bootstrap Idempotency Tests"
       echo
-      run_bootstrap_tests || true
+
+      run_bootstrap_idempotency_tests || true
       echo
 
       echo "🎉 Complete test suite finished!"

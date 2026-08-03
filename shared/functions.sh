@@ -9,8 +9,8 @@ if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
 fi
 
 # Load secret management (SOPS + age) from its own module
-if [[ -f "$HOME/.dotfiles/shared/secrets.sh" ]]; then
-  source "$HOME/.dotfiles/shared/secrets.sh"
+if [[ -f "$DOTFILES_ROOT/shared/secrets.sh" ]]; then
+  source "$DOTFILES_ROOT/shared/secrets.sh"
 fi
 
 mkcd() {

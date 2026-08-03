@@ -91,12 +91,12 @@ echo
 
 echo "5. Secret functions"
 if [ -f "$DOTFILES_ROOT/shared/functions.sh" ]; then
-  check "secret function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f secret > /dev/null'
-  check "secret_list function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f secret_list > /dev/null'
-  check "with_secret function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f with_secret > /dev/null'
-  check "secrets_decrypt function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f secrets_decrypt > /dev/null'
-  check "secrets_encrypt function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f secrets_encrypt > /dev/null'
-  check "secrets_edit function is defined" bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && declare -f secrets_edit > /dev/null'
+  check "secret function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f secret > /dev/null"
+  check "secret_list function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f secret_list > /dev/null"
+  check "with_secret function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f with_secret > /dev/null"
+  check "secrets_decrypt function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f secrets_decrypt > /dev/null"
+  check "secrets_encrypt function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f secrets_encrypt > /dev/null"
+  check "secrets_edit function is defined" bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && declare -f secrets_edit > /dev/null"
 else
   echo "   SKIP: shared/functions.sh absent"
 fi
@@ -118,22 +118,22 @@ echo
 
 echo "7. Keybase removal"
 if [ -f "$DOTFILES_ROOT/shared/functions.sh" ]; then
-  if bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && ! declare -f _secret_kvstore > /dev/null'; then
+  if bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && ! declare -f _secret_kvstore > /dev/null"; then
     pass "no _secret_kvstore function"
   else
     fail "no _secret_kvstore function"
   fi
-  if bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && ! declare -f _secret_kbfs > /dev/null'; then
+  if bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && ! declare -f _secret_kbfs > /dev/null"; then
     pass "no _secret_kbfs function"
   else
     fail "no _secret_kbfs function"
   fi
-  if bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && ! declare -f secret_set > /dev/null'; then
+  if bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && ! declare -f secret_set > /dev/null"; then
     pass "no secret_set function"
   else
     fail "no secret_set function"
   fi
-  if bash -c 'source "$DOTFILES_ROOT/shared/functions.sh" && ! declare -f secret_del > /dev/null'; then
+  if bash -c "source \"\$DOTFILES_ROOT/shared/functions.sh\" && ! declare -f secret_del > /dev/null"; then
     pass "no secret_del function"
   else
     fail "no secret_del function"
@@ -141,6 +141,45 @@ if [ -f "$DOTFILES_ROOT/shared/functions.sh" ]; then
 else
   echo "   SKIP: shared/functions.sh absent"
 fi
+echo
+
+echo "8. secrets_decrypt atomicity"
+_SECRETS_BACKUP=""
+if [ -f "$DOTFILES_ROOT/secrets/secrets.yaml" ]; then
+  _SECRETS_BACKUP="$DOTFILES_ROOT/secrets/secrets.yaml.bak"
+  cp "$DOTFILES_ROOT/secrets/secrets.yaml" "$_SECRETS_BACKUP"
+fi
+printf 'test-content' > "$DOTFILES_ROOT/secrets/secrets.yaml"
+check "secrets_decrypt does not clobber plaintext when _sops_decrypt fails" bash -c '
+  source "$DOTFILES_ROOT/shared/secrets.sh"
+  _sops_decrypt() { return 1; }
+  secrets_decrypt >/dev/null 2>&1 || true
+  [ "$(cat "$DOTFILES_ROOT/secrets/secrets.yaml")" = "test-content" ]
+'
+if [ -n "$_SECRETS_BACKUP" ]; then
+  mv -f "$_SECRETS_BACKUP" "$DOTFILES_ROOT/secrets/secrets.yaml"
+else
+  rm -f "$DOTFILES_ROOT/secrets/secrets.yaml"
+fi
+echo
+
+echo "9. secrets_encrypt locking"
+_LOCKDIR_BACKUP=""
+if [ -d "${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir" ]; then
+  _LOCKDIR_BACKUP="${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir.bak"
+  mv "${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir" "$_LOCKDIR_BACKUP"
+fi
+check "secrets_encrypt uses fixed lockdir path, not \$\$-based path" bash -c '
+  source "$DOTFILES_ROOT/shared/secrets.sh"
+  _sops_available() { return 0; }
+  _sops_encrypt() { return 0; }
+  secrets_encrypt >/dev/null 2>&1 || true
+  [ ! -d "/tmp/.dotfiles-secrets-encrypt-$$" ]
+'
+if [ -n "$_LOCKDIR_BACKUP" ]; then
+  mv -f "$_LOCKDIR_BACKUP" "${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir"
+fi
+rm -f "${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir" 2> /dev/null || true
 echo
 
 TOTAL=$((PASSED + FAILED))

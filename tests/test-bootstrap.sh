@@ -118,13 +118,15 @@ fi
 echo
 
 TOTAL=$((PASSED + FAILED))
-echo "------------------------------------------------------------"
 echo "Total: $TOTAL  Passed: $PASSED  Failed: $FAILED"
 
 HOME="$ORIGINAL_HOME"
 trap - EXIT
 
-[ "$FAILED" -eq 0 ] && echo "Bootstrap idempotency OK!" && exit 0 || {
+if [ "$FAILED" -eq 0 ]; then
+  echo "Bootstrap idempotency OK!"
+  exit 0
+else
   echo "WARN: $FAILED test(s) failed."
   exit 1
-}
+fi

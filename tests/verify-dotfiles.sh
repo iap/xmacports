@@ -31,7 +31,7 @@ echo ""
 echo "3. PATH Integrity"
 # Source platform.sh with a known baseline PATH to verify it adds user bins.
 test_path=$(PATH="/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/bin:/usr/local/sbin" \
-  bash -c "source '$DOTFILES_ROOT/.config/env.d/platform.sh'; echo \$PATH")
+  bash -c "source '$DOTFILES_ROOT/shared/platform.sh'; echo \$PATH")
 
 PATH_COUNT=$(echo "$test_path" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
 if [[ "$PATH_COUNT" -eq 0 ]]; then
@@ -64,7 +64,7 @@ done
 echo ""
 echo "5. XDG Directory Compliance"
 # Source platform.sh so XDG vars are set.
-XDG_PATH=$(bash -c "source '$DOTFILES_ROOT/.config/env.d/platform.sh'; env" | grep -E "^XDG_")
+XDG_PATH=$(bash -c "source '$DOTFILES_ROOT/shared/platform.sh'; env" | grep -E "^XDG_")
 for var in XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME; do
   val=$(echo "$XDG_PATH" | grep "^${var}=" | cut -d= -f2-)
   if [[ -n "$val" ]]; then

@@ -40,7 +40,7 @@ for f in \
   "$DOTFILES/.zprofile" \
   "$DOTFILES/.bashrc" \
   "$DOTFILES/.profile" \
-  "$DOTFILES/.config/env.d/platform.sh" \
+  "$DOTFILES/shared/platform.sh" \
   "$DOTFILES/.zshrc.d/prompt.sh" \
   "$DOTFILES/shared/functions.sh" \
   "$DOTFILES/shared/aliases.sh"; do
@@ -58,7 +58,7 @@ done
 for f in \
   "$DOTFILES/.bashrc" \
   "$DOTFILES/.profile" \
-  "$DOTFILES/.config/env.d/platform.sh" \
+  "$DOTFILES/shared/platform.sh" \
   "$DOTFILES/shared/functions.sh" \
   "$DOTFILES/shared/aliases.sh"; do
   check "bash syntax: $(basename $f)" bash -n "$f"
@@ -68,7 +68,7 @@ echo
 echo "3. Environment loader"
 check "platform loader survives set -u" bash --noprofile --norc -c '
   set -u
-  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+  source "'"$DOTFILES"'/shared/platform.sh"
 '
 check "zsh env loader survives set -u" zsh -c '
   set -u
@@ -79,7 +79,7 @@ check "platform loader dedupes PATH" /bin/bash --noprofile --norc -c '
   unset DOTFILES_ENV_LOADED DOTFILES_PLATFORM_LOADED
   PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
   export PATH
-  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+  source "'"$DOTFILES"'/shared/platform.sh"
   local_count=0
   local_seen=""
   IFS=":"
@@ -96,7 +96,7 @@ check "platform loader discovers /opt/local/bin gpg when present" /bin/bash --no
   set -u
   PATH="/usr/bin:/bin"
   export PATH
-  source "'"$DOTFILES"'/.config/env.d/platform.sh"
+  source "'"$DOTFILES"'/shared/platform.sh"
   if [ -x /opt/local/bin/gpg ]; then
     /opt/local/bin/gpg --version > /dev/null 2>&1
   else
@@ -115,19 +115,23 @@ else
 fi
 echo
 
-echo "5. GPG_TTY fix"
-gpg_tty_lines=$(bash -c '
-  source '"$DOTFILES"'/.config/env.d/platform.sh 2>/dev/null
-  echo "$GPG_TTY" | wc -l | tr -d " "
-')
-[[ "$gpg_tty_lines" -eq 1 ]] && pass "GPG_TTY is single line" || fail "GPG_TTY has $gpg_tty_lines lines"
-
+echo "5. GPG_TTY handling"
+# Correct behavior: in a non-TTY session GPG_TTY must be UNSET
+# (a dummy like /dev/tty breaks pinentry). In a TTY session it may
+# be set to the real tty device. Test both: source real platform.sh.
 gpg_tty_val=$(bash -c '
-  source '"$DOTFILES"'/.config/env.d/platform.sh 2>/dev/null
-  echo "$GPG_TTY"
+  unset GPG_TTY
+  source "'"$DOTFILES"'/shared/platform.sh" 2>/dev/null
+  echo "${GPG_TTY:-<unset>}"
 ')
-[[ "$gpg_tty_val" != *"not a tty"* ]] && pass "GPG_TTY has no 'not a tty'" || fail "GPG_TTY contains 'not a tty': [$gpg_tty_val]"
-echo
+if [[ "$gpg_tty_val" == "<unset>" ]]; then
+  pass "GPG_TTY unset in non-TTY session (correct)"
+elif [[ "$gpg_tty_val" == /dev/* && -c "$gpg_tty_val" ]]; then
+  pass "GPG_TTY set to a real tty device"
+else
+  fail "GPG_TTY wrong: [$gpg_tty_val]"
+fi
+echo ""
 
 echo "6. Color aliases"
 check "ls alias set in platform.sh" bash -c '

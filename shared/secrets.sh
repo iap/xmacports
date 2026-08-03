@@ -5,17 +5,15 @@
 # Never export secrets at shell startup; fetch on demand only.
 # Private age key: ~/.config/sops/age/keys.txt (never commit)
 
+# Precondition: platform.sh should be loaded before this file so DOTFILES_ROOT
+# and shared helpers like log_warn/log_info are available.
+
 set -u
 
 if [[ -n "${DOTFILES_SECRETS_LOADED:-}" ]]; then
   return 0
 fi
 DOTFILES_SECRETS_LOADED=1
-
-# Load platform detection for DOTFILES_ROOT
-if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then
-  source "$DOTFILES_ROOT/shared/platform.sh"
-fi
 
 SECRET_PARSE_PY="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/secret-parse.py"
 
@@ -48,13 +46,19 @@ _sops_encrypt() {
     log_warn "plaintext secrets file not found: $_SECRETS_PLAIN_FILE"
     return 1
   fi
-  local lockdir="/tmp/.dotfiles-secrets-encrypt-$$"
+  local lockdir="${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir"
   trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
-  while ! mkdir "$lockdir" 2> /dev/null; do
+  local waited=0
+  while ! mkdir "$lockdir" 2>/dev/null; do
     sleep 0.1
+    waited=$((waited + 1))
+    if [ "$waited" -ge 50 ]; then
+      log_warn "timeout waiting for secrets encrypt lock"
+      return 1
+    fi
   done
   sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
-  rmdir "$lockdir" 2> /dev/null || true
+  rmdir "$lockdir" 2>/dev/null || true
   trap - EXIT
 }
 
@@ -69,20 +73,9 @@ _secrets_cache_reset() {
   _SECRETS_CACHE=""
 }
 
-_validate_secret_name() {
-  local name="$1"
-  case "$name" in
-    *[!a-zA-Z0-9_-]*)
-      log_warn "invalid secret name: $name (only [a-zA-Z0-9_-] allowed)"
-      return 1
-      ;;
-  esac
-  return 0
-}
-
-_secret_yaml() {
+_secret_yaml_once() {
   local decrypted
-  decrypted=$(_secrets_cache_get) || return 1
+  decrypted=$(_sops_decrypt) || return 1
   [ -z "$decrypted" ] && {
     log_warn "secret store returned empty value"
     return 1
@@ -96,6 +89,21 @@ _secret_yaml() {
     return 1
   }
   printf '%s' "$decrypted"
+}
+
+_validate_secret_name() {
+  local name="$1"
+  case "$name" in
+    *[!a-zA-Z0-9_-]*)
+      log_warn "invalid secret name: $name (only [a-zA-Z0-9_-] allowed)"
+      return 1
+      ;;
+  esac
+  return 0
+}
+
+_secret_yaml() {
+  _secret_yaml_once || return 1
 }
 
 # Fetch a secret by key from the encrypted SOPS store.
@@ -156,7 +164,6 @@ secret_list() {
 # Edit the decrypted secrets file in the configured editor.
 # Usage: secrets_edit
 secrets_edit() {
-  local editor="${EDITOR:-vi}"
   if ! _sops_available; then
     log_warn "sops not found; install sops first"
     return 1
@@ -175,7 +182,16 @@ secrets_decrypt() {
     log_warn "sops not found; install sops first"
     return 1
   fi
-  _sops_decrypt > "$_SECRETS_PLAIN_FILE"
+  local tmp_file="$_SECRETS_PLAIN_FILE.$$.tmp"
+  if ! _sops_decrypt > "$tmp_file"; then
+    rm -f "$tmp_file" 2> /dev/null || true
+    return 1
+  fi
+  mv -f "$tmp_file" "$_SECRETS_PLAIN_FILE" 2> /dev/null || {
+    rm -f "$tmp_file" 2> /dev/null || true
+    log_warn "failed to move decrypted secrets into place"
+    return 1
+  }
   chmod 600 "$_SECRETS_PLAIN_FILE"
   log_info "decrypted secrets -> $_SECRETS_PLAIN_FILE"
 }

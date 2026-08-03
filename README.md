@@ -38,7 +38,7 @@ Install required tools manually before bootstrapping:
 - `.bashrc` - bash interactive entrypoint
 - `.zprofile` - zsh login entrypoint
 - `.zshrc` - zsh interactive entrypoint
-- `.config/env.d/platform.sh` - shared environment loader
+- `shared/platform.sh` - shared environment loader
 - `.config/env.d/foundry.sh` - Foundry wrappers (opt-in via `~/.profile.local`)
 - `.config/gpg/gpg.conf` - GnuPG configuration
 - `.config/gpg/gpg-agent.conf` - GnuPG agent configuration

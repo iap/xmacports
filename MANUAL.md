@@ -8,7 +8,7 @@ This repo is organized around a small number of clear responsibilities:
 - `.profile` provides the POSIX shared base for all login shells
 - `.bash_profile` and `.zprofile` load `.profile`
 - `.bashrc` and `.zshrc` load the shared interactive environment
-- `.config/env.d/platform.sh` holds shared environment defaults
+- `shared/platform.sh` holds shared environment defaults
 - `.config/env.d/foundry.sh` provides optional Ethereum development wrappers
 - `shared/functions.sh` and `shared/aliases.sh` expose cross-shell helpers
 - `.zshrc.d/prompt.sh` provides zsh-specific prompt formatting
@@ -45,7 +45,7 @@ Both shells load shared configuration:
 
 ```text
 # .bashrc loads directly:
-.config/env.d/platform.sh
+shared/platform.sh
 .config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
@@ -57,7 +57,7 @@ shared/prompt.sh
 .zprofile
 .zshrc
 .zshrc.d/prompt.sh
-.config/env.d/platform.sh
+shared/platform.sh
 .config/env.d/foundry.sh
 shared/functions.sh
 shared/aliases.sh
@@ -96,7 +96,6 @@ $HOME/.dotfiles/
 │   └── prompt.sh
 ├── .config/
 │   ├── env.d/
-│   │   ├── platform.sh
 │   │   └── foundry.sh
 │   ├── gpg/
 │   │   ├── gpg.conf
@@ -296,7 +295,7 @@ make test
 Helpful direct checks:
 
 ```bash
-bash --noprofile --norc -c 'set -u; source .config/env.d/platform.sh'
+bash --noprofile --norc -c 'set -u; source shared/platform.sh'
 ```
 
 ## Troubleshooting
@@ -311,7 +310,7 @@ time zsh -i -c exit
 ### Shared environment fails to load
 
 ```bash
-bash --noprofile --norc -c 'set -u; source .config/env.d/platform.sh'
+bash --noprofile --norc -c 'set -u; source shared/platform.sh'
 ```
 
 If this fails, check for unguarded variable reads in shared shell files.
