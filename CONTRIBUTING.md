@@ -53,7 +53,6 @@ make test-compliance
 ## CI
 
 - Primary CI: Drone
-- GitHub Actions mirror: `.github/workflows/test.yml`
 
 ## Merge policy
 
