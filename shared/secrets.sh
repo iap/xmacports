@@ -49,7 +49,7 @@ _sops_encrypt() {
   local lockdir="${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir"
   trap 'rmdir "$lockdir" 2>/dev/null || true' EXIT
   local waited=0
-  while ! mkdir "$lockdir" 2>/dev/null; do
+  while ! mkdir "$lockdir" 2> /dev/null; do
     sleep 0.1
     waited=$((waited + 1))
     if [ "$waited" -ge 50 ]; then
@@ -58,7 +58,7 @@ _sops_encrypt() {
     fi
   done
   sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
-  rmdir "$lockdir" 2>/dev/null || true
+  rmdir "$lockdir" 2> /dev/null || true
   trap - EXIT
 }
 
