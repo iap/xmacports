@@ -22,7 +22,7 @@ else
 test:
 	bash tests/test-bootstrap.sh
 	bash tests/verify-dotfiles.sh
-	@bash -n bootstrap.sh || true
+	@bash -n bootstrap.sh
 endif
 
 clean:
@@ -62,4 +62,4 @@ test-secrets:
 test-compliance:
 	DOTFILES_ROOT="$(CURDIR)" bash tests/run-tests.sh compliance
 
-sast: shellcheck fmt-check
+sast: shellcheck fmt-check python-lint

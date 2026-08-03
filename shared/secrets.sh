@@ -103,7 +103,7 @@ _validate_secret_name() {
 }
 
 _secret_yaml() {
-  _secret_yaml_once || return 1
+  _secrets_cache_get || return 1
 }
 
 # Fetch a secret by key from the encrypted SOPS store.
@@ -177,16 +177,27 @@ secrets_edit() {
 
 # Decrypt secrets to the working copy file.
 # Usage: secrets_decrypt
+_validate_yaml() {
+  if ! printf '%s' "$1" | python3 "$SECRET_PARSE_PY" list > /dev/null 2>&1; then
+    log_warn "decrypted secrets are not valid YAML; aborting"
+    return 1
+  fi
+}
+
 secrets_decrypt() {
   if ! _sops_available; then
     log_warn "sops not found; install sops first"
     return 1
   fi
-  local tmp_file="$_SECRETS_PLAIN_FILE.$$.tmp"
-  if ! _sops_decrypt > "$tmp_file"; then
-    rm -f "$tmp_file" 2> /dev/null || true
+  local decrypted
+  decrypted=$(_sops_decrypt) || return 1
+  [ -z "$decrypted" ] && {
+    log_warn "secret store returned empty value"
     return 1
-  fi
+  }
+  _validate_yaml "$decrypted" || return 1
+  local tmp_file="$_SECRETS_PLAIN_FILE.$$.tmp"
+  printf '%s' "$decrypted" > "$tmp_file"
   mv -f "$tmp_file" "$_SECRETS_PLAIN_FILE" 2> /dev/null || {
     rm -f "$tmp_file" 2> /dev/null || true
     log_warn "failed to move decrypted secrets into place"

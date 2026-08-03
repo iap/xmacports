@@ -174,14 +174,14 @@ echo
 
 echo "8. ZSH prompt"
 check "short_pwd truncates long paths" zsh -c '
-  source '"$DOTFILES"'/.zshrc.d/prompt.sh
+  source '"$DOTFILES"'/shared/prompt.sh
   out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)
   [[ ${#out} -le 31 ]]
 '
 check "git_prompt_info returns branch in git repo" zsh -c '
   SHELL_CACHE_DIR=/tmp/dotfiles-test-$$
   source "'"$DOTFILES"'/shared/functions.sh"
-  source "'"$DOTFILES"'/.zshrc.d/prompt.sh"
+  source "'"$DOTFILES"'/shared/prompt.sh"
   cd "'"$DOTFILES"'"
   out=$(git_prompt_info)
   rm -rf /tmp/dotfiles-test-$$

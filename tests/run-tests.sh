@@ -114,26 +114,35 @@ main() {
       echo "1. Configuration Tests"
       echo
 
-      run_config_tests || true
+      run_config_tests
+      cfg_status=$?
       echo
 
       echo "2. Function Tests"
       echo
 
       run_function_tests
+      fn_status=$?
       echo
 
       echo "3. Secret Management Tests"
       echo
 
-      run_secrets_tests || true
+      run_secrets_tests
+      sec_status=$?
       echo
 
       echo "4. Bootstrap Idempotency Tests"
       echo
 
-      run_bootstrap_idempotency_tests || true
+      run_bootstrap_idempotency_tests
+      boot_status=$?
       echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || boot_status != 0)); then
+        echo "❌ Test suite completed with failures"
+        exit 1
+      fi
 
       echo "🎉 Complete test suite finished!"
       ;;
