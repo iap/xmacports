@@ -90,6 +90,27 @@ chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf" 2> /dev/null || 
 backup_and_link "$DOTFILES/.vimrc" "$HOME/.vimrc"
 backup_and_link "$DOTFILES/.config/ssh/config" "$HOME/.ssh/config"
 chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
+
+# WSL: symlink Windows-host SSH keys so headless git operations work without manual key management
+if grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; then
+  _wsl_user="$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r' || echo "$USER")"
+  _wsl_key_src="/mnt/c/Users/${_wsl_user}/.ssh/id_ed25519"
+  _wsl_key_pub="/mnt/c/Users/${_wsl_user}/.ssh/id_ed25519.pub"
+  if [[ -f "$_wsl_key_src" && -f "$_wsl_key_pub" ]]; then
+    if [[ ! -e "$HOME/.ssh/id_ed25519" ]]; then
+      ln -s "$_wsl_key_src" "$HOME/.ssh/id_ed25519"
+      echo "linked: $HOME/.ssh/id_ed25519 -> $_wsl_key_src"
+    elif [[ -L "$HOME/.ssh/id_ed25519" ]]; then
+      ln -sf "$_wsl_key_src" "$HOME/.ssh/id_ed25519"
+      echo "relinked: $HOME/.ssh/id_ed25519 -> $_wsl_key_src"
+    else
+      echo "WARN: $HOME/.ssh/id_ed25519 exists but is not a symlink; leaving as-is"
+    fi
+    [[ -f "$_wsl_key_pub" ]] && [[ ! -e "$HOME/.ssh/id_ed25519.pub" ]] && ln -s "$_wsl_key_pub" "$HOME/.ssh/id_ed25519.pub"
+    chmod 600 "$_wsl_key_src" "$_wsl_key_pub" 2>/dev/null || true
+  fi
+  unset _wsl_user _wsl_key_src _wsl_key_pub
+fi
 backup_and_link "$DOTFILES/.config/vim/vimrc" "$HOME/.config/vim/vimrc"
 backup_and_link "$DOTFILES/.config/vim/privacy.vim" "$HOME/.config/vim/privacy.vim"
 backup_and_link "$DOTFILES/.config/npm/config" "$HOME/.config/npm/config"
