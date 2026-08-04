@@ -135,15 +135,19 @@ path_prepend_if_present() {
 # --- Build PATH ---
 # Order below is intentionally lowest-priority first; final PATH has
 # highest-priority entries at the front after dedupe.
-# 1. System dirs
+# 1. System dirs (including NixOS system profile /run/current-system/sw/bin
+#    and user nix profile ~/.nix-profile/bin if present)
 # 2. Foundry (if installed)
 # 3. User bins
 # 4. mise shims (highest priority)
 for dir in \
+  "/nix/var/nix/profiles/default/bin" \
+  "$HOME/.nix-profile/bin" \
   "/sbin" \
   "/usr/sbin" \
   "/bin" \
   "/usr/bin" \
+  "/run/current-system/sw/bin" \
   "/usr/local/sbin" \
   "/usr/local/bin" \
   "/opt/local/bin" \

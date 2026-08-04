@@ -1,8 +1,9 @@
 #!/bin/sh
 # Pinentry fallback script — platform-aware selection
 
-# MacPorts pinentry paths (not in default PATH)
-PINENTRY_PATHS="/opt/local/bin /usr/local/bin /usr/bin"
+# Macports pinentry search paths — macOS/macports, generic Linux, NixOS
+# Includes /run/current-system/sw/bin and ~/.nix-profile/bin for NixOS support.
+PINENTRY_PATHS="/opt/local/bin /usr/local/bin /usr/bin /run/current-system/sw/bin ${HOME}/.nix-profile/bin"
 
 # Platform detection
 _is_macos() {
