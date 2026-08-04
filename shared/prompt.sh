@@ -24,6 +24,17 @@ short_pwd() {
 
 # Git branch + change marker, cached per-directory for GIT_PROMPT_CACHE_TIMEOUT sec.
 # Output: " (branch±)" on success, "" when not in a repo.
+if [[ -z "${_git_info_core:-}" ]]; then
+  _git_info_core() {
+    git rev-parse --git-dir > /dev/null 2>&1 || return 1
+    local branch mark
+    branch=$(git branch --show-current 2> /dev/null)
+    git diff --quiet 2> /dev/null || mark="±"
+    [ -z "$mark" ] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
+    printf '%s%s' "$branch" "$mark"
+  }
+fi
+
 git_prompt_info() {
   local dir_hash="$(printf '%s' "$PWD" | shasum -a 256 2> /dev/null | cut -c1-16)"
   local cache_file="${SHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/shell/git_status_${dir_hash}}"
@@ -42,15 +53,13 @@ git_prompt_info() {
     return
   }
 
-  local branch
-  branch=$(git branch --show-current 2> /dev/null)
-  [[ -z "$branch" ]] && return
-
-  local mark=""
-  git diff --quiet 2> /dev/null || mark="±"
-  [[ -z "$mark" ]] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
-
-  local result=" (${branch}${mark})"
+  local info
+  info=$(_git_info_core)
+  if [[ -z "$info" ]]; then
+    rm -f "$cache_file"
+    return
+  fi
+  local result=" (${info})"
   echo "$result" > "$cache_file" 2> /dev/null
   echo "$result"
 }

@@ -5,7 +5,14 @@ set -euo pipefail
 DOTFILES="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
 _dotfiles_lock() {
-  local lockfile="/tmp/.dotfiles-bootstrap.lock"
+  local _lock_dir=""
+  if [[ -n "${XDG_RUNTIME_HOME:-}" && -d "$XDG_RUNTIME_HOME" ]]; then
+    _lock_dir="$XDG_RUNTIME_HOME/.dotfiles"
+  else
+    _lock_dir="/tmp"
+  fi
+  mkdir -p "$_lock_dir" 2> /dev/null || true
+  local lockfile="$_lock_dir/.dotfiles-bootstrap.lock"
   if ! (
     set -o noclobber
     : > "$lockfile"
@@ -17,7 +24,13 @@ _dotfiles_lock() {
 }
 
 _dotfiles_unlock() {
-  rm -f "/tmp/.dotfiles-bootstrap.lock" 2> /dev/null || true
+  local _lock_dir=""
+  if [[ -n "${XDG_RUNTIME_HOME:-}" && -d "$XDG_RUNTIME_HOME" ]]; then
+    _lock_dir="$XDG_RUNTIME_HOME/.dotfiles"
+  else
+    _lock_dir="/tmp"
+  fi
+  rm -f "$_lock_dir/.dotfiles-bootstrap.lock" 2> /dev/null || true
 }
 
 _dotfiles_lock

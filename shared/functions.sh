@@ -118,13 +118,17 @@ envinfo() {
   echo "GIT: $(git --version 2> /dev/null | cut -d' ' -f3 || echo 'not bootstrapped')"
 }
 
-git_info() {
+_git_info_core() {
   git rev-parse --git-dir > /dev/null 2>&1 || return 1
   local branch mark
   branch=$(git branch --show-current 2> /dev/null)
   git diff --quiet 2> /dev/null || mark="±"
   [ -z "$mark" ] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
-  echo "${branch}${mark}"
+  printf '%s%s' "$branch" "$mark"
+}
+
+git_info() {
+  _git_info_core
 }
 
 unlock_gpg() {
