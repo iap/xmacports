@@ -25,7 +25,7 @@ short_pwd() {
 # Git branch + change marker, cached per-directory for GIT_PROMPT_CACHE_TIMEOUT sec.
 # Output: " (branch±)" on success, "" when not in a repo.
 git_prompt_info() {
-  local dir_hash="${PWD//\//_}"
+  local dir_hash="$(printf '%s' "$PWD" | shasum -a 256 2> /dev/null | cut -c1-16)"
   local cache_file="${SHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/shell/git_status_${dir_hash}}"
   local cache_timeout="${GIT_PROMPT_CACHE_TIMEOUT:-5}"
 

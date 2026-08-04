@@ -54,7 +54,7 @@ else
 
   if [ -f "$SOPS_YAML" ]; then
     echo "Updating .sops.yaml with generated public key..."
-    sed -i.bak "s/age: age1.*/age: $PUBLIC_KEY/" "$SOPS_YAML"
+    sed -i.bak "s/^age: age1[^[:space:]]*/age: $PUBLIC_KEY/" "$SOPS_YAML"
     rm -f "$SOPS_YAML.bak"
   else
     echo "Creating .sops.yaml..."

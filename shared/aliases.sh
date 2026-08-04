@@ -53,6 +53,10 @@ mask() {
     echo "(empty)"
     return
   fi
+  if [[ ${#v} -le 8 ]]; then
+    printf '%s****%s\n' "${v:0:2}" "${v: -2}"
+    return
+  fi
   local prefix="${v:0:4}"
   local tail="${v: -4}"
   printf '%s****...****%s\n' "$prefix" "$tail"

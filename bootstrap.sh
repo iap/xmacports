@@ -39,7 +39,8 @@ backup_and_link() {
         return 0
       fi
     fi
-    [[ $_backup_used -eq 0 ]] && mkdir -p "$BACKUP_DIR" && _backup_used=1
+    [[ $_backup_used -eq 0 ]] && mkdir -p "$BACKUP_DIR"
+    _backup_used=1
     echo "backing up: $target"
     if ! mv "$target" "$BACKUP_DIR/"; then
       echo "ERROR: failed to move $target to $BACKUP_DIR" >&2

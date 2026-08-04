@@ -120,9 +120,6 @@ echo
 TOTAL=$((PASSED + FAILED))
 echo "Total: $TOTAL  Passed: $PASSED  Failed: $FAILED"
 
-HOME="$ORIGINAL_HOME"
-trap - EXIT
-
 if [ "$FAILED" -eq 0 ]; then
   echo "Bootstrap idempotency OK!"
   exit 0

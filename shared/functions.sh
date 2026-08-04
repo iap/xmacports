@@ -86,6 +86,10 @@ showfile() {
 }
 
 findfile() {
+  if [ -z "${1:-}" ]; then
+    echo "Usage: findfile <pattern>"
+    return 1
+  fi
   find . -name "*${1}*" -type f 2> /dev/null | head -10
 }
 
@@ -151,6 +155,6 @@ check_privacy() {
   else
     echo "WiFi MAC: $(ip link show 2> /dev/null | awk '/ether/{print $2}' | head -1 || echo 'N/A')"
   fi
-  echo "Telemetry Blocking: $(env | grep -c 'TELEMETRY\|DO_NOT_TRACK\|ANALYTICS' || echo '0') variables set"
+  echo "Telemetry Blocking: $(env | grep -cE '^(TELEMETRY|DO_NOT_TRACK|ANALYTICS|DISABLE_TELEMETRY|NO_UPDATE_NOTIFIER|NEXT_TELEMETRY_DISABLED|DOTNET_CLI_TELEMETRY_OPTOUT|HOMEBREW_NO_ANALYTICS)=' || echo 0) variables set"
   echo "Network Connections (current user): $(lsof -i 2> /dev/null | wc -l | tr -d ' ') active"
 }

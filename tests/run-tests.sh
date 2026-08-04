@@ -83,6 +83,11 @@ run_bootstrap_idempotency_tests() {
   fi
 }
 
+run_compliance_tests() {
+  echo "Running compliance checks..."
+  check_prerequisites && run_config_tests && bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
+}
+
 # Main test execution
 main() {
   local test_type="${1:-all}"
@@ -101,7 +106,7 @@ main() {
       check_prerequisites && run_bootstrap_idempotency_tests
       ;;
     "compliance")
-      check_prerequisites && run_config_tests && bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
+      check_prerequisites && run_compliance_tests
       ;;
     "all" | "")
       echo "Running complete test suite..."
