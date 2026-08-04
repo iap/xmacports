@@ -1,5 +1,5 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/bin/sh
+set -eu
 
 # Install common dependencies for CI steps.
 apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates age coreutils
