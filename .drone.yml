@@ -8,15 +8,7 @@ trigger:
     - pull_request
 
 steps:
-  - name: test
-    image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
-    environment:
-      DOTFILES_ROOT: /drone/src
-    commands:
-      - scripts/ci-setup.sh
-      - make test
-
-  - name: sast
+  - name: ci
     image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
     environment:
       DOTFILES_ROOT: /drone/src
