@@ -24,6 +24,9 @@ short_pwd() {
 
 # Git status is provided by shared/functions.sh/_git_info_core.
 # Keep prompt.sh shell-agnostic and avoid duplicating core git logic.
+if [[ -z "${_git_info_core:-}" ]] && [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh" ]]; then
+  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh"
+fi
 
 git_prompt_info() {
   local dir_hash

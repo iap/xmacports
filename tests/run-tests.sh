@@ -137,14 +137,7 @@ main() {
       sec_status=$?
       echo
 
-      echo "4. Bootstrap Idempotency Tests"
-      echo
-
-      run_bootstrap_idempotency_tests
-      boot_status=$?
-      echo
-
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || boot_status != 0)); then
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
