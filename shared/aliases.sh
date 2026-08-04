@@ -39,11 +39,11 @@ if [[ -n "${BASH_VERSION:-}" ]]; then
 elif [[ -n "${ZSH_VERSION:-}" ]]; then
   setopt HIST_IGNORE_SPACE
   HISTORY_IGNORE="${HISTORY_IGNORE:+$HISTORY_IGNORE
-}export .*
-secret .*
-.*TOKEN.*
-.*SECRET.*
-.*API_KEY.*"
+|}export *
+secret *
+*TOKEN*
+*SECRET*
+*API_KEY*"
 fi
 
 # mask a value for safe display (never reveals the secret)
