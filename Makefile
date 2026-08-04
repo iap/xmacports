@@ -41,6 +41,7 @@ shellcheck:
 		echo "Skipping shellcheck in CI"; \
 	else \
 		bash scripts/shellcheck.sh; \
+		echo "shellcheck passed"; \
 	fi
 
 fmt-check:
@@ -49,6 +50,7 @@ fmt-check:
 		echo "Skipping fmt-check in CI"; \
 	else \
 		bash scripts/shfmt.sh --check; \
+		echo "fmt-check passed"; \
 	fi
 
 python-lint:
