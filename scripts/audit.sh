@@ -6,12 +6,13 @@ set -eu
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
-# Detect stat command (BSD vs GNU)
-if stat --version > /dev/null 2>&1; then
-  perm_of_cmd='stat -c %a'
-else
-  perm_of_cmd='stat -f %Lp'
-fi
+_stat_perm() {
+  if stat --version > /dev/null 2>&1; then
+    stat -c '%a' "$1" 2> /dev/null || true
+  else
+    stat -f '%Lp' "$1" 2> /dev/null || true
+  fi
+}
 
 log_check() {
   local status="$1" message="$2"
@@ -24,7 +25,7 @@ echo "Dotfiles Audit:"
 echo
 
 # Home permissions
-home_perms=$(eval "$perm_of_cmd \"$HOME\"" 2> /dev/null || true)
+home_perms=$(_stat_perm "$HOME")
 if [ "$home_perms" = "711" ]; then
   echo "✅ Home permissions: 711"
 else
@@ -34,7 +35,7 @@ echo
 
 echo "Directory permissions (expect 755):"
 find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "./.git*" -print0 | while IFS= read -r -d '' d; do
-  p=$(eval "$perm_of_cmd \"$d\"" 2> /dev/null || true)
+  p=$(_stat_perm "$d")
   if [ "$p" = "755" ]; then
     printf "✅ %s %s\n" "$p" "$d"
   else
@@ -77,7 +78,7 @@ for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .
   case "$f" in
     .config/gpg/*) continue ;;
   esac
-  p=$(eval "$perm_of_cmd \"$DOTFILES_ROOT/$f\"" 2> /dev/null || true)
+  p=$(_stat_perm "$DOTFILES_ROOT/$f")
   if [ "$p" = "644" ]; then
     printf "✅ %s %s\n" "$p" "$f"
   else
@@ -88,7 +89,7 @@ find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -prin
   case "$f" in
     .config/gpg/*) continue ;;
   esac
-  p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+  p=$(_stat_perm "$f")
   if [ "$p" = "644" ]; then
     printf "✅ %s %s\n" "$p" "$f"
   else
@@ -100,7 +101,7 @@ echo
 echo "Sensitive config permissions (expect 600):"
 for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do
   [ -e "$DOTFILES_ROOT/$f" ] || continue
-  p=$(eval "$perm_of_cmd \"$DOTFILES_ROOT/$f\"" 2> /dev/null || true)
+  p=$(_stat_perm "$DOTFILES_ROOT/$f")
   if [ "$p" = "600" ]; then
     printf "✅ %s %s\n" "$p" "$f"
   else
@@ -116,7 +117,7 @@ if [ -d "$dotfiles_dir" ]; then
   owner=$(stat -c %U "$dotfiles_dir" 2> /dev/null || stat -f %Su "$dotfiles_dir" 2> /dev/null || echo unknown)
   other_write=""
   group_write=""
-  perm=$(eval "$perm_of_cmd \"$dotfiles_dir\"" 2> /dev/null || true)
+  perm=$(_stat_perm "$dotfiles_dir")
   case "$perm" in
     *?[26]) other_write="yes" ;;
   esac
@@ -133,7 +134,7 @@ else
 fi
 
 if [ -d "$ssh_dir" ]; then
-  p=$(eval "$perm_of_cmd \"$ssh_dir\"" 2> /dev/null || true)
+  p=$(_stat_perm "$ssh_dir")
   if [ "$p" = "700" ]; then
     echo "✅ $ssh_dir 700"
   else
@@ -144,14 +145,14 @@ if [ -d "$ssh_dir" ]; then
     if [ -L "$f" ]; then
       target=$(readlink "$f")
       case "$target" in /*) ;; *) target=$(cd "$(dirname "$f")" && pwd)/"$target" ;; esac
-      p=$(eval "$perm_of_cmd \"$target\"" 2> /dev/null || true)
+      p=$(_stat_perm "$target")
       if [ "$p" = "644" ] || [ "$p" = "600" ]; then
         echo "✅ $f -> $target $p"
       else
         echo "⚠️  $f -> $target ${p:-unknown} (expected 600 or 644)"
       fi
     else
-      p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+      p=$(_stat_perm "$f")
       if [ "$p" = "600" ]; then
         echo "✅ $f 600"
       else
@@ -161,7 +162,7 @@ if [ -d "$ssh_dir" ]; then
   done
   for f in "$ssh_dir"/known_hosts "$ssh_dir"/known_hosts.*; do
     [ -e "$f" ] || continue
-    p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+    p=$(_stat_perm "$f")
     if [ "$p" = "644" ] || [ "$p" = "600" ]; then
       echo "✅ $f $p"
     else
@@ -170,7 +171,7 @@ if [ -d "$ssh_dir" ]; then
   done
   for f in "$ssh_dir"/*.pub; do
     [ -e "$f" ] || continue
-    p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+    p=$(_stat_perm "$f")
     if [ "$p" = "644" ] || [ "$p" = "600" ]; then
       echo "✅ $f $p"
     else
@@ -180,7 +181,7 @@ if [ -d "$ssh_dir" ]; then
   for f in "$ssh_dir"/id_* "$ssh_dir"/*_rsa "$ssh_dir"/*_ed25519 "$ssh_dir"/*_ecdsa; do
     [ -e "$f" ] || continue
     case "$f" in *.pub) continue ;; esac
-    p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+    p=$(_stat_perm "$f")
     if [ "$p" = "600" ]; then
       echo "✅ $f 600"
     else
@@ -192,14 +193,14 @@ else
 fi
 
 if [ -d "$gnupg_dir" ]; then
-  p=$(eval "$perm_of_cmd \"$gnupg_dir\"" 2> /dev/null || true)
+  p=$(_stat_perm "$gnupg_dir")
   if [ "$p" = "700" ]; then
     echo "✅ $gnupg_dir 700"
   else
     echo "⚠️  $gnupg_dir ${p:-unknown} (expected 700)"
   fi
   if [ -f "$gnupg_dir/pubring.kbx" ]; then
-    p=$(eval "$perm_of_cmd \"$gnupg_dir/pubring.kbx\"" 2> /dev/null || true)
+    p=$(_stat_perm "$gnupg_dir/pubring.kbx")
     if [ "$p" = "644" ]; then
       echo "✅ $gnupg_dir/pubring.kbx 644"
     else
@@ -209,7 +210,7 @@ if [ -d "$gnupg_dir" ]; then
   for f in "$gnupg_dir"/*; do
     [ -e "$f" ] || continue
     [ "$f" = "$gnupg_dir/pubring.kbx" ] && continue
-    p=$(eval "$perm_of_cmd \"$f\"" 2> /dev/null || true)
+    p=$(_stat_perm "$f")
     # Socket files and directories in .gnupg should be 700, regular files 600
     # For symlinks, check the target file permissions
     if [ -L "$f" ]; then
@@ -219,7 +220,7 @@ if [ -d "$gnupg_dir" ]; then
         *) target_path="$(dirname "$f")/$target" ;;
       esac
       if [ -e "$target_path" ]; then
-        p=$(eval "$perm_of_cmd \"$target_path\"" 2> /dev/null || true)
+        p=$(_stat_perm "$target_path")
       fi
     fi
     if [ -S "$f" ] || [ -d "$f" ]; then
