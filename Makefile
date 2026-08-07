@@ -1,4 +1,4 @@
-.PHONY: help bootstrap test clean audit verify shellcheck fmt-check python-lint test-secrets test-compliance sast
+.PHONY: help bootstrap test clean audit verify shellcheck fmt-check python-lint test-secrets test-compliance sast ci-local
 
 help:
 	@echo "Dotfiles commands:"
@@ -11,6 +11,7 @@ help:
 	@echo "  make test-secrets  - run SOPS/age secret tests"
 	@echo "  make test-compliance - run compliance checks"
 	@echo "  make sast           - run static analysis / security checks"
+	@echo "  make ci-local       - run .drone.yml locally via 'drone exec' (needs Docker daemon)"
 
 bootstrap:
 	bash bootstrap.sh
@@ -71,3 +72,14 @@ sast: shellcheck fmt-check
 	else \
 		echo "uv not found; skipping python-lint in CI"; \
 	fi
+
+# Run the real .drone.yml pipeline locally via the Drone CLI, so the local run
+# can never drift from CI. Requires the Docker daemon (Docker Desktop / Podman
+# socket). No server token needed — drone exec is fully local.
+ci-local:
+	@if ! command -v drone >/dev/null 2>&1; then \
+		echo "drone CLI not found. Install: download drone_darwin_$(uname -m) from"; \
+		echo "https://github.com/harness/drone-cli/releases/latest into ~/bin"; \
+		exit 1; \
+	fi
+	DOTFILES_ROOT="$(CURDIR)" drone exec --trusted
