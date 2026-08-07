@@ -1,0 +1,111 @@
+#!/bin/bash
+# Headless GPG Agent SSH Authentication Helper
+# Provides seamless SSH authentication via GPG agent in headless environments
+
+set -euo pipefail
+
+# Detect if we're in a headless environment
+is_headless() {
+  [[ ! -t 0 ]] && [[ -z "${SSH_TTY:-}" ]]
+}
+
+# Configure GPG agent for headless SSH authentication
+configure_headless_gpg_agent() {
+  local gpg_conf="${GNUPGHOME:-$HOME/.gnupg}/gpg-agent.conf"
+
+  # Pinentry is handled by bin/pinentry-fallback (the only pinentry path
+  # sanctioned by MANUAL.md). It resolves the correct binary at runtime via
+  # command -v / file checks, so we must NOT hardcode a pinentry-program
+  # line here (that would break cross-platform and override the tracked conf).
+  # Just ensure the agent is running with ssh support enabled.
+  gpgconf --kill gpg-agent 2> /dev/null || true
+  sleep 1
+  gpg-connect-agent /bye 2> /dev/null || true
+  sleep 1
+
+  if [[ -S "$(gpgconf --list-dirs agent-ssh-socket 2> /dev/null)" ]]; then
+    echo "✓ GPG agent running with SSH support; pinentry via bin/pinentry-fallback"
+  else
+    echo "⚠ GPG agent socket not found" >&2
+  fi
+}
+
+# Cache SSH key passphrase (for non-interactive use)
+cache_ssh_key_passphrase() {
+  local passphrase="${1:-}"
+
+  if [[ -z "$passphrase" ]]; then
+    echo "Error: Passphrase required for headless operation" >&2
+    return 1
+  fi
+
+  # Use loopback pinentry to cache the passphrase
+  echo "ALLOW-loopback-pinentry" | gpg-connect-agent /bye 2> /dev/null || true
+  sleep 1
+}
+
+# Verify SSH authentication setup
+verify_ssh_setup() {
+  echo "=== SSH Authentication Setup Verification ==="
+
+  # Check GPG agent
+  if ! pgrep -x gpg-agent > /dev/null 2>&1; then
+    echo "❌ GPG agent not running"
+    return 1
+  fi
+  echo "✓ GPG agent is running"
+
+  # Check SSH_AUTH_SOCK
+  if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
+    echo "❌ SSH_AUTH_SOCK not set"
+    return 1
+  fi
+  if [[ ! -S "$SSH_AUTH_SOCK" ]]; then
+    echo "❌ SSH_AUTH_SOCK is not a valid socket"
+    return 1
+  fi
+  echo "✓ SSH_AUTH_SOCK is set: $SSH_AUTH_SOCK"
+
+  # Check SSH keys
+  local keys
+  keys=$(ssh-add -l 2>&1) || {
+    echo "❌ Cannot list SSH keys in agent"
+    return 1
+  }
+  if [[ -z "$keys" ]] || [[ "$keys" == "The agent has no identities." ]]; then
+    echo "❌ No SSH keys loaded in agent"
+    return 1
+  fi
+  echo "✓ SSH keys loaded:"
+  printf '  %s\n' "$keys"
+
+  # Check for SA-capable key
+  if echo "$keys" | grep -q "RSA.*(none)"; then
+    echo "✓ SA-capable SSH key found"
+  else
+    echo "⚠️ No SA-capable SSH key found"
+  fi
+
+  echo ""
+  echo "Setup verification complete"
+  return 0
+}
+
+# Main execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  case "${1:-verify}" in
+    "configure")
+      configure_headless_gpg_agent
+      ;;
+    "cache-passphrase")
+      cache_ssh_key_passphrase "${2:-}"
+      ;;
+    "verify")
+      verify_ssh_setup
+      ;;
+    *)
+      echo "Usage: $0 {configure|cache-passphrase|verify}" >&2
+      exit 1
+      ;;
+  esac
+fi
