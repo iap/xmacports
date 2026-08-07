@@ -95,8 +95,18 @@ rm -f /tmp/bootstrap-test-output-$$.log 2> /dev/null || true
 echo
 
 echo "5. Security permissions"
+# GNU stat -f means --file-system and EXITS 0, so a `stat -f ... || stat -c ...`
+# fallback never reaches the GNU branch on Linux — it captures filesystem info
+# instead of a mode. Detect the implementation, as scripts/audit.sh does.
+_perm_of() {
+  if stat --version > /dev/null 2>&1; then
+    stat -c %a "$1" 2> /dev/null || echo "unknown"
+  else
+    stat -f %Lp "$1" 2> /dev/null || echo "unknown"
+  fi
+}
 if [ -d "$HOME/.gnupg" ]; then
-  gnupg_perms=$(stat -f %Lp "$HOME/.gnupg" 2> /dev/null || stat -c %a "$HOME/.gnupg" 2> /dev/null || echo "unknown")
+  gnupg_perms=$(_perm_of "$HOME/.gnupg")
   if [ "$gnupg_perms" = "700" ]; then
     pass ".gnupg is 700"
   else
@@ -106,7 +116,7 @@ else
   fail ".gnupg missing"
 fi
 if [ -d "$HOME/.ssh" ]; then
-  ssh_perms=$(stat -f %Lp "$HOME/.ssh" 2> /dev/null || stat -c %a "$HOME/.ssh" 2> /dev/null || echo "unknown")
+  ssh_perms=$(_perm_of "$HOME/.ssh")
   if [ "$ssh_perms" = "700" ]; then
     pass ".ssh is 700"
   else

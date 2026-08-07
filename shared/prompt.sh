@@ -44,7 +44,14 @@ git_prompt_info() {
 
   local cache_mtime=0
   if [[ -f "$cache_file" ]]; then
-    cache_mtime=$(/usr/bin/stat -f %m "$cache_file" 2> /dev/null || stat -c %Y "$cache_file" 2> /dev/null || echo 0)
+    # GNU stat -f means --file-system and EXITS 0, so the `|| stat -c`
+    # fallback never fires on Linux. Detect the implementation (matches
+    # scripts/audit.sh and tests/test-bootstrap.sh).
+    if stat --version > /dev/null 2>&1; then
+      cache_mtime=$(stat -c %Y "$cache_file" 2> /dev/null || echo 0)
+    else
+      cache_mtime=$(/usr/bin/stat -f %m "$cache_file" 2> /dev/null || echo 0)
+    fi
   fi
   if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - cache_mtime)) -lt $cache_timeout ]]; then
     cat "$cache_file" 2> /dev/null && return
