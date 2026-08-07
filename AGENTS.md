@@ -121,6 +121,13 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - Verify before pushing: `git log --show-signature -1` or `git verify-commit HEAD`.
 - Do not rewrite or force-push already-published signed history unless coordinated;
   re-signing rewrites commit hashes and diverges from every clone/remote.
+- **Prefer internal (private, machine-local) config over tracked public config.** Identity
+  and per-machine settings — git `user.name` / `user.email` / `user.signingkey`, GPG pinentry
+  choices, shell `.local` overlays (`.bashrc.local`, `.zshrc.local`, `.profile.local`) — belong
+  in private files that are NOT committed to the public repo (e.g. `.gitconfig.local`, included
+  first by the tracked `.gitconfig`; see `examples/gitconfig-local-example`). Keep the tracked
+  files free of personal identity. Publish such settings to the public repo only when the user
+  explicitly asks.
 
 ## Cursor Plans
 
