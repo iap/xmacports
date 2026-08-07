@@ -72,6 +72,20 @@ cp examples/forward-local-example     "$HOME/.forward.local"
 cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 ```
 
+## Opt-in app configs
+
+Two app configs are tracked but **opt-in** via env flags, so bootstrap never
+breaks an existing setup and never links secret-bearing files:
+
+```bash
+DOTFILES_ENABLE_FISH=1 make bootstrap   # links .config/fish/conf.d/* into ~/.config/fish/conf.d
+DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.config/gh
+```
+
+- **fish**: links tracked `conf.d/*` files only.
+- **gh**: links only `config.yml` (preferences). `hosts.yml` holds OAuth tokens
+  and is intentionally never tracked or linked — your tokens stay local.
+
 ## Maintenance
 
 Direct test commands that work without `make`:

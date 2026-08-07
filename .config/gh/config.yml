@@ -1,0 +1,6 @@
+# gh CLI configuration (tracked starter)
+# Linked into ~/.config/gh via bootstrap when DOTFILES_ENABLE_GH=1.
+# NOTE: hosts.yml holds OAuth tokens — it is intentionally NOT tracked or linked.
+editor: nano
+git_protocol: ssh
+pager: cat

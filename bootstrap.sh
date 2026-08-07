@@ -184,6 +184,13 @@ if [[ "${DOTFILES_ENABLE_FISH:-0}" = "1" && -d "$DOTFILES/.config/fish" ]]; then
   echo "Fish config linked (DOTFILES_ENABLE_FISH=1)"
 fi
 
+if [[ "${DOTFILES_ENABLE_GH:-0}" = "1" && -f "$DOTFILES/.config/gh/config.yml" ]]; then
+  mkdir -p "$HOME/.config/gh"
+  # Link only config.yml (prefs). hosts.yml holds OAuth tokens — never tracked.
+  backup_and_link "$DOTFILES/.config/gh/config.yml" "$HOME/.config/gh/config.yml"
+  echo "gh config linked (DOTFILES_ENABLE_GH=1; hosts.yml untouched)"
+fi
+
 echo "Dotfiles bootstrapped successfully!"
 [[ $_backup_used -eq 1 ]] && echo "Backup: $BACKUP_DIR"
 echo "Restart your shell or run: source ~/.bashrc (bash) or source ~/.zshrc (zsh)"
