@@ -33,3 +33,9 @@ result
 
 # Logs
 *.log
+
+# Local-only working notes. These routinely contain real identity data
+# (email, GPG key ids, absolute $HOME paths) and machine-specific findings,
+# which must never be published from this repo. Keep them local.
+docs/
+reviews/

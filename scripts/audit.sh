@@ -110,6 +110,29 @@ for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do
 done
 echo
 
+# Decrypted plaintext secrets must never be group/world readable. These files
+# are gitignored, so this is a filesystem-exposure check, not a leak check.
+# Writers chmod 600, but a manual `sops -d > file` bypasses them and lands 644.
+echo "Decrypted secrets permissions (expect 600):"
+_secrets_found=0
+for f in "$DOTFILES_ROOT"/secrets/*.yaml; do
+  [ -e "$f" ] || continue
+  case "$(basename "$f")" in
+    *.enc.yaml | *.example) continue ;;
+  esac
+  _secrets_found=1
+  p=$(_stat_perm "$f")
+  if [ "$p" = "600" ]; then
+    printf "✅ %s secrets/%s\n" "$p" "$(basename "$f")"
+  else
+    printf "⚠️  %s secrets/%s (expected 600 — world/group readable plaintext)\n" \
+      "${p:-unknown}" "$(basename "$f")"
+  fi
+done
+[ "$_secrets_found" -eq 0 ] && echo "ℹ️  no decrypted secrets present"
+unset _secrets_found
+echo
+
 echo "User security directories:"
 gnupg_dir="$HOME/.gnupg" ssh_dir="$HOME/.ssh" dotfiles_dir="$HOME/.dotfiles"
 
