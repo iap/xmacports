@@ -1,7 +1,15 @@
 #!/bin/bash
 # Shared functions — sources unified platform.sh for platform detection
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session. All variable reads
+# below use ${VAR:-} defaults and stay safe under a caller's `set -u`.
+
+# Resolve the dotfiles root. .bashrc/.zshrc may source this module directly in
+# an interactive NON-login shell, where .profile never ran and DOTFILES_ROOT is
+# unset — without this default the loads below silently no-op and the shell
+# comes up with no platform/PATH/secrets at all.
+: "${DOTFILES_ROOT:=$HOME/.dotfiles}"
 
 # Load platform detection and environment from the single source of truth
 if [[ -f "$DOTFILES_ROOT/shared/platform.sh" ]]; then

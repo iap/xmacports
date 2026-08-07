@@ -1,9 +1,11 @@
 #!/bin/bash
 # Unified shell prompt — shared logic, per-shell renderers.
-# Sources from .zshrc.d/prompt.sh (zsh) and .bashrc (bash).
+# Sourced by .zshrc (via shared/*.sh and .zshrc.d/prompt.sh) and by .bashrc.
 # Color is applied in the renderer so the core stays shell-agnostic.
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session. All variable reads
+# below use ${VAR:-} defaults and stay safe under a caller's `set -u`.
 
 if [[ -n "${DOTFILES_PROMPT_LOADED:-}" ]]; then
   return 0
@@ -85,13 +87,18 @@ _prompt_render_bash() {
 
 if [[ -n "${ZSH_VERSION:-}" ]]; then
   autoload -Uz colors 2> /dev/null && colors
-  PROMPT="$(_prompt_render_zsh "${_prompt_last_exit:-0}")"
   RPROMPT='%F{cyan}%D{%H:%M}%f'
+  # PROMPT must be REBUILT every prompt, not assigned once at load: the
+  # renderer expands $(short_pwd)/$(git_prompt_info) eagerly, and the result
+  # contains no live substitution, so a one-shot assignment freezes the prompt
+  # at the startup directory and its git branch forever.
   precmd() {
     _prompt_last_exit=$?
     [[ $COLUMNS -gt 80 && -t 1 ]] && echo
+    PROMPT="$(_prompt_render_zsh "$_prompt_last_exit")"
   }
   _prompt_last_exit=0
+  PROMPT="$(_prompt_render_zsh 0)"
 elif [[ -n "${BASH_VERSION:-}" ]]; then
   if [[ -t 1 ]]; then
     PROMPT_COMMAND="_prompt_render_bash${PROMPT_COMMAND:+; ${PROMPT_COMMAND}}"

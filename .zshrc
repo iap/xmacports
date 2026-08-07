@@ -7,11 +7,33 @@ fi
 
 # Load Shared modules (platform is the single source of truth; the rest are
 # functions, secrets, prompt, aliases). All carry their own load guards.
-# DOTFILES_ROOT is already set by .profile -> platform.sh
+# .profile normally sets DOTFILES_ROOT, but default it here too: zsh sources
+# .zshrc directly for interactive non-login shells, where .profile never ran.
+: "${DOTFILES_ROOT:=$HOME/.dotfiles}"
 for _config_file in "$DOTFILES_ROOT/shared/"*.sh; do
   [[ -f "$_config_file" ]] && source "$_config_file"
 done
 unset _config_file
+
+# Load per-host environment overrides from XDG config. Mirrors .bashrc so both
+# shells get the same env.d modules — previously bash-only, which silently left
+# foundry/proxy/user-local-bin inactive under zsh.
+if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
+  for _config_file in "${XDG_CONFIG_HOME:-$HOME/.config}"/env.d/*.sh; do
+    [[ -f "$_config_file" ]] && source "$_config_file"
+  done
+  unset _config_file
+fi
+
+# Load zsh-specific drop-ins. Documented in AGENTS.md/MANUAL.md as the zsh
+# extension point, but nothing sourced it — .zshrc.d/prompt.sh was dead code.
+# Modules carry their own load guards, so this stays idempotent.
+if [[ -d "$DOTFILES_ROOT/.zshrc.d" ]]; then
+  for _config_file in "$DOTFILES_ROOT/.zshrc.d/"*.sh; do
+    [[ -f "$_config_file" ]] && source "$_config_file"
+  done
+  unset _config_file
+fi
 
 # Load local profile customizations AFTER platform PATH setup
 # This ensures user PATH additions in .profile.local get proper precedence

@@ -8,7 +8,9 @@
 # Precondition: platform.sh should be loaded before this file so DOTFILES_ROOT
 # and shared helpers like log_warn/log_info are available.
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session. All variable reads
+# below use ${VAR:-} defaults and stay safe under a caller's `set -u`.
 
 if [[ -n "${DOTFILES_SECRETS_LOADED:-}" ]]; then
   return 0

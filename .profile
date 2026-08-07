@@ -24,7 +24,12 @@ export EDITOR VISUAL
 : "${LC_ALL:=${LANG}}"
 export LANG LC_ALL
 
-# Load per-host overrides if they exist (after XDG setup)
-if [ -f "$HOME/.profile.local" ]; then
+# Load per-host overrides if they exist (after XDG setup).
+# Set the guard so .bashrc/.zshrc do not source it a SECOND time — double
+# sourcing re-prepends any PATH additions made there, defeating path_dedupe
+# (which has already run by then) and leaving duplicate PATH entries.
+if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ]; then
   . "$HOME/.profile.local"
+  DOTFILES_PROFILE_LOCAL_LOADED=1
+  export DOTFILES_PROFILE_LOCAL_LOADED
 fi

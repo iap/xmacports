@@ -6,7 +6,12 @@ if [[ -f "$HOME/.profile" ]]; then
 fi
 
 # Load zsh-specific interactive config after shared defaults.
-if [[ -f "$HOME/.zshrc" ]]; then
+# IMPORTANT: only for NON-interactive login shells. zsh sources .zshrc itself
+# for every interactive shell, so sourcing it here unconditionally makes a
+# login+interactive shell (the normal Terminal.app case) run the whole
+# interactive init TWICE — double PATH building, double `mise activate`,
+# double compinit, double prompt wiring.
+if [[ ! -o interactive ]] && [[ -f "$HOME/.zshrc" ]]; then
   source "$HOME/.zshrc"
 fi
 

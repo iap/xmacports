@@ -1,7 +1,9 @@
 #!/bin/bash
 # Shared aliases
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session. All variable reads
+# below use ${VAR:-} defaults and stay safe under a caller's `set -u`.
 
 alias ..='cd ..'
 

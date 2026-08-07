@@ -92,6 +92,34 @@ check "platform loader dedupes PATH" /bin/bash --noprofile --norc -c '
   done
   [ "$local_count" -eq 0 ]
 '
+# Regression: zsh does NOT word-split unquoted parameters, so a
+# `for seg in $PATH` dedupe silently no-ops there while passing under bash.
+# path_dedupe must be POSIX parameter-expansion based. Test in zsh explicitly.
+check "platform loader dedupes PATH under zsh" zsh -c '
+  unset DOTFILES_ENV_LOADED DOTFILES_PLATFORM_LOADED
+  PATH="/tmp/path-a:/tmp/path-b:/tmp/path-a"
+  export PATH
+  source "'"$DOTFILES"'/shared/platform.sh"
+  dupes=$(printf "%s" "$PATH" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
+  [ "$dupes" -eq 0 ]
+'
+# Regression: sourced modules must NOT leak shell options into the caller.
+# A top-level `set -u` in a sourced file turns on nounset for the user's
+# interactive shell, which breaks Apple /etc/zshrc and any unset-var read.
+check "sourced modules do not leak nounset (bash)" bash --noprofile --norc -c '
+  source "'"$DOTFILES"'/shared/platform.sh"
+  source "'"$DOTFILES"'/shared/functions.sh"
+  source "'"$DOTFILES"'/shared/aliases.sh"
+  case "$-" in *u*) exit 1 ;; esac
+  exit 0
+'
+check "sourced modules do not leak nounset (zsh)" zsh -c '
+  source "'"$DOTFILES"'/shared/platform.sh"
+  source "'"$DOTFILES"'/shared/functions.sh"
+  source "'"$DOTFILES"'/shared/prompt.sh"
+  [[ -o nounset ]] && exit 1
+  exit 0
+'
 check "platform loader discovers /opt/local/bin gpg when present" /bin/bash --noprofile --norc -c '
   set -u
   PATH="/usr/bin:/bin"
@@ -173,6 +201,18 @@ check "shared functions load in zsh" zsh -c '
 echo
 
 echo "8. ZSH prompt"
+# Regression: PROMPT is built by expanding $(short_pwd)/$(git_prompt_info)
+# eagerly, so it must be REBUILT in precmd. A one-shot assignment at load time
+# freezes the prompt on the startup directory for the life of the shell.
+check "zsh PROMPT tracks cwd across cd" zsh -c '
+  source "'"$DOTFILES"'/shared/functions.sh"
+  source "'"$DOTFILES"'/shared/prompt.sh"
+  cd /tmp && precmd
+  case "$PROMPT" in *"/tmp"*) ;; *) exit 1 ;; esac
+  cd / && precmd
+  case "$PROMPT" in *"/tmp"*) exit 1 ;; esac
+  exit 0
+'
 check "short_pwd truncates long paths" zsh -c '
   source '"$DOTFILES"'/shared/prompt.sh
   out=$(PWD="/a/very/long/path/that/exceeds/thirty/characters" short_pwd)

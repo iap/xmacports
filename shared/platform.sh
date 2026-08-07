@@ -3,7 +3,9 @@
 # Sources from .profile (login), .bashrc/.zshrc (interactive), and scripts.
 # Replaces: .config/env.d/platform.sh
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session (see shared/README rule).
+# All variable reads below use ${VAR:-} defaults and are safe under a caller's `set -u`.
 
 # Load guard — use non-exported var to avoid leaking to child processes
 if [[ -n "${DOTFILES_PLATFORM_LOADED:-}" ]]; then
@@ -110,10 +112,19 @@ export NO_UPDATE_NOTIFIER=1
 
 # --- Path utilities ---
 path_dedupe() {
-  local current="${PATH:-}" normalized="" segment
-  local IFS=':'
-  for segment in $current; do
-    [[ -n "$segment" ]] || continue
+  # POSIX parameter-expansion walk. Do NOT use `for segment in $current` — zsh
+  # does not word-split unquoted parameters, so that form silently no-ops under
+  # zsh and duplicate PATH entries survive. This shape is identical in
+  # bash, zsh and dash.
+  local remaining="${PATH:-}" normalized="" segment
+  [ -n "$remaining" ] || return 0
+  while [ -n "$remaining" ]; do
+    segment="${remaining%%:*}"
+    case "$remaining" in
+      *:*) remaining="${remaining#*:}" ;;
+      *) remaining="" ;;
+    esac
+    [ -n "$segment" ] || continue
     case ":$normalized:" in
       *":$segment:"*) ;;
       *) normalized="${normalized:+$normalized:}$segment" ;;

@@ -22,9 +22,13 @@ if [ -z "${CARGO_HOME:-}" ] && [ -f "$HOME/.cargo/env" ] && [ -r "$HOME/.cargo/e
   esac
 fi
 
+# Resolve dotfiles root. In an interactive NON-login bash, .profile never runs,
+# so DOTFILES_ROOT would otherwise be unset here.
+: "${DOTFILES_ROOT:=$HOME/.dotfiles}"
+
 # Load Shared Functions
 for f in functions.sh aliases.sh; do
-  [[ -f "$HOME/.dotfiles/shared/$f" ]] && source "$HOME/.dotfiles/shared/$f"
+  [[ -f "$DOTFILES_ROOT/shared/$f" ]] && source "$DOTFILES_ROOT/shared/$f"
 done
 
 # Optional developer tool manager.
@@ -38,7 +42,6 @@ if [ -z "${DOTFILES_PROFILE_LOCAL_LOADED:-}" ] && [ -f "$HOME/.profile.local" ];
   export DOTFILES_PROFILE_LOCAL_LOADED=1
 fi
 
-
 # Load per-host environment overrides from XDG config when this file is sourced
 # directly, e.g. interactive bash without a login shell.
 if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
@@ -48,7 +51,7 @@ if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
   unset _config_file
 fi
 # Prompt — unified module shared with zsh
-[[ -f "$HOME/.dotfiles/shared/prompt.sh" ]] && source "$HOME/.dotfiles/shared/prompt.sh"
+[[ -f "$DOTFILES_ROOT/shared/prompt.sh" ]] && source "$DOTFILES_ROOT/shared/prompt.sh"
 
 # Local Overrides
 [[ -f "$HOME/.bashrc.local" ]] && source "$HOME/.bashrc.local"
@@ -56,6 +59,6 @@ fi
 # Only load nvm in interactive shells (nvm.sh references unset vars in non-interactive context)
 if [[ $- == *i* ]]; then
   export NVM_DIR="$HOME/.config/nvm"
-  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # nvm bash_completion
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                   # This loads nvm
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" # nvm bash_completion
 fi

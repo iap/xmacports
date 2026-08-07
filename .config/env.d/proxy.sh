@@ -3,7 +3,9 @@
 # Activates only when ss-local is listening on the configured port, so this
 # file is safe on hosts without Shadowsocks (exports nothing).
 
-set -u
+# NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
+# so shell options set here leak into the user's session. All variable reads
+# below use ${VAR:-} defaults and stay safe under a caller's `set -u`.
 
 if [[ -n "${DOTFILES_PROXY_LOADED:-}" ]]; then
   return 0
