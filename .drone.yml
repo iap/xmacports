@@ -15,3 +15,8 @@ steps:
     commands:
       - scripts/ci-setup.sh sast
       - make sast
+      # Behavioural tests must gate CI too. `make sast` only covers static
+      # analysis (shellcheck/shfmt/ruff); without this a functional regression
+      # in the load chain, PATH handling, or secrets layer would ship green.
+      # The sast setup already installs bash, zsh, make, age and coreutils.
+      - make test

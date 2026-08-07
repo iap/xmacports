@@ -9,10 +9,10 @@ DOTFILES="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 # are detected so later sections (and the user) can adapt.
 _DOT_PLATFORM_NIXOS=0
 _DOT_PLATFORM_WSL=0
-if [[ -f /etc/os-release ]] && grep -qi '^ID=nixos' /etc/os-release 2>/dev/null; then
+if [[ -f /etc/os-release ]] && grep -qi '^ID=nixos' /etc/os-release 2> /dev/null; then
   _DOT_PLATFORM_NIXOS=1
 fi
-if [[ -f /proc/version ]] && grep -qiE '(microsoft|wsl)' /proc/version 2>/dev/null; then
+if [[ -f /proc/version ]] && grep -qiE '(microsoft|wsl)' /proc/version 2> /dev/null; then
   _DOT_PLATFORM_WSL=1
 fi
 
@@ -30,12 +30,12 @@ _dotfiles_lock_dir() {
 _dotfiles_lock() {
   local _lock_dir lockfile
   _lock_dir="$(_dotfiles_lock_dir)"
-  mkdir -p "$_lock_dir" 2>/dev/null || true
+  mkdir -p "$_lock_dir" 2> /dev/null || true
   lockfile="$_lock_dir/.dotfiles-bootstrap.lock"
   if ! (
     set -o noclobber
     : > "$lockfile"
-  ) 2>/dev/null; then
+  ) 2> /dev/null; then
     echo "ERROR: another bootstrap may be running ($lockfile exists)" >&2
     exit 1
   fi
@@ -46,7 +46,7 @@ _dotfiles_unlock() {
   local _lock_dir lockfile
   _lock_dir="$(_dotfiles_lock_dir)"
   lockfile="$_lock_dir/.dotfiles-bootstrap.lock"
-  rm -f "$lockfile" 2>/dev/null || true
+  rm -f "$lockfile" 2> /dev/null || true
 }
 
 _dotfiles_lock
@@ -54,7 +54,7 @@ trap _dotfiles_unlock EXIT
 
 echo "Bootstrapping dotfiles..."
 if [[ $_DOT_PLATFORM_NIXOS -eq 1 ]]; then echo "  nixos:  yes"; else echo "  nixos:  no"; fi
-if [[ $_DOT_PLATFORM_WSL  -eq 1 ]]; then echo "  wsl:    yes"; else echo "  wsl:    no"; fi
+if [[ $_DOT_PLATFORM_WSL -eq 1 ]]; then echo "  wsl:    yes"; else echo "  wsl:    no"; fi
 echo "  distro:  $(uname -sr)"
 echo "  dotfiles: $DOTFILES"
 echo
@@ -101,7 +101,7 @@ backup_and_link "$DOTFILES/.forward" "$HOME/.forward"
 # $HOME may own e.g. .config and be read-only, and on WSL interop mounts
 # POSIX perms may be absent. Never abort the whole bootstrap over a
 # non-critical directory.
-_ensure_dir() { mkdir -p "$@" 2>/dev/null || true; }
+_ensure_dir() { mkdir -p "$@" 2> /dev/null || true; }
 
 _ensure_dir "$HOME/bin" "$HOME/.local/bin"
 _ensure_dir "$HOME/.gnupg" "$HOME/.ssh"
@@ -110,7 +110,7 @@ _ensure_dir "$HOME/.config/vim" "$HOME/.config/npm"
 # GPG/SSH dirs must stay private. On some interop mounts (WSL against NTFS
 # without the `metadata` flag) chmod is a no-op — tolerate that instead of
 # dying under `set -e` (consistent with the guarded chmods below).
-chmod 700 "$HOME/.gnupg" "$HOME/.ssh" 2>/dev/null || true
+chmod 700 "$HOME/.gnupg" "$HOME/.ssh" 2> /dev/null || true
 
 for bin_file in "$DOTFILES/bin/"*; do
   [[ -f "$bin_file" ]] || continue
@@ -132,8 +132,8 @@ chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
 #   * Windows username differing from the Unix username.
 if [[ $_DOT_PLATFORM_WSL -eq 1 ]]; then
   _wsl_winuser="${USER:-${LOGNAME:-}}"
-  if command -v cmd.exe >/dev/null 2>&1; then
-    _wsl_winuser="$(cmd.exe /c 'echo %USERNAME%' 2>/dev/null | tr -d '\r\n')"
+  if command -v cmd.exe > /dev/null 2>&1; then
+    _wsl_winuser="$(cmd.exe /c 'echo %USERNAME%' 2> /dev/null | tr -d '\r\n')"
     _wsl_winuser="${_wsl_winuser:-${USER:-${LOGNAME:-}}}"
   fi
   _wsl_key_src=""

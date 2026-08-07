@@ -26,7 +26,7 @@ test:
 endif
 
 clean:
-	rm -rf "$HOME/.dotfiles-backup-"*
+	rm -rf "$$HOME/.dotfiles-backup-"*
 
 audit:
 	bash scripts/audit.sh
@@ -40,8 +40,7 @@ shellcheck:
 		echo "shellcheck not found; install via: mise install"; \
 		echo "Skipping shellcheck in CI"; \
 	else \
-		bash scripts/shellcheck.sh; \
-		echo "shellcheck passed"; \
+		bash scripts/shellcheck.sh && echo "shellcheck passed"; \
 	fi
 
 fmt-check:
@@ -49,8 +48,7 @@ fmt-check:
 		echo "shfmt not found; install via: mise install"; \
 		echo "Skipping fmt-check in CI"; \
 	else \
-		bash scripts/shfmt.sh --check; \
-		echo "fmt-check passed"; \
+		bash scripts/shfmt.sh --check && echo "fmt-check passed"; \
 	fi
 
 python-lint:

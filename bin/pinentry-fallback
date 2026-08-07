@@ -16,7 +16,7 @@ _is_linux() {
 
 # MacPorts app bundle path for pinentry-mac (discover version dynamically)
 _find_pinentry_mac_bundle() {
-  find /opt/local/var/macports/software/pinentry-mac -path '*/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac' -type f 2>/dev/null | head -1
+  find /opt/local/var/macports/software/pinentry-mac -path '*/Applications/MacPorts/pinentry-mac.app/Contents/MacOS/pinentry-mac' -type f 2> /dev/null | head -1
 }
 
 PINENTRY_MAC_BUNDLE=$(_find_pinentry_mac_bundle)
