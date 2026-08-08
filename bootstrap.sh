@@ -75,9 +75,17 @@ backup_and_link() {
     fi
     [[ $_backup_used -eq 0 ]] && mkdir -p "$BACKUP_DIR"
     _backup_used=1
-    echo "backing up: $target"
-    if ! mv "$target" "$BACKUP_DIR/"; then
-      echo "ERROR: failed to move $target to $BACKUP_DIR" >&2
+    # Preserve the target's path under the backup dir instead of flattening to
+    # its basename. Several linked targets share a basename (~/.ssh/config and
+    # ~/.config/npm/config), so `mv "$target" "$BACKUP_DIR/"` would silently
+    # overwrite the first backup with the second and destroy a user file.
+    local _rel _dest
+    _rel="${target#"$HOME"/}"
+    _dest="$BACKUP_DIR/$_rel"
+    mkdir -p "$(dirname "$_dest")"
+    echo "backing up: $target -> $_dest"
+    if ! mv "$target" "$_dest"; then
+      echo "ERROR: failed to move $target to $_dest" >&2
       exit 1
     fi
   fi
@@ -117,12 +125,28 @@ for bin_file in "$DOTFILES/bin/"*; do
   backup_and_link "$bin_file" "$HOME/bin/$(basename "$bin_file")"
 done
 
+# Tighten the LINK, not its target. `chmod` follows symlinks, so chmod'ing
+# ~/.gnupg/gpg.conf (a symlink into the repo) would rewrite the mode of the
+# TRACKED repo file — making the worktree permanently dirty and manufacturing
+# spurious `make audit` drift. Only chmod real files; for symlinks the repo
+# already owns the mode.
+_chmod_if_regular() {
+  local mode="$1"
+  shift
+  local f
+  for f in "$@"; do
+    [[ -e "$f" ]] || continue
+    [[ -L "$f" ]] && continue
+    chmod "$mode" "$f" 2> /dev/null || true
+  done
+}
+
 backup_and_link "$DOTFILES/.config/gpg/gpg.conf" "$HOME/.gnupg/gpg.conf"
 backup_and_link "$DOTFILES/.config/gpg/gpg-agent.conf" "$HOME/.gnupg/gpg-agent.conf"
-chmod 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf" 2> /dev/null || true
+_chmod_if_regular 600 "$HOME/.gnupg/gpg.conf" "$HOME/.gnupg/gpg-agent.conf"
 backup_and_link "$DOTFILES/.vimrc" "$HOME/.vimrc"
 backup_and_link "$DOTFILES/.config/ssh/config" "$HOME/.ssh/config"
-chmod 600 "$HOME/.ssh/config" 2> /dev/null || true
+_chmod_if_regular 600 "$HOME/.ssh/config"
 
 # WSL: symlink Windows-host SSH keys so headless git/SSH works without manual
 # key management. Robust to:

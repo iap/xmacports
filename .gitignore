@@ -39,3 +39,7 @@ result
 # which must never be published from this repo. Keep them local.
 docs/
 reviews/
+
+# Tool caches
+.ruff_cache/
+__pycache__/
