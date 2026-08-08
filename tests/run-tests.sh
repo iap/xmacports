@@ -73,14 +73,11 @@ run_secrets_tests() {
   fi
 }
 
+# test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
+# are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
+# stays valid, but the `all` path invokes it once via run_config_tests.
 run_bootstrap_idempotency_tests() {
-  echo "Running bootstrap idempotency tests..."
-  if [[ -f "$SCRIPT_DIR/test-bootstrap.sh" ]]; then
-    bash "$SCRIPT_DIR/test-bootstrap.sh"
-  else
-    echo "❌ test-bootstrap.sh not found"
-    return 1
-  fi
+  run_config_tests
 }
 
 run_compliance_tests() {

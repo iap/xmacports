@@ -94,7 +94,41 @@ fi
 rm -f /tmp/bootstrap-test-output-$$.log 2> /dev/null || true
 echo
 
-echo "5. Security permissions"
+echo "5. Backup collision (targets sharing a basename)"
+# ~/.ssh/config and ~/.config/npm/config share the basename "config". A backup
+# that flattens to basename overwrites the first with the second and destroys a
+# real user file. Backups must preserve the target's path under BACKUP_DIR.
+rm -rf "${HOME:?}/.dotfiles-backup-"* 2> /dev/null || true
+rm -f "$HOME/.ssh/config" "$HOME/.config/npm/config"
+mkdir -p "$HOME/.config/npm"
+printf 'REAL-USER-SSH-CONFIG\n' > "$HOME/.ssh/config"
+printf 'REAL-USER-NPM-CONFIG\n' > "$HOME/.config/npm/config"
+if DOTFILES_ROOT="$DOTFILES" bash "$DOTFILES/bootstrap.sh" > /tmp/bootstrap-collision-$$.log 2>&1; then
+  pass "collision run exits 0"
+else
+  fail "collision run did not exit 0"
+fi
+_found_ssh=0
+_found_npm=0
+for _bdir in "$HOME"/.dotfiles-backup-*; do
+  [ -d "$_bdir" ] || continue
+  while IFS= read -r _bf; do
+    case "$(cat "$_bf" 2> /dev/null)" in
+      REAL-USER-SSH-CONFIG) _found_ssh=1 ;;
+      REAL-USER-NPM-CONFIG) _found_npm=1 ;;
+    esac
+  done < <(find "$_bdir" -type f 2> /dev/null)
+done
+if [ "$_found_ssh" -eq 1 ] && [ "$_found_npm" -eq 1 ]; then
+  pass "both same-basename backups preserved (.ssh/config and .config/npm/config)"
+else
+  fail "backup collision lost a file (ssh=$_found_ssh npm=$_found_npm)"
+fi
+rm -f /tmp/bootstrap-collision-$$.log 2> /dev/null || true
+unset _found_ssh _found_npm _bdir _bf
+echo
+
+echo "6. Security permissions"
 # GNU stat -f means --file-system and EXITS 0, so a `stat -f ... || stat -c ...`
 # fallback never reaches the GNU branch on Linux — it captures filesystem info
 # instead of a mode. Detect the implementation, as scripts/audit.sh does.

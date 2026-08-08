@@ -1,8 +1,9 @@
-.PHONY: help bootstrap test clean audit verify shellcheck fmt-check python-lint test-secrets test-compliance sast ci-local
+.PHONY: help bootstrap test clean audit verify status shellcheck fmt-check python-lint test-secrets test-compliance sast ci-local secrets-init secrets-edit secrets-encrypt secrets-decrypt secrets-list
 
 help:
 	@echo "Dotfiles commands:"
 	@echo "  make bootstrap     - link dotfiles into home"
+	@echo "  make status        - show which tracked files are linked into \$$HOME"
 	@echo "  make test          - run dotfiles test suite"
 	@echo "  make verify        - run audit + verification scripts"
 	@echo "  make shellcheck    - run shellcheck on shell scripts"
@@ -12,19 +13,17 @@ help:
 	@echo "  make test-compliance - run compliance checks"
 	@echo "  make sast           - run static analysis / security checks"
 	@echo "  make ci-local       - run .drone.yml locally via 'drone exec' (needs Docker daemon)"
+	@echo "  make secrets-init   - generate the age key and initialise the secret store"
+	@echo "  make secrets-edit   - open the encrypted secrets in \$$EDITOR (via sops)"
+	@echo "  make secrets-encrypt - re-encrypt secrets/secrets.yaml -> secrets.enc.yaml"
+	@echo "  make secrets-decrypt - decrypt secrets.enc.yaml -> secrets/secrets.yaml"
+	@echo "  make secrets-list   - list secret keys in the default namespace"
 
 bootstrap:
 	bash bootstrap.sh
 
-ifeq ($(wildcard tests/run-tests.sh),tests/run-tests.sh)
 test:
 	bash tests/run-tests.sh
-else
-test:
-	bash tests/test-bootstrap.sh
-	bash tests/verify-dotfiles.sh
-	@bash -n bootstrap.sh
-endif
 
 clean:
 	rm -rf "$$HOME/.dotfiles-backup-"*
@@ -34,6 +33,7 @@ audit:
 
 verify:
 	bash scripts/verify-migration.sh
+	bash tests/verify-dotfiles.sh
 	bash scripts/audit.sh
 
 shellcheck:
@@ -53,24 +53,64 @@ fmt-check:
 	fi
 
 python-lint:
-	@if ! command -v uv >/dev/null 2>&1; then \
-		echo "uv not found; install from https://astral.sh/uv"; \
-		echo "Skipping python-lint in CI"; \
+	@if command -v ruff >/dev/null 2>&1; then \
+		ruff check scripts/ && echo "python-lint passed"; \
+	elif command -v uv >/dev/null 2>&1; then \
+		uv tool run ruff check scripts/ && echo "python-lint passed"; \
 	else \
-		uv tool run ruff check scripts/; \
+		echo "ruff/uv not found; install from https://astral.sh/uv"; \
+		echo "Skipping python-lint in CI"; \
 	fi
 
 test-secrets:
 	bash tests/test-secrets.sh
 
+# Secret store management. The implementations live in shared/secrets.sh as
+# shell functions, so each target sources platform.sh (for DOTFILES_ROOT and
+# log_* helpers) then secrets.sh before invoking one.
+SECRETS_SH = set -e; \
+	export DOTFILES_ROOT="$(CURDIR)"; \
+	. "$(CURDIR)/shared/platform.sh"; \
+	. "$(CURDIR)/shared/secrets.sh";
+
+secrets-init:
+	bash scripts/secrets-init.sh
+
+secrets-edit:
+	@bash -c '$(SECRETS_SH) secrets_edit'
+
+secrets-encrypt:
+	@bash -c '$(SECRETS_SH) secrets_encrypt'
+
+secrets-decrypt:
+	@bash -c '$(SECRETS_SH) secrets_decrypt'
+
+secrets-list:
+	@bash -c '$(SECRETS_SH) secret_list "$(NS)"'
+
+# Show which tracked dotfiles are currently linked into $HOME.
+status:
+	@bash -c 'cd "$(CURDIR)"; \
+	for t in .profile .bash_profile .bashrc .zprofile .zshrc .gitconfig \
+	         .gitignore_global .forward .vimrc; do \
+	  p="$$HOME/$$t"; \
+	  if [ -L "$$p" ]; then \
+	    printf "linked    %-22s -> %s\n" "~/$$t" "$$(readlink "$$p")"; \
+	  elif [ -e "$$p" ]; then \
+	    printf "REAL FILE %-22s (not linked)\n" "~/$$t"; \
+	  else \
+	    printf "missing   %-22s\n" "~/$$t"; \
+	  fi; \
+	done'
+
 test-compliance:
 	DOTFILES_ROOT="$(CURDIR)" bash tests/run-tests.sh compliance
 
 sast: shellcheck fmt-check
-	@if command -v uv >/dev/null 2>&1; then \
-		make python-lint; \
+	@if command -v ruff >/dev/null 2>&1 || command -v uv >/dev/null 2>&1; then \
+		$(MAKE) python-lint; \
 	else \
-		echo "uv not found; skipping python-lint in CI"; \
+		echo "ruff/uv not found; skipping python-lint in CI"; \
 	fi
 
 # Run the real .drone.yml pipeline locally via the Drone CLI, so the local run
@@ -78,7 +118,7 @@ sast: shellcheck fmt-check
 # socket). No server token needed — drone exec is fully local.
 ci-local:
 	@if ! command -v drone >/dev/null 2>&1; then \
-		echo "drone CLI not found. Install: download drone_darwin_$(uname -m) from"; \
+		echo "drone CLI not found. Install: download drone_darwin_$$(uname -m) from"; \
 		echo "https://github.com/harness/drone-cli/releases/latest into ~/bin"; \
 		exit 1; \
 	fi
