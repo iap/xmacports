@@ -34,7 +34,7 @@ fi
 echo
 
 echo "Directory permissions (expect 755):"
-find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "./.git*" -print0 | while IFS= read -r -d '' d; do
+find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "*/.git" ! -path "*/.git/*" -print0 | while IFS= read -r -d '' d; do
   p=$(_stat_perm "$d")
   if [ "$p" = "755" ]; then
     printf "✅ %s %s\n" "$p" "$d"
@@ -64,7 +64,7 @@ for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .giti
 done
 find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/*) continue ;;
   esac
   if [ -x "$f" ]; then
     echo "⚠️  $f (executable)"
@@ -73,10 +73,10 @@ done
 echo
 
 echo "Config file permissions (expect 644):"
-for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do
+for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/* | .config/gpg/*) continue ;;
   esac
   p=$(_stat_perm "$DOTFILES_ROOT/$f")
   if [ "$p" = "644" ]; then
@@ -87,7 +87,7 @@ for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .
 done
 find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/*) continue ;;
   esac
   p=$(_stat_perm "$f")
   if [ "$p" = "644" ]; then
