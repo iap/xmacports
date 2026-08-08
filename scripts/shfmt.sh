@@ -24,5 +24,6 @@ done < <(find . -type f \( \
   -name '.profile' -o \
   -name '.zprofile' -o \
   -name '.zshrc' -o \
-  -path './bin/*' \
+  -path './bin/*' -o \
+  -path './.githooks/*' \
   \) -not -path './.git/*' -not -path './.kilo/*' -not -path './node_modules/*' -print0)

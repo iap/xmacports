@@ -34,7 +34,7 @@ fi
 echo
 
 echo "Directory permissions (expect 755):"
-find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "./.git*" -print0 | while IFS= read -r -d '' d; do
+find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "*/.git" ! -path "*/.git/*" -print0 | while IFS= read -r -d '' d; do
   p=$(_stat_perm "$d")
   if [ "$p" = "755" ]; then
     printf "✅ %s %s\n" "$p" "$d"
@@ -64,7 +64,7 @@ for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .giti
 done
 find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/*) continue ;;
   esac
   if [ -x "$f" ]; then
     echo "⚠️  $f (executable)"
@@ -73,10 +73,10 @@ done
 echo
 
 echo "Config file permissions (expect 644):"
-for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .env.mk MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do
+for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/* | .config/gpg/*) continue ;;
   esac
   p=$(_stat_perm "$DOTFILES_ROOT/$f")
   if [ "$p" = "644" ]; then
@@ -87,7 +87,7 @@ for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .
 done
 find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
   case "$f" in
-    .config/gpg/*) continue ;;
+    */.config/gpg/*) continue ;;
   esac
   p=$(_stat_perm "$f")
   if [ "$p" = "644" ]; then
@@ -98,14 +98,20 @@ find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -prin
 done
 echo
 
-echo "Sensitive config permissions (expect 600):"
+echo "Sensitive config permissions (tracked: expect 644):"
+# These are TRACKED repo files, and git only stores 644 or 755 — it cannot
+# represent 600. Asserting 600 here is unsatisfiable for any fresh clone.
+# The old bootstrap chmod'd through the symlink and mutated the tracked file
+# to 600, which made this check "pass" only by corrupting the worktree; that
+# leak is fixed, so assert what git can actually store. The deployed copies in
+# ~/.gnupg are the ones that must be 600, and they are checked separately below.
 for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   p=$(_stat_perm "$DOTFILES_ROOT/$f")
-  if [ "$p" = "600" ]; then
+  if [ "$p" = "644" ]; then
     printf "✅ %s %s\n" "$p" "$f"
   else
-    printf "⚠️  %s %s (expected 600)\n" "${p:-unknown}" "$f"
+    printf "⚠️  %s %s (expected 644)\n" "${p:-unknown}" "$f"
   fi
 done
 echo
@@ -236,6 +242,7 @@ if [ -d "$gnupg_dir" ]; then
     p=$(_stat_perm "$f")
     # Socket files and directories in .gnupg should be 700, regular files 600
     # For symlinks, check the target file permissions
+    _tracked_target=0
     if [ -L "$f" ]; then
       target=$(readlink "$f")
       case "$target" in
@@ -245,12 +252,26 @@ if [ -d "$gnupg_dir" ]; then
       if [ -e "$target_path" ]; then
         p=$(_stat_perm "$target_path")
       fi
+      # A link into the dotfiles repo points at a git-tracked file, and git can
+      # only store 644 or 755 — 600 is unrepresentable. Demanding 600 here is
+      # unsatisfiable and previously "passed" only because bootstrap chmod'd
+      # through the symlink and corrupted the tracked file's mode. Judge these
+      # by what git can actually store; the content is tracked, so not secret.
+      case "$target_path" in
+        "$DOTFILES_ROOT"/*) _tracked_target=1 ;;
+      esac
     fi
     if [ -S "$f" ] || [ -d "$f" ]; then
       if [ "$p" = "700" ]; then
         echo "✅ $f 700 (socket/dir)"
       else
         echo "⚠️  $f ${p:-unknown} (expected 700 for socket/dir)"
+      fi
+    elif [ "$_tracked_target" -eq 1 ]; then
+      if [ "$p" = "644" ]; then
+        echo "✅ $f 644 (tracked repo file)"
+      else
+        echo "⚠️  $f ${p:-unknown} (expected 644 for tracked repo file)"
       fi
     else
       if [ "$p" = "600" ]; then
