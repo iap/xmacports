@@ -220,6 +220,20 @@ The bootstrap flow:
 
 The bootstrap must stay idempotent. Running it twice should not duplicate backups or corrupt existing links.
 
+## Git Hooks
+
+`bootstrap.sh` points `core.hooksPath` at `.githooks/`.
+
+- `pre-commit` — format/lint checks and secret detection.
+- `pre-push` — refuses to push a topic branch to a non-authoritative remote.
+
+The `pre-push` hook resolves the authoritative remote from your own clone's
+config (`branch.<default>.remote`); it hardcodes no host or remote name. It
+exits immediately on a single-remote clone, so it is a no-op unless you have
+several remotes and one of them is a mirror. Pushing the default branch or
+tags to a mirror is still allowed, so mirror syncing keeps working. Override
+with `git push --no-verify`.
+
 ## NixOS / WSL Notes
 
 This repo is shell- and file-based, so it works on NixOS and WSL, but the

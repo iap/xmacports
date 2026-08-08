@@ -1,0 +1,62 @@
+#!/bin/sh
+# Pre-push hook: block topic-branch pushes to a mirror remote.
+#
+# Derives everything from the CLONE's own git config — it hardcodes no host,
+# no remote name, and no topology. On a single-remote clone it exits
+# immediately, so it is a no-op for most contributors.
+#
+# Rationale: when a repo has a mirror remote alongside its authoritative one,
+# pushing a topic branch to the mirror is wrong (the mirror is not a review
+# target, and an automatic mirror may replicate the branch back anyway).
+#
+# Bypass, if ever needed: git push --no-verify
+
+set -e
+
+remote="$1"
+
+# Pushing by URL rather than by remote name: nothing to resolve.
+[ -n "$remote" ] || exit 0
+case "$remote" in
+  *://* | *@*:*) exit 0 ;;
+esac
+
+# Single remote => no ambiguity possible.
+[ "$(git remote | grep -c .)" -gt 1 ] || exit 0
+
+# Authoritative remote = the one the default branch tracks. A topic branch's
+# own upstream is unreliable here: it records wherever it was last pushed,
+# which is exactly the value a mis-push corrupts.
+default_branch=""
+for b in main master trunk; do
+  if git show-ref --verify --quiet "refs/heads/$b"; then
+    default_branch="$b"
+    break
+  fi
+done
+[ -n "$default_branch" ] || exit 0
+
+authoritative=$(git config "branch.$default_branch.remote" 2> /dev/null || true)
+[ -n "$authoritative" ] || exit 0
+
+# Pushing to the authoritative remote is always fine.
+[ "$remote" = "$authoritative" ] && exit 0
+
+# Non-authoritative remote: allow default-branch and tag syncing, block topic
+# branches. stdin lines are: <local ref> <local oid> <remote ref> <remote oid>
+while read -r _localref _localoid remoteref _remoteoid; do
+  [ -n "$remoteref" ] || continue
+  case "$remoteref" in
+    "refs/heads/$default_branch" | refs/tags/*) continue ;;
+  esac
+
+  branch=${remoteref#refs/heads/}
+  echo "ERROR: refusing to push '$branch' to non-authoritative remote '$remote'." >&2
+  echo "       '$authoritative' is authoritative (branch.$default_branch.remote)." >&2
+  echo "       Topic branches and reviews belong there; '$remote' may be a mirror." >&2
+  echo "       Use: git push $authoritative $branch" >&2
+  echo "       Override (rare): git push --no-verify $remote $branch" >&2
+  exit 1
+done
+
+exit 0

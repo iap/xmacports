@@ -73,6 +73,16 @@ run_secrets_tests() {
   fi
 }
 
+run_hook_tests() {
+  echo "Running git hook tests..."
+  if [[ -f "$SCRIPT_DIR/test-pre-push-hook.sh" ]]; then
+    bash "$SCRIPT_DIR/test-pre-push-hook.sh"
+  else
+    echo "❌ test-pre-push-hook.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -98,6 +108,9 @@ main() {
       ;;
     "secrets")
       check_prerequisites && run_secrets_tests
+      ;;
+    "hooks")
+      check_prerequisites && run_hook_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -134,7 +147,14 @@ main() {
       sec_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0)); then
+      echo "4. Git Hook Tests"
+      echo
+
+      run_hook_tests
+      hook_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
@@ -149,6 +169,7 @@ main() {
       echo "  config      Run configuration tests only"
       echo "  functions   Run function tests only"
       echo "  secrets     Run secret management tests only"
+      echo "  hooks       Run git hook tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"
