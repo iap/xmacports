@@ -16,12 +16,12 @@ if [[ -f /proc/version ]] && grep -qiE '(microsoft|wsl)' /proc/version 2> /dev/n
   _DOT_PLATFORM_WSL=1
 fi
 
-# Resolve the runtime/lock directory once, consistently. Honors XDG_RUNTIME_HOME
+# Resolve the runtime/lock directory once, consistently. Honors XDG_RUNTIME_DIR
 # (set by systemd/NixOS) and requires it to be writable; falls back to /tmp.
 # Mirrors scripts/verify-migration.sh.
 _dotfiles_lock_dir() {
-  if [[ -n "${XDG_RUNTIME_HOME:-}" && -w "${XDG_RUNTIME_HOME:-}" ]]; then
-    printf '%s/.dotfiles\n' "$XDG_RUNTIME_HOME"
+  if [[ -n "${XDG_RUNTIME_DIR:-}" && -w "${XDG_RUNTIME_DIR:-}" ]]; then
+    printf '%s/.dotfiles\n' "$XDG_RUNTIME_DIR"
   else
     printf '/tmp\n'
   fi
