@@ -39,7 +39,7 @@ git_prompt_info() {
   else
     dir_hash="$(printf '%s' "$PWD" | cksum | cut -c1-16)"
   fi
-  local cache_file="${SHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/shell/git_status_${dir_hash}}"
+  local cache_file="${SHELL_CACHE_DIR:-${XDG_CACHE_HOME:-$HOME/.cache}/shell}/git_status_${dir_hash}"
   local cache_timeout="${GIT_PROMPT_CACHE_TIMEOUT:-5}"
 
   local cache_mtime=0

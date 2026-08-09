@@ -5,8 +5,8 @@ DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 TARGET="${1:-$HOME}"
 
 _LOCK_DIR=""
-if [ -n "${XDG_RUNTIME_HOME:-}" ] && [ -w "${XDG_RUNTIME_HOME:-}" ]; then
-  _LOCK_DIR="${XDG_RUNTIME_HOME}/.dotfiles"
+if [ -n "${XDG_RUNTIME_DIR:-}" ] && [ -w "${XDG_RUNTIME_DIR:-}" ]; then
+  _LOCK_DIR="${XDG_RUNTIME_DIR}/.dotfiles"
 else
   _LOCK_DIR="/tmp"
 fi

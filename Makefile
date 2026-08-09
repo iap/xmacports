@@ -71,6 +71,7 @@ test-secrets:
 SECRETS_SH = set -e; \
 	export DOTFILES_ROOT="$(CURDIR)"; \
 	. "$(CURDIR)/shared/platform.sh"; \
+	. "$(CURDIR)/shared/functions.sh"; \
 	. "$(CURDIR)/shared/secrets.sh";
 
 secrets-init:

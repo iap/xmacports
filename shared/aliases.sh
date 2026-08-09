@@ -40,12 +40,8 @@ if [[ -n "${BASH_VERSION:-}" ]]; then
 # zsh: ignore lines starting with space + patterns
 elif [[ -n "${ZSH_VERSION:-}" ]]; then
   setopt HIST_IGNORE_SPACE
-  HISTORY_IGNORE="${HISTORY_IGNORE:+$HISTORY_IGNORE
-|}export *
-secret *
-*TOKEN*
-*SECRET*
-*API_KEY*"
+  setopt EXTENDED_GLOB
+  HISTORY_IGNORE="(${HISTORY_IGNORE:+$HISTORY_IGNORE|}export *|secret *|*TOKEN*|*SECRET*|*API_KEY*)"
 fi
 
 # mask a value for safe display (never reveals the secret)

@@ -83,6 +83,18 @@ run_hook_tests() {
   fi
 }
 
+# Revert-check harness for the review-findings fixes. Asserts each verified
+# bug is actually fixed and that no false-positive regression was introduced.
+run_review_fix_tests() {
+  echo "Running review-fix verification tests..."
+  if [[ -f "$SCRIPT_DIR/test-review-fixes.sh" ]]; then
+    bash "$SCRIPT_DIR/test-review-fixes.sh"
+  else
+    echo "❌ test-review-fixes.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -111,6 +123,9 @@ main() {
       ;;
     "hooks")
       check_prerequisites && run_hook_tests
+      ;;
+    "review-fixes")
+      check_prerequisites && run_review_fix_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -154,7 +169,14 @@ main() {
       hook_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0)); then
+      echo "5. Review-Fix Verification Tests"
+      echo
+
+      run_review_fix_tests
+      review_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi

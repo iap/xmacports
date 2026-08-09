@@ -46,6 +46,14 @@ authoritative=$(git config "branch.$default_branch.remote" 2> /dev/null || true)
 # branches. stdin lines are: <local ref> <local oid> <remote ref> <remote oid>
 while read -r _localref _localoid remoteref _remoteoid; do
   [ -n "$remoteref" ] || continue
+  # A delete ref has an all-zero LOCAL oid (the source ref is being removed);
+  # allow branch/tag deletions on any remote. A new-branch push has a real
+  # local oid but a zero REMOTE oid — that must still be blocked as a topic
+  # push, so we key the allow only on the local oid.
+  _lo=${_localoid# }
+  case "$_lo" in
+    '' | 0000000000000000000000000000000000000000) continue ;;
+  esac
   case "$remoteref" in
     "refs/heads/$default_branch" | refs/tags/*) continue ;;
   esac

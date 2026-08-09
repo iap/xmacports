@@ -39,10 +39,15 @@ if has_cmd nproc; then
   MAKE_JOBS=$(nproc 2> /dev/null || echo 2)
 elif [[ -f /proc/cpuinfo ]]; then
   MAKE_JOBS=$(grep -c ^processor /proc/cpuinfo 2> /dev/null || echo 2)
+elif command -v sysctl > /dev/null 2>&1; then
+  MAKE_JOBS=$(sysctl -n hw.ncpu 2> /dev/null || echo 2)
 else
   MAKE_JOBS=2
 fi
-export MAKEFLAGS="-j$MAKE_JOBS"
+# Never clobber a user-supplied MAKEFLAGS.
+if [[ -z "${MAKEFLAGS:-}" ]]; then
+  export MAKEFLAGS="-j$MAKE_JOBS"
+fi
 
 # --- Foundry (Ethereum) - optional ---
 export FOUNDRY_BIN_PATH="${FOUNDRY_BIN_PATH:-}"

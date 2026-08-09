@@ -111,8 +111,10 @@ gitstat() {
   changes="$(git status --porcelain)"
   echo "REPO: $(basename "$root")"
   echo "BRANCH: $(git branch --show-current)"
-  echo "CHANGES: $(echo "$changes" | grep -c . 2> /dev/null || echo 0)"
-  [ -n "$changes" ] && echo "$changes" | head -5
+  echo "CHANGES: $(echo "$changes" | grep -c . 2> /dev/null || true)"
+  if [ -n "$changes" ]; then
+    echo "$changes" | head -5
+  fi
 }
 
 envinfo() {
