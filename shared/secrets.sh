@@ -60,8 +60,10 @@ _sops_encrypt() {
     fi
   done
   sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
+  local rc=$?
   rmdir "$lockdir" 2> /dev/null || true
   trap - EXIT
+  return "$rc"
 }
 
 _secrets_cache_get() {
@@ -191,6 +193,9 @@ secrets_decrypt() {
     log_warn "sops not found; install sops first"
     return 1
   fi
+  # Create the plaintext working copy with a tight umask so the temp file and
+  # the file moved into place are never group/world-readable, even briefly.
+  umask 077
   local decrypted
   decrypted=$(_sops_decrypt) || return 1
   [ -z "$decrypted" ] && {
@@ -220,7 +225,10 @@ secrets_encrypt() {
     log_warn "plaintext secrets file not found: $_SECRETS_PLAIN_FILE"
     return 1
   fi
-  _sops_encrypt
+  _sops_encrypt || {
+    log_warn "failed to encrypt secrets; ciphertext not updated"
+    return 1
+  }
   _secrets_cache_reset
   log_info "encrypted secrets -> $_SECRETS_ENC_FILE"
 }

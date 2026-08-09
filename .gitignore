@@ -13,6 +13,14 @@
 # Backup/snapshot dirs
 .dotfiles-backup-*
 
+# Editor / hook leftovers — keep these out of the repo on fresh clones too
+# (not just via the machine-local ~/.gitignore_global).
+*.bak
+*.orig
+*.tmp
+*.save
+*~
+
 # Secrets cache
 .secrets.json
 .secrets/*

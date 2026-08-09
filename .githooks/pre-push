@@ -15,10 +15,31 @@ set -e
 
 remote="$1"
 
-# Pushing by URL rather than by remote name: nothing to resolve.
+# Nothing supplied: cannot decide.
 [ -n "$remote" ] || exit 0
+
+# A push may be given as a URL instead of a remote name (e.g.
+# `git push git@github.com:iap/xmacports.git my-topic`). Resolve the URL back
+# to its configured remote name so the policy below still applies — otherwise
+# the guard would be trivially bypassed by naming the mirror's URL directly.
 case "$remote" in
-  *://* | *@*:*) exit 0 ;;
+  *://* | *@*:*)
+    _resolved=""
+    for r in $(git remote); do
+      _url=$(git remote get-url "$r" 2> /dev/null || true)
+      [ "$_url" = "$remote" ] && {
+        _resolved="$r"
+        break
+      }
+    done
+    if [ -n "$_resolved" ]; then
+      remote="$_resolved"
+    else
+      # Unknown URL with no matching remote: treat as a non-authoritative
+      # push and let the rest of the policy decide (don't silently exit 0).
+      :
+    fi
+    ;;
 esac
 
 # Single remote => no ambiguity possible.
@@ -49,10 +70,13 @@ while read -r _localref _localoid remoteref _remoteoid; do
   # A delete ref has an all-zero LOCAL oid (the source ref is being removed);
   # allow branch/tag deletions on any remote. A new-branch push has a real
   # local oid but a zero REMOTE oid — that must still be blocked as a topic
-  # push, so we key the allow only on the local oid.
-  _lo=${_localoid# }
+  # push, so we key the allow only on the local oid. The null oid is 40 zeros
+  # on SHA-1 repos and 64 on SHA-256; accept any all-zero length.
+  _lo="$_localoid"
   case "$_lo" in
-    '' | 0000000000000000000000000000000000000000) continue ;;
+    '') continue ;;
+    *[!0]*) ;;     # contains a non-zero digit -> real object, evaluate below
+    *) continue ;; # all zeros -> deletion, allow
   esac
   case "$remoteref" in
     "refs/heads/$default_branch" | refs/tags/*) continue ;;

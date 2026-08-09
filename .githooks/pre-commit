@@ -24,11 +24,18 @@ if command -v shellcheck > /dev/null 2>&1; then
   fi
 fi
 
-# Block common private key files by name
+# Block private key / secret files by name.
+# The repo's own convention is keys/*.asc (public key today, but a
+# --export-secret-keys into the same path would publish the signing key), so
+# .asc/.gpg/.pgp/.ppk/.der are all blocked. The SOPS age master key
+# (~/.config/sops/age/keys.txt) decrypts the entire secret store and must
+# never be committed.
 while IFS= read -r f; do
   case "$f" in
-    *.key | *.pem | *.p12 | *.pfx | *.kdb | *.keystore | *.jks)
-      reject "Possible private key/keystore detected: $f"
+    *.key | *.pem | *.p12 | *.pfx | *.kdb | *.keystore | *.jks | \
+      *.asc | *.gpg | *.pgp | *.ppk | *.der | \
+      keys.txt | *age*key*)
+      reject "Possible private key/secret detected by name: $f"
       ;;
     id_rsa | id_dsa | id_ecdsa | id_ed25519 | id_ed25519_sk | id_rsa_* | id_ecdsa_* | id_dsa_*)
       reject "SSH private key detected: $f"
@@ -44,7 +51,7 @@ while IFS= read -r f; do
       ;;
     *.enc.yaml | *.enc.json | *.enc)
       :
-      ;; # Other encrypted files — assume valid if named correctly
+      ;; # Other encrypted files — verify the ciphertext marker below
     *.env | .env.* | *secret*.yaml | *secret*.yml | *secret*.json | *secret)
       reject "Plaintext secrets file detected: $f"
       ;;
@@ -53,28 +60,45 @@ done << EOF
 $staged_files
 EOF
 
-# Verify staged SOPS encrypted files are actually encrypted
-if command -v sops > /dev/null 2>&1; then
-  while IFS= read -r f; do
-    case "$f" in
-      secrets/*.enc.yaml | *.enc.yaml)
-        if ! sops -d "$f" > /dev/null 2>&1; then
-          reject "SOPS encrypted file appears to be plaintext: $f (decryption failed)"
-        fi
-        ;;
-    esac
-  done << EOF
-$(git diff --cached --name-only --diff-filter=ACM)
-EOF
-fi
+# Files to content-scan: everything staged EXCEPT the hook directory itself.
+# The hooks contain their own detection/signature strings (e.g. the age-key
+# and private-key patterns below), so scanning them would make the hook reject
+# its own source on every edit. Hook files are not secret stores.
+_scan_files=$(git diff --cached --name-only --diff-filter=ACM | grep -v '^\.githooks/' || true)
 
-# Block PEM/OPENSSH private key content
-if git diff --cached --unified=0 | grep -E "BEGIN (OPENSSH|RSA|DSA|EC|PRIVATE) KEY" > /dev/null; then
+# Verify staged SOPS encrypted files are actually ciphertext — by inspecting the
+# STAGED BLOB, never the worktree. This is fail-CLOSED and needs no sops binary
+# or decryption key, so it works for every contributor and cannot be bypassed by
+# restoring the encrypted file on disk after `git add`.
+while IFS= read -r f; do
+  [ -n "$f" ] || continue
+  case "$f" in
+    secrets/*.enc.yaml | *.enc.yaml | *.enc.json | *.enc)
+      if ! git show ":$f" 2> /dev/null | grep -q 'ENC\[AES256_GCM'; then
+        reject "SOPS encrypted file is not valid ciphertext: $f (missing ENC[AES256_GCM marker)"
+      fi
+      ;;
+  esac
+done << EOF
+$_scan_files
+EOF
+
+# Block PEM/OPENSSH/PGP private key CONTENT. Real headers are e.g.
+# "-----BEGIN OPENSSH PRIVATE KEY-----" / "-----BEGIN RSA PRIVATE KEY-----";
+# the old alternation "BEGIN (...|PRIVATE) KEY" only matched the impossible
+# "BEGIN OPENSSH KEY" and let every real key through.
+if [ -n "$_scan_files" ] && echo "$_scan_files" | while read -r f; do git diff --cached --unified=0 -- "$f"; done | grep -Eq -- '-----BEGIN [A-Z0-9 ]*PRIVATE KEY( BLOCK)?-----'; then
   reject "Private key content detected in staged diff"
 fi
 
-# Block common API token patterns (best-effort)
-if git diff --cached --unified=0 | grep -E "(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|AIzaSy[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{80,}|xox[baprs]-[0-9A-Za-z-]{10,}|sk-[0-9A-Za-z]{20,})" > /dev/null; then
+# Block SOPS age master key content (decrypts the whole store).
+if [ -n "$_scan_files" ] && echo "$_scan_files" | while read -r f; do git diff --cached --unified=0 -- "$f"; done | grep -Eq -- 'AGE-SECRET-KEY-1[0-9A-Z]{50,}'; then
+  reject "SOPS age master key detected in staged diff"
+fi
+
+# Block common API token patterns (best-effort). Includes GitLab PATs
+# (glpat-…) because origin is GitLab and the store holds gitlab_token.
+if [ -n "$_scan_files" ] && echo "$_scan_files" | while read -r f; do git diff --cached --unified=0 -- "$f"; done | grep -Eq -- '(AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}|AIzaSy[0-9A-Za-z_-]{35}|ghp_[0-9A-Za-z]{36}|github_pat_[0-9A-Za-z_]{80,}|gh[opusr]_[0-9A-Za-z]{36,}|glpat-[0-9A-Za-z_-]{20,}|sk-(proj-)?[0-9A-Za-z_-]{20,}|xox[baprs]-[0-9A-Za-z-]{10,})'; then
   reject "Possible API token detected in staged diff"
 fi
 
