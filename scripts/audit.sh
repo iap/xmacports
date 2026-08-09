@@ -6,6 +6,18 @@ set -eu
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
+# Findings must fail the build, not just print. Every ⚠️ below calls
+# _flag_fail; the script exits 1 at the end if the counter is non-zero.
+_audit_fail=0
+_flag_fail() { _audit_fail=$((_audit_fail + 1)); }
+
+# Loops that consume this must run in the CURRENT shell (process
+# substitution, not a pipe) or _flag_fail increments are lost in a subshell.
+_find_config_files() {
+  [ -d "$DOTFILES_ROOT/.config" ] || return 0
+  find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0
+}
+
 _stat_perm() {
   if stat --version > /dev/null 2>&1; then
     stat -c '%a' "$1" 2> /dev/null || true
@@ -30,18 +42,20 @@ if [ "$home_perms" = "711" ]; then
   echo "✅ Home permissions: 711"
 else
   echo "⚠️  Home permissions: ${home_perms:-unknown} (expected 711)"
+  _flag_fail
 fi
 echo
 
 echo "Directory permissions (expect 755):"
-find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "*/.git" ! -path "*/.git/*" -print0 | while IFS= read -r -d '' d; do
+while IFS= read -r -d '' d; do
   p=$(_stat_perm "$d")
   if [ "$p" = "755" ]; then
     printf "✅ %s %s\n" "$p" "$d"
   else
     printf "⚠️  %s %s (expected 755)\n" "${p:-unknown}" "$d"
+    _flag_fail
   fi
-done
+done < <(find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "*/.git" ! -path "*/.git/*" -print0)
 echo
 
 echo "Executable scripts (expect +x):"
@@ -51,6 +65,7 @@ for f in "$DOTFILES_ROOT"/bootstrap.sh "$DOTFILES_ROOT/bin/"*.sh "$DOTFILES_ROOT
     echo "✅ $f"
   else
     echo "⚠️  $f (not executable)"
+    _flag_fail
   fi
 done
 echo
@@ -60,16 +75,18 @@ for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .giti
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   if [ -x "$DOTFILES_ROOT/$f" ]; then
     echo "⚠️  $f (executable)"
+    _flag_fail
   fi
 done
-find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
+while IFS= read -r -d '' f; do
   case "$f" in
     */.config/gpg/*) continue ;;
   esac
   if [ -x "$f" ]; then
     echo "⚠️  $f (executable)"
+    _flag_fail
   fi
-done
+done < <(_find_config_files)
 echo
 
 echo "Config file permissions (expect 644):"
@@ -83,9 +100,10 @@ for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .
     printf "✅ %s %s\n" "$p" "$f"
   else
     printf "⚠️  %s %s (expected 644)\n" "${p:-unknown}" "$f"
+    _flag_fail
   fi
 done
-find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -print0 | while IFS= read -r -d '' f; do
+while IFS= read -r -d '' f; do
   case "$f" in
     */.config/gpg/*) continue ;;
   esac
@@ -94,8 +112,9 @@ find "$DOTFILES_ROOT/.config" -type f \( -name "*.sh" -o -name "*.conf" \) -prin
     printf "✅ %s %s\n" "$p" "$f"
   else
     printf "⚠️  %s %s (expected 644)\n" "${p:-unknown}" "$f"
+    _flag_fail
   fi
-done
+done < <(_find_config_files)
 echo
 
 echo "Sensitive config permissions (tracked: expect 644):"
@@ -112,6 +131,7 @@ for f in .config/gpg/gpg.conf .config/gpg/gpg-agent.conf; do
     printf "✅ %s %s\n" "$p" "$f"
   else
     printf "⚠️  %s %s (expected 644)\n" "${p:-unknown}" "$f"
+    _flag_fail
   fi
 done
 echo
@@ -133,6 +153,7 @@ for f in "$DOTFILES_ROOT"/secrets/*.yaml; do
   else
     printf "⚠️  %s secrets/%s (expected 600 — world/group readable plaintext)\n" \
       "${p:-unknown}" "$(basename "$f")"
+    _flag_fail
   fi
 done
 [ "$_secrets_found" -eq 0 ] && echo "ℹ️  no decrypted secrets present"
@@ -144,22 +165,28 @@ gnupg_dir="$HOME/.gnupg" ssh_dir="$HOME/.ssh" dotfiles_dir="$HOME/.dotfiles"
 
 if [ -d "$dotfiles_dir" ]; then
   owner=$(stat -c %U "$dotfiles_dir" 2> /dev/null || stat -f %Su "$dotfiles_dir" 2> /dev/null || echo unknown)
-  other_write=""
-  group_write=""
+  other_write="no"
+  group_write="no"
   perm=$(_stat_perm "$dotfiles_dir")
+  # Parse the permission octal by BIT, not by digit-glob. The old
+  # `*?[26]` / `*2?*|*6?*` globs false-negatived on 777, 2777 and 757.
+  # Take the low 3 digits as the mode, then test the write bit (2) of the
+  # group and other digits. Guard against a non-numeric/empty stat result.
   case "$perm" in
-    *?[26]) other_write="yes" ;;
+    *[!0-7]* | "") mode=0 ;;
+    *) mode=$((10#$perm % 1000)) ;;
   esac
-  case "$perm" in
-    *2?* | *6?*) group_write="yes" ;;
-  esac
+  if [ $((mode % 10 & 2)) -ne 0 ]; then other_write="yes"; fi
+  if [ $(((mode / 10) % 10 & 2)) -ne 0 ]; then group_write="yes"; fi
   if [ "$owner" = "$USER" ] && [ "$group_write" != "yes" ] && [ "$other_write" != "yes" ]; then
     echo "✅ $dotfiles_dir owned by $USER and not group/world-writable"
   else
     echo "⚠️  $dotfiles_dir ownership/perms ($owner, $perm) should be owned by $USER and not group/world-writable"
+    _audit_fail=$((_audit_fail + 1))
   fi
 else
   echo "⚠️  $dotfiles_dir missing"
+  _flag_fail
 fi
 
 if [ -d "$ssh_dir" ]; then
@@ -219,6 +246,7 @@ if [ -d "$ssh_dir" ]; then
   done
 else
   echo "⚠️  $ssh_dir missing"
+  _flag_fail
 fi
 
 if [ -d "$gnupg_dir" ]; then
@@ -283,4 +311,13 @@ if [ -d "$gnupg_dir" ]; then
   done
 else
   echo "⚠️  $gnupg_dir missing"
+  _flag_fail
 fi
+
+# Any ⚠️ finding above makes this a failed audit.
+if [ "$_audit_fail" -gt 0 ]; then
+  echo
+  echo "Audit FAILED: $_audit_fail finding(s)."
+  exit 1
+fi
+exit 0

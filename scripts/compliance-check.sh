@@ -13,7 +13,10 @@ log_check() {
   local timestamp
   timestamp=$(date '+%Y-%m-%d %H:%M:%S')
   echo "[$timestamp] $status: $message" | tee -a "$COMPLIANCE_LOG"
+  if [ "$status" = "FAIL" ]; then _fail=$((_fail + 1)); fi
 }
+
+_fail=0
 
 echo "System Rules Compliance Check"
 
@@ -89,3 +92,5 @@ else
 fi
 
 echo "Compliance check complete. Log: $COMPLIANCE_LOG"
+[ "$_fail" -gt 0 ] && exit 1
+exit 0
