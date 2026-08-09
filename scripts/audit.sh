@@ -71,7 +71,14 @@ done
 echo
 
 echo "Non-executable configs (should not be +x):"
-for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .zshrc.d/*.sh shared/*.sh; do
+for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
+  # $DOTFILES_ROOT-prefixed globs expand against the repo root, so the check
+  # runs correctly regardless of where the audit is invoked from (CI workdir,
+  # DOTFILES_ROOT override, direct invocation). Non-prefixed entries are
+  # re-prefixed inside the loop body.
+  case "$f" in
+    "$DOTFILES_ROOT"/*) f="${f#"$DOTFILES_ROOT"/}" ;;
+  esac
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   if [ -x "$DOTFILES_ROOT/$f" ]; then
     echo "⚠️  $f (executable)"
@@ -90,7 +97,10 @@ done < <(_find_config_files)
 echo
 
 echo "Config file permissions (expect 644):"
-for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward MANUAL.md README.md .zshrc.d/*.sh shared/*.sh; do
+for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward MANUAL.md README.md "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
+  case "$f" in
+    "$DOTFILES_ROOT"/*) f="${f#"$DOTFILES_ROOT"/}" ;;
+  esac
   [ -e "$DOTFILES_ROOT/$f" ] || continue
   case "$f" in
     */.config/gpg/* | .config/gpg/*) continue ;;
@@ -195,6 +205,7 @@ if [ -d "$ssh_dir" ]; then
     echo "✅ $ssh_dir 700"
   else
     echo "⚠️  $ssh_dir ${p:-unknown} (expected 700)"
+    _audit_fail=$((_audit_fail + 1))
   fi
   for f in "$ssh_dir"/config "$ssh_dir"/config.local; do
     [ -e "$f" ] || continue
@@ -206,6 +217,7 @@ if [ -d "$ssh_dir" ]; then
         echo "✅ $f -> $target $p"
       else
         echo "⚠️  $f -> $target ${p:-unknown} (expected 600 or 644)"
+        _audit_fail=$((_audit_fail + 1))
       fi
     else
       p=$(_stat_perm "$f")
@@ -213,6 +225,7 @@ if [ -d "$ssh_dir" ]; then
         echo "✅ $f 600"
       else
         echo "⚠️  $f ${p:-unknown} (expected 600)"
+        _audit_fail=$((_audit_fail + 1))
       fi
     fi
   done
@@ -223,6 +236,7 @@ if [ -d "$ssh_dir" ]; then
       echo "✅ $f $p"
     else
       echo "⚠️  $f ${p:-unknown} (expected 600 or 644)"
+      _audit_fail=$((_audit_fail + 1))
     fi
   done
   for f in "$ssh_dir"/*.pub; do
@@ -232,6 +246,7 @@ if [ -d "$ssh_dir" ]; then
       echo "✅ $f $p"
     else
       echo "⚠️  $f ${p:-unknown} (expected 600 or 644)"
+      _audit_fail=$((_audit_fail + 1))
     fi
   done
   for f in "$ssh_dir"/id_* "$ssh_dir"/*_rsa "$ssh_dir"/*_ed25519 "$ssh_dir"/*_ecdsa; do
@@ -241,7 +256,8 @@ if [ -d "$ssh_dir" ]; then
     if [ "$p" = "600" ]; then
       echo "✅ $f 600"
     else
-      echo "⚠️  $f ${p:-unknown} (expected 600)"
+      echo "⚠️  $f ${p:-unknown} (expected 600 — private key is world/group readable)"
+      _audit_fail=$((_audit_fail + 1))
     fi
   done
 else
@@ -255,6 +271,7 @@ if [ -d "$gnupg_dir" ]; then
     echo "✅ $gnupg_dir 700"
   else
     echo "⚠️  $gnupg_dir ${p:-unknown} (expected 700)"
+    _audit_fail=$((_audit_fail + 1))
   fi
   if [ -f "$gnupg_dir/pubring.kbx" ]; then
     p=$(_stat_perm "$gnupg_dir/pubring.kbx")
@@ -262,14 +279,13 @@ if [ -d "$gnupg_dir" ]; then
       echo "✅ $gnupg_dir/pubring.kbx 644"
     else
       echo "⚠️  $gnupg_dir/pubring.kbx ${p:-unknown} (expected 644)"
+      _audit_fail=$((_audit_fail + 1))
     fi
   fi
   for f in "$gnupg_dir"/*; do
     [ -e "$f" ] || continue
     [ "$f" = "$gnupg_dir/pubring.kbx" ] && continue
     p=$(_stat_perm "$f")
-    # Socket files and directories in .gnupg should be 700, regular files 600
-    # For symlinks, check the target file permissions
     _tracked_target=0
     if [ -L "$f" ]; then
       target=$(readlink "$f")
@@ -280,11 +296,6 @@ if [ -d "$gnupg_dir" ]; then
       if [ -e "$target_path" ]; then
         p=$(_stat_perm "$target_path")
       fi
-      # A link into the dotfiles repo points at a git-tracked file, and git can
-      # only store 644 or 755 — 600 is unrepresentable. Demanding 600 here is
-      # unsatisfiable and previously "passed" only because bootstrap chmod'd
-      # through the symlink and corrupted the tracked file's mode. Judge these
-      # by what git can actually store; the content is tracked, so not secret.
       case "$target_path" in
         "$DOTFILES_ROOT"/*) _tracked_target=1 ;;
       esac
@@ -294,18 +305,21 @@ if [ -d "$gnupg_dir" ]; then
         echo "✅ $f 700 (socket/dir)"
       else
         echo "⚠️  $f ${p:-unknown} (expected 700 for socket/dir)"
+        _audit_fail=$((_audit_fail + 1))
       fi
     elif [ "$_tracked_target" -eq 1 ]; then
       if [ "$p" = "644" ]; then
         echo "✅ $f 644 (tracked repo file)"
       else
         echo "⚠️  $f ${p:-unknown} (expected 644 for tracked repo file)"
+        _audit_fail=$((_audit_fail + 1))
       fi
     else
       if [ "$p" = "600" ]; then
         echo "✅ $f 600"
       else
-        echo "⚠️  $f ${p:-unknown} (expected 600)"
+        echo "⚠️  $f ${p:-unknown} (expected 600 — secret material is world/group readable)"
+        _audit_fail=$((_audit_fail + 1))
       fi
     fi
   done

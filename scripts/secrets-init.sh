@@ -58,6 +58,16 @@ else
     # pattern silently no-op'd on indented files and would have broken the YAML
     # even if it had matched.
     if ! grep -q "age: $PUBLIC_KEY" "$SOPS_YAML"; then
+      # Refuse to silently rewrite a .sops.yaml that already lists more than one
+      # recipient. The unanchored sed below would drop every OTHER recipient and
+      # leave the ciphertext unre-encryptable for other machines. If multiple
+      # recipients are expected, add them explicitly with `sops updatekeys`.
+      _recipient_count=$(grep -cE '^[[:space:]]*age: age1' "$SOPS_YAML" 2> /dev/null || echo 0)
+      if [ "${_recipient_count:-0}" -gt 1 ]; then
+        echo "❌ $SOPS_YAML lists $_recipient_count age recipients; refusing to" >&2
+        echo "   overwrite them. Add the new key with: sops updatekeys $SECRETS_ENC" >&2
+        exit 1
+      fi
       echo "Updating .sops.yaml with generated public key..."
       sed -E "s/([[:space:]]*)age: age1[^[:space:]]*/\1age: $PUBLIC_KEY/" "$SOPS_YAML" > "$SOPS_YAML.tmp"
       mv "$SOPS_YAML.tmp" "$SOPS_YAML"
@@ -83,9 +93,14 @@ if [ -f "$SECRETS_ENC" ] && [ -s "$SECRETS_ENC" ]; then
   echo "⚠️  Encrypted secrets file already exists: $SECRETS_ENC"
   echo "   Use 'make secrets-encrypt' to re-encrypt after editing $SECRETS_PLAIN"
 else
+  # Tighten the umask up front so any plaintext we create (from the example or
+  # an existing file) is 0600 from the moment it exists, not 0644 under the
+  # caller's default umask. The chmod below is a belt-and-suspenders fallback.
+  umask 077
   if [ -f "$SECRETS_EXAMPLE" ] && [ ! -f "$SECRETS_PLAIN" ]; then
     echo "Creating initial secrets.yaml from example..."
     cp "$SECRETS_EXAMPLE" "$SECRETS_PLAIN"
+    chmod 600 "$SECRETS_PLAIN"
   fi
   if [ -f "$SECRETS_PLAIN" ]; then
     echo "Encrypting initial secrets..."
@@ -94,7 +109,7 @@ else
     echo "   -> $SECRETS_ENC"
     echo
     echo "✅ Encrypted secrets committed to git. Decrypted copy at:"
-    echo "   $SECRETS_PLAIN (gitignored)"
+    echo "   $SECRETS_PLAIN (gitignored, mode 600)"
   else
     echo "No plaintext secrets found. Create secrets/secrets.yaml and run:"
     echo "   make secrets-encrypt"
