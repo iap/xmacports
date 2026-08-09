@@ -53,9 +53,19 @@ else
   echo
 
   if [ -f "$SOPS_YAML" ]; then
-    echo "Updating .sops.yaml with generated public key..."
-    sed -i.bak "s/^age: age1[^[:space:]]*/age: $PUBLIC_KEY/" "$SOPS_YAML"
-    rm -f "$SOPS_YAML.bak"
+    # The `age:` key is indented (4 spaces in practice), so anchor the match to
+    # the actual leading whitespace and preserve it. The previous column-0
+    # pattern silently no-op'd on indented files and would have broken the YAML
+    # even if it had matched.
+    if ! grep -q "age: $PUBLIC_KEY" "$SOPS_YAML"; then
+      echo "Updating .sops.yaml with generated public key..."
+      sed -E "s/([[:space:]]*)age: age1[^[:space:]]*/\1age: $PUBLIC_KEY/" "$SOPS_YAML" > "$SOPS_YAML.tmp"
+      mv "$SOPS_YAML.tmp" "$SOPS_YAML"
+    fi
+    if ! grep -q "age: $PUBLIC_KEY" "$SOPS_YAML"; then
+      echo "❌ Failed to update public key in $SOPS_YAML" >&2
+      exit 1
+    fi
   else
     echo "Creating .sops.yaml..."
     cat > "$SOPS_YAML" << EOF
