@@ -310,6 +310,28 @@ make ci-check        # latest Drone build must be 'success'
 runs `drone build ls`, exiting non-zero if the latest build is not green. Use
 this instead of trusting the GitLab MR UI for Drone-backed branches.
 
+### Merge workflow (fast-forward only)
+
+The project uses GitLab's **fast-forward** merge method. GitLab therefore never
+authors a merge or squash commit, so your commits land on `main` verbatim —
+author and committer both stay the GPG key's uid email (see AGENTS.md) and GPG
+signatures remain valid. This is deliberate: it avoids GitLab substituting the
+`users.noreply.gitlab.com` address on server-side rebases.
+
+Because fast-forward requires a linear history, an MR that has diverged from
+`main` is **rejected** ("cannot be merged: fast-forward only"). Before merging,
+rebase your branch onto the authoritative remote:
+
+```bash
+git fetch origin
+git rebase origin/main        # resolve any conflicts, then force-with-lease if needed
+```
+
+Only push `main` via fast-forward; never use `--force` (the repo forbids it).
+The `dotfiles-check.sh` behind-warning at shell init is your cue that `main`
+has moved and a rebase is due. Both the NixOS and macOS working copies must
+rebase onto `origin/main` before merging to keep history linear.
+
 ## NixOS / WSL Notes
 
 This repo is shell- and file-based, so it works on NixOS and WSL, but the
