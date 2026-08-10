@@ -20,3 +20,8 @@ steps:
       # in the load chain, PATH handling, or secrets layer would ship green.
       # The sast setup already installs bash, zsh, make, age and coreutils.
       - make test
+      # zsh regression lane: the dotfiles load chain is also sourced under zsh
+      # (.zshrc -> shared/*.sh), and CI previously only ran the suite under bash.
+      # A zsh-path regression would have shipped green. ci-setup.sh already
+      # installs zsh, so this reuses the same container.
+      - make test-zsh

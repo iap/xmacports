@@ -5,6 +5,7 @@ help:
 	@echo "  make bootstrap     - link dotfiles into home"
 	@echo "  make status        - show which tracked files are linked into \$$HOME"
 	@echo "  make test          - run dotfiles test suite"
+	@echo "  make test-zsh      - run zsh load-chain smoke test (catches zsh regressions)"
 	@echo "  make verify        - run audit + verification scripts"
 	@echo "  make shellcheck    - run shellcheck on shell scripts"
 	@echo "  make fmt-check     - check shell formatting with shfmt"
@@ -13,6 +14,7 @@ help:
 	@echo "  make test-compliance - run compliance checks"
 	@echo "  make sast           - run static analysis / security checks"
 	@echo "  make ci-local       - run .drone.yml locally via 'drone exec' (needs Docker daemon)"
+	@echo "  make ci-check       - verify latest Drone build is green (reads drone.token from SOPS)"
 	@echo "  make secrets-init   - generate the age key and initialise the secret store"
 	@echo "  make secrets-edit   - open the encrypted secrets in \$$EDITOR (via sops)"
 	@echo "  make secrets-encrypt - re-encrypt secrets/secrets.yaml -> secrets.enc.yaml"
@@ -24,6 +26,17 @@ bootstrap:
 
 test:
 	bash tests/run-tests.sh
+
+# zsh regression lane: the dotfiles load chain is sourced under zsh too (.zshrc
+# -> shared/*.sh), but tests/run-tests.sh is a bash runner. Run the dedicated
+# zsh smoke test so a zsh-path regression can't ship green.
+test-zsh:
+	@if ! command -v zsh >/dev/null 2>&1; then \
+		echo "zsh not found; install via: mise install or your package manager"; \
+		echo "Skipping test-zsh"; \
+	else \
+		zsh tests/test-zsh.zsh && echo "test-zsh passed"; \
+	fi
 
 clean:
 	rm -rf "$$HOME/.dotfiles-backup-"*
@@ -124,3 +137,15 @@ ci-local:
 		exit 1; \
 	fi
 	DOTFILES_ROOT="$(CURDIR)" drone exec --trusted
+
+# Verify the latest Drone build for the authoritative repo is green. Drone
+# reports status to GitLab via the Status API (not GitLab CI pipelines), so the
+# GitLab MR UI cannot surface it — the Drone server is the source of truth.
+# Credentials come from the SOPS store (drone namespace).
+ci-check:
+	@if ! command -v drone >/dev/null 2>&1; then \
+		echo "drone CLI not found. Install: download drone_darwin_$$(uname -m) from"; \
+		echo "https://github.com/harness/drone-cli/releases/latest into ~/bin"; \
+		exit 1; \
+	fi
+	DOTFILES_ROOT="$(CURDIR)" bash scripts/drone-check.sh

@@ -10,12 +10,18 @@ shell_for() {
   case "$1" in
     bin/pinentry-fallback) echo sh ;;
     ./.githooks/*) echo sh ;;
+    # tests/test-zsh.zsh is intentionally a zsh script (shebang #!/usr/bin/env
+    # zsh); shellcheck's bash mode errors on it (SC1071). It is linted under
+    # zsh's own syntax when run by `make test-zsh`/CI's zsh lane, so skip it here.
+    ./tests/test-zsh.zsh) echo skip ;;
     *) echo bash ;;
   esac
 }
 
 while IFS= read -r -d '' f; do
-  shellcheck -s "$(shell_for "$f")" "$f"
+  _shell="$(shell_for "$f")"
+  [ "$_shell" = "skip" ] && continue
+  shellcheck -s "$_shell" "$f"
 done < <(find . -type f \( \
   -name '*.sh' -o \
   -name '*.bash' -o \
