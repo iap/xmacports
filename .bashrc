@@ -64,6 +64,9 @@ if [[ $- == *i* ]]; then
 fi
 
 # Periodic dotfiles upstream check (fail-silent, throttled ~30 min)
-_dc="/home/iap/.dotfiles/scripts/dotfiles-check.sh"
-[ -x "" ] && "" || true
-unset _dc
+# Runs only in interactive shells; never blocks login.
+if [[ $- == *i* ]]; then
+  _dc="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/dotfiles-check.sh"
+  [ -x "$_dc" ] && "$_dc" || true
+  unset _dc
+fi
