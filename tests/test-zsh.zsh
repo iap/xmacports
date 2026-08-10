@@ -78,7 +78,15 @@ echo
 echo "3. Environment built under zsh"
 check "XDG_CONFIG_HOME set" [ -n "${XDG_CONFIG_HOME:-}" ]
 check "PATH built and non-empty" [ -n "${PATH:-}" ]
-check "mise shims present in PATH" sh -c 'printf "%s" "$PATH" | grep -qF ".local/share/mise/shims"'
+# mise is optional (per MANUAL.md). platform.sh only prepends shims when mise
+# exists, so assert shims are present ONLY if mise is installed; a mise-less
+# environment with no shim dir is the expected, correct state — not a failure.
+if command -v mise > /dev/null 2>&1; then
+  check "mise shims present in PATH (mise installed)" sh -c 'printf "%s" "$PATH" | grep -qF ".local/share/mise/shims"'
+else
+  echo "PASS: mise not installed — skipping shim check (optional, graceful no-shim expected)"
+  PASSED=$((PASSED + 1))
+fi
 echo
 
 # 4. zsh renderer actually produces output (exercises zsh-specific branch).
