@@ -62,3 +62,8 @@ if [[ $- == *i* ]]; then
   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"                   # This loads nvm
   [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion" # nvm bash_completion
 fi
+
+# Periodic dotfiles upstream check (fail-silent, throttled ~30 min)
+_dc="/home/iap/.dotfiles/scripts/dotfiles-check.sh"
+[ -x "" ] && "" || true
+unset _dc

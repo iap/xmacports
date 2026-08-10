@@ -106,3 +106,8 @@ fi
 
 # Local overrides
 [[ -f "$HOME/.zshrc.local" ]] && source "$HOME/.zshrc.local"
+
+# Periodic dotfiles upstream check (fail-silent, throttled ~30 min)
+_dc="/home/iap/.dotfiles/scripts/dotfiles-check.sh"
+[ -x "" ] && "" || true
+unset _dc
