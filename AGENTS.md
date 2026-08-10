@@ -129,6 +129,20 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
   files free of personal identity. Publish such settings to the public repo only when the user
   explicitly asks.
 
+## Commit Discipline
+
+- Prefix every commit with a scoped type: `type(scope):` (e.g. `fix(secrets):`,
+  `ci:`, `docs(secrets):`). The prefix is the label — keep it specific to the change.
+- One logical change per commit. Do not bundle unrelated fixes into a single commit.
+- Subject: short and direct. The `type(scope):` prefix plus the subject carries the label;
+  do not pad the subject with filler.
+- Body: state what changed and why. No email addresses, and no mechanic narration
+  (do not describe GPG/SSH internals or signing mechanics). Do not claim outcomes you have
+  not verified (e.g. "tests pass") — verify, then report.
+- Sign commits (`commit.gpgsign true`) and author with the GPG key's uid email.
+- Keep messages minimal and reviewable; align docs, tests, and code in the same change set
+  when they are part of the same logical fix.
+
 ## Cursor Plans
 
 - Use `.cursor/plans/` only for temporary plan drafts.
