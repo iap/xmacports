@@ -80,7 +80,7 @@ else
     echo "Creating .sops.yaml..."
     cat > "$SOPS_YAML" << EOF
 creation_rules:
-  - path_regex: secrets/.*\.enc\.yaml$
+  - path_regex: secrets/[^.]*\.yaml$  # encrypts source to .enc.yaml
     age: $PUBLIC_KEY
 EOF
   fi
@@ -104,7 +104,7 @@ else
   fi
   if [ -f "$SECRETS_PLAIN" ]; then
     echo "Encrypting initial secrets..."
-    sops -e "$SECRETS_PLAIN" -o "$SECRETS_ENC"
+    sops encrypt --output "$SECRETS_ENC" "$SECRETS_PLAIN"
     chmod 600 "$SECRETS_PLAIN"
     echo "   -> $SECRETS_ENC"
     echo

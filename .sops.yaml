@@ -5,7 +5,7 @@
 # The public age key below determines who can decrypt the encrypted files.
 
 creation_rules:
-  - path_regex: secrets/.*\.enc\.yaml$
+  - path_regex: secrets/[^.]*\.yaml$  # encrypts source to .enc.yaml
     age: age1gptsedytxyrn7havhaf82fexlml3jque7g85w6ewgyapcjetyddqwxnmft
 
 # optional: enforced file matching for extra safety

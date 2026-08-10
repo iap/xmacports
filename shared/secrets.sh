@@ -59,7 +59,7 @@ _sops_encrypt() {
       return 1
     fi
   done
-  sops -e "$_SECRETS_PLAIN_FILE" -o "$_SECRETS_ENC_FILE" 2> /dev/null
+  sops encrypt --output "$_SECRETS_ENC_FILE" "$_SECRETS_PLAIN_FILE" 2> /dev/null
   local rc=$?
   rmdir "$lockdir" 2> /dev/null || true
   trap - EXIT
