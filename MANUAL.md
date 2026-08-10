@@ -234,6 +234,40 @@ several remotes and one of them is a mirror. Pushing the default branch or
 tags to a mirror is still allowed, so mirror syncing keeps working. Override
 with `git push --no-verify`.
 
+## CI / Drone
+
+Continuous integration runs on a self-hosted Drone instance; GitLab is the
+SCM, webhook source, and commit-status backend. The Drone server URL and an
+API token live in the encrypted secret store under the `drone` namespace and
+are read at runtime — **no server host is hardcoded in tracked files**.
+
+`.drone.yml` is the pipeline definition (Drone v2, `kind: pipeline`,
+`type: docker`). It runs two lanes:
+
+- `make test` — the full bash test suite (configuration, functions, secrets,
+  hooks, review-fix, and security-fix verification).
+- `make test-zsh` — a zsh load-chain smoke test (`tests/test-zsh.zsh`). The
+  dotfiles load chain is also sourced under zsh (`.zshrc` → `shared/*.sh`),
+  so this catches zsh-path regressions that the bash suite would miss.
+
+Local parity: `make ci-local` runs `.drone.yml` against a Docker daemon via
+`drone exec --trusted`, so the local run can never drift from CI.
+
+### Verifying build status
+
+Drone reports build status to GitLab via the GitLab **Status API**, not GitLab
+CI pipelines. GitLab's merge-request UI therefore cannot surface Drone builds,
+and GitLab's MR status API is not authoritative for them. The source of truth
+is the Drone server itself:
+
+```bash
+make ci-check        # latest Drone build must be 'success'
+```
+
+`make ci-check` reads `drone.server` and `drone.token` from the SOPS store and
+runs `drone build ls`, exiting non-zero if the latest build is not green. Use
+this instead of trusting the GitLab MR UI for Drone-backed branches.
+
 ## NixOS / WSL Notes
 
 This repo is shell- and file-based, so it works on NixOS and WSL, but the
@@ -304,6 +338,8 @@ If `make` is available in your environment, you can also use:
 ```bash
 make verify
 make test
+make test-zsh      # zsh load-chain smoke test
+make ci-check      # confirm latest Drone build is green (reads token from SOPS)
 ```
 
 Helpful direct checks:
