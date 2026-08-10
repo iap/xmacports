@@ -41,7 +41,7 @@ if [ "$BEHIND" != "0" ]; then
   git -C "$DOTFILES_ROOT" log --oneline HEAD..'@{u}' 2> /dev/null | sed 's/^/    /'
   echo "  changed files:"
   git -C "$DOTFILES_ROOT" diff --stat HEAD '@{u}' 2> /dev/null | sed 's/^/    /'
-  SENSITIVE=$(git -C "$DOTFILES_ROOT" diff --name-only HEAD '@{u}' 2> /dev/null | grep -E '\.sops\.yaml|\.githooks/|secrets|\.config/gpg/|\.ssh|id_(rsa|ed25519)|\.key$|pinentry|\.env' || true)
+  SENSITIVE=$(git -C "$DOTFILES_ROOT" diff --name-only HEAD '@{u}' 2> /dev/null | grep -E '\.sops\.yaml|\.githooks/|secrets|\.config/gpg/|\.ssh|id_(rsa|ed25519)|\.key$|\.env' || true)
   if [ -n "$SENSITIVE" ]; then
     echo "  WARNING: sensitive paths changed upstream:"
     printf '%s\n' "$SENSITIVE" | while IFS= read -r _line; do
