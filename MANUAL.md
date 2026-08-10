@@ -162,6 +162,48 @@ make secrets-decrypt   # Decrypt secrets.enc.yaml -> secrets/secrets.yaml
 make secrets-list      # List secret keys in the default namespace
 ```
 
+### Encrypt / decrypt mechanics
+
+The store is two files:
+
+- `secrets/secrets.yaml` — plaintext, **gitignored**, `chmod 600`, local only.
+- `secrets/secrets.enc.yaml` — encrypted, **committed**, useless without the private age key.
+
+The `.sops.yaml` `creation_rules.path_regex` selects which plaintext file gets
+encrypted (`secrets/[^.]*\.yaml$` → matches `secrets/secrets.yaml`, excludes the
+already-encrypted `secrets/secrets.enc.yaml`). The recipient age public key is
+also in `.sops.yaml`; only the holder of the matching private key can decrypt.
+
+**Encrypt (plaintext → enc)**
+
+1. Edit the plaintext: `make secrets-edit` (opens `secrets.yaml` via `sops edit`,
+   or hand-edit it).
+2. `make secrets-encrypt` → `_sops_encrypt` in `shared/secrets.sh` runs
+   `sops encrypt --output secrets/secrets.enc.yaml secrets/secrets.yaml`.
+   sops generates a random data key, encrypts each YAML value with it, wraps
+   the data key with the age public key, and writes the `.enc.yaml`.
+3. Commit `secrets.enc.yaml`. The plaintext never leaves the machine.
+
+**Decrypt (enc → value, on demand)**
+
+- `secret <key> <namespace>` calls `_sops_decrypt` (`sops -d secrets/secrets.enc.yaml`,
+   STDOUT) and parses the requested field. The result is cached in-memory for the
+   session — no plaintext is written to disk unless you explicitly `make secrets-decrypt`.
+- `with_secret VAR=key -- cmd` injects a single secret as an env var for one command
+   and never exports it to the shell.
+
+**Why the command shape matters**
+
+- `sops` requires flags *before* the input file. The correct form is
+  `sops encrypt --output OUTFILE INFILE`. A trailing `-o OUTFILE` is ignored
+  (sops treats it as a second positional) and silently writes ciphertext to
+  stdout instead of the file — the enc file would never update.
+- The `path_regex` must match the *plaintext input*, not the `.enc.yaml` output,
+  or `sops` fails with `no matching creation rules found` and encrypts nothing.
+
+Round trip: `edit secrets.yaml` → `make secrets-encrypt` → `git commit .enc.yaml`,
+then anywhere `secret github_token dotfiles` decrypts on demand.
+
 ### Accessing Secrets in Shell
 
 Secrets are **never exported at startup**. Use the on-demand functions in `shared/functions.sh`:
