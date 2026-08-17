@@ -18,10 +18,24 @@ if command -v gtimeout > /dev/null 2>&1; then
   exec gtimeout "$@"
 fi
 
-# Fall back to a real `timeout` if one is on PATH (e.g. Linux).
-if command -v timeout > /dev/null 2>&1; then
-  exec timeout "$@"
-fi
+# Fall back to a real `timeout` on PATH (e.g. Linux). This wrapper is linked
+# into ~/bin, which precedes system paths, so a plain `command -v timeout`
+# resolves to THIS file — `exec timeout` would then re-exec it forever. Walk
+# PATH and skip an entry that is this very script; `-ef` compares inodes, so
+# symlinks and non-normalized path spellings still match, and no external
+# tool (dirname/pwd) is needed on minimal PATHs.
+_old_ifs=${IFS:-}
+IFS=:
+for _dir in ${PATH:-}; do
+  [ -n "$_dir" ] || _dir=.
+  [ -x "$_dir/timeout" ] || continue
+  # shellcheck disable=SC3013  # -ef is XSI, not base POSIX, but dash/bash/zsh/busybox/BSD sh all implement it
+  [ "$_dir/timeout" -ef "$0" ] && continue
+  IFS=$_old_ifs
+  # shellcheck disable=SC2093  # exec is intended: first match replaces this script
+  exec "$_dir/timeout" "$@"
+done
+IFS=$_old_ifs
 
 echo "timeout: neither gtimeout (MacPorts coreutils) nor timeout found on PATH" >&2
 echo "install on macOS: sudo port install coreutils" >&2
