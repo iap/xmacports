@@ -39,7 +39,7 @@ Install required tools manually before bootstrapping:
 - `.zprofile` - zsh login entrypoint
 - `.zshrc` - zsh interactive entrypoint
 - `shared/platform.sh` - shared environment loader
-- `.config/env.d/foundry.sh` - Foundry wrappers (opt-in via `~/.profile.local`)
+- `.config/env.d/` - optional environment modules (proxy, foundry, user-local-bin)
 - `.config/gpg/gpg.conf` - GnuPG configuration
 - `.config/gpg/gpg-agent.conf` - GnuPG agent configuration
 - `.config/ssh/config` - SSH configuration
@@ -117,7 +117,6 @@ make secrets-edit
 ## Security
 
 - Secrets are not exported from shell startup; use `secret()` or `with_secret()` for on-demand access
-- `umask 077` keeps new files private by default
 - GPG and SSH config files are permission-checked
 - Local/private overlays stay outside the tracked repo
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`

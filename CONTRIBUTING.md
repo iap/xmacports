@@ -56,5 +56,6 @@ make test-compliance
 
 ## Merge policy
 
-- Prefer locally signed merges over the GitLab merge button.
-- If a protected branch blocks force-push, use a signed merge commit and push normally.
+- The project uses **fast-forward** merges only. Rebase your branch onto the
+  authoritative remote before merging (see MANUAL.md for the full workflow).
+- Never force-push `main` (the repo forbids it).

@@ -24,7 +24,7 @@ The repo does not automate package installation. It assumes required tools are i
 ### bash login shell
 
 ```text
-/etc/profile -> ~/.profile -> ~/.bash_profile -> ~/.bashrc
+~/.bash_profile -> ~/.profile -> ~/.bashrc
 ```
 
 `.profile.local` is sourced by `.bashrc` after `platform.sh` loads, so user PATH
@@ -33,7 +33,7 @@ additions take precedence over system directories.
 ### zsh login shell
 
 ```text
-~/.profile -> ~/.zprofile -> ~/.zshrc
+~/.zprofile -> ~/.profile -> ~/.zshrc
 ```
 
 `.profile.local` is sourced by `.zshrc` after `platform.sh` loads, so user PATH
@@ -46,21 +46,20 @@ Both shells load shared configuration:
 ```text
 # .bashrc loads directly:
 shared/platform.sh
-.config/env.d/foundry.sh
-shared/functions.sh
+shared/functions.sh -> shared/secrets.sh
 shared/aliases.sh
 shared/prompt.sh
+.config/env.d/*.sh (proxy, foundry, user-local-bin)
 ~/.profile.local (after platform.sh, with double-sourcing guard)
 
 # .zshrc loads via its own entrypoint:
 .profile
-.zprofile
-.zshrc
-.zshrc.d/prompt.sh
 shared/platform.sh
-.config/env.d/foundry.sh
-shared/functions.sh
+shared/functions.sh -> shared/secrets.sh
 shared/aliases.sh
+shared/prompt.sh
+.config/env.d/*.sh (proxy, foundry, user-local-bin)
+.zshrc.d/prompt.sh
 ~/.profile.local (after platform.sh, with double-sourcing guard)
 ```
 
@@ -96,7 +95,9 @@ $HOME/.dotfiles/
 │   └── prompt.sh
 ├── .config/
 │   ├── env.d/
-│   │   └── foundry.sh
+│   │   ├── foundry.sh
+│   │   ├── proxy.sh
+│   │   └── user-local-bin.sh
 │   ├── gpg/
 │   │   ├── gpg.conf
 │   │   └── gpg-agent.conf
@@ -108,15 +109,33 @@ $HOME/.dotfiles/
 │   └── npm/
 │       └── config
 ├── shared/
+│   ├── platform.sh
 │   ├── functions.sh
-│   └── aliases.sh
+│   ├── secrets.sh
+│   ├── aliases.sh
+│   └── prompt.sh
 ├── bin/
 │   ├── pinentry-fallback
 │   ├── system-info
+│   ├── gpg-ssh-headless
+│   ├── timeout
 │   └── update
 ├── scripts/
+│   ├── audit.sh
+│   ├── shellcheck.sh
+│   ├── shfmt.sh
 │   ├── compliance-check.sh
-│   └── cleanup-*.sh
+│   ├── dotfiles-check.sh
+│   ├── drone-check.sh
+│   ├── verify-migration.sh
+│   ├── verify-gpg-ssh-auth.sh
+│   ├── secrets-init.sh
+│   ├── cleanup.sh
+│   ├── ci-setup.sh
+│   ├── install-cleanup-job.sh
+│   ├── uninstall-cleanup-job.sh
+│   ├── timeout_prompt.sh
+│   └── secret-parse.py
 ├── templates/
 │   ├── profile-local.example
 │   └── server-profile.example
@@ -125,7 +144,11 @@ $HOME/.dotfiles/
 │   ├── forward-local-example
 │   ├── zshrc-local-example
 │   ├── vimrc-local-example
-│   └── ssh-config-example
+│   ├── ssh-config-example
+│   ├── timeout-prompt-usage.sh
+│   ├── gpg-agent-conf-example
+│   ├── prompt-demo.sh
+│   └── forward-local-example
 ├── secrets/
 │   ├── secrets.secrets.yaml.example
 │   ├── secrets.yaml          (gitignored decrypted working copy)
@@ -206,7 +229,7 @@ then anywhere `secret github_token dotfiles` decrypts on demand.
 
 ### Accessing Secrets in Shell
 
-Secrets are **never exported at startup**. Use the on-demand functions in `shared/functions.sh`:
+Secrets are **never exported at startup**. Use the on-demand functions in `shared/secrets.sh`:
 
 ```bash
 # Read a secret value (prints to stdout)
