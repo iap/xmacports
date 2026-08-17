@@ -93,7 +93,10 @@ fi
 # GPG verification (non-blocking)
 if [[ -n "${DOTFILES_LOG_DIR:-}" ]] && declare -f verify_gpg_ssh > /dev/null; then
   if mkdir -p "$DOTFILES_LOG_DIR" 2> /dev/null && [[ -w "$DOTFILES_LOG_DIR" ]]; then
-    verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1 &
+    (
+      umask 077
+      verify_gpg_ssh > "$DOTFILES_LOG_DIR/gpg-verify.log" 2>&1
+    ) &
     disown
   fi
 fi

@@ -90,7 +90,11 @@ safe_mkdir() {
   mkdir -p "$1" 2> /dev/null
   chmod 700 "$1" 2> /dev/null || true
 }
-safe_mkdir "$XDG_CACHE_HOME/logs"
+# Log dir for shell-init diagnostics (login-shell log, background GPG verify).
+# Exported so call sites (.zprofile, .zshrc) do not each hardcode the path;
+# .zprofile runs before this file loads and falls back to the same default.
+export DOTFILES_LOG_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/logs"
+safe_mkdir "$DOTFILES_LOG_DIR"
 safe_mkdir "$XDG_CACHE_HOME/ssh"
 safe_mkdir "$XDG_CACHE_HOME/shell"
 safe_mkdir "$XDG_STATE_HOME/shell"
