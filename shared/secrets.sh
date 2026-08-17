@@ -68,31 +68,16 @@ _sops_encrypt() {
 
 _secrets_cache_get() {
   if [ -z "${_SECRETS_CACHE:-}" ]; then
-    _SECRETS_CACHE=$(_sops_decrypt) || return 1
+    _SECRETS_CACHE=$(_sops_decrypt) || {
+      log_warn "secret store unavailable (decrypt failed)"
+      return 1
+    }
   fi
   printf '%s' "$_SECRETS_CACHE"
 }
 
 _secrets_cache_reset() {
   _SECRETS_CACHE=""
-}
-
-_secret_yaml_once() {
-  local decrypted
-  decrypted=$(_sops_decrypt) || return 1
-  [ -z "$decrypted" ] && {
-    log_warn "secret store returned empty value"
-    return 1
-  }
-  command -v python3 > /dev/null 2>&1 || {
-    log_warn "python3 not found; cannot parse secrets"
-    return 1
-  }
-  [ -f "$SECRET_PARSE_PY" ] || {
-    log_warn "secret-parse.py not found at $SECRET_PARSE_PY"
-    return 1
-  }
-  printf '%s' "$decrypted"
 }
 
 _validate_secret_name() {
@@ -107,6 +92,14 @@ _validate_secret_name() {
 }
 
 _secret_yaml() {
+  command -v python3 > /dev/null 2>&1 || {
+    log_warn "python3 not found; cannot parse secrets"
+    return 1
+  }
+  [ -f "$SECRET_PARSE_PY" ] || {
+    log_warn "secret-parse.py not found at $SECRET_PARSE_PY"
+    return 1
+  }
   _secrets_cache_get || return 1
 }
 
@@ -117,11 +110,12 @@ secret() {
     echo "Usage: secret <key> [namespace]" >&2
     return 1
   fi
-  local key="${1:-}" ns="${2:-dotfiles}"
+  local key="${1:-}" ns="${2:-dotfiles}" yaml
   _validate_secret_name "$key" || return 1
   _validate_secret_name "$ns" || return 1
 
-  _secret_yaml | python3 "$SECRET_PARSE_PY" get "$ns" "$key" 2> /dev/null || {
+  yaml=$(_secret_yaml) || return 1
+  printf '%s' "$yaml" | python3 "$SECRET_PARSE_PY" get "$ns" "$key" 2> /dev/null || {
     log_warn "secret $ns.$key not found"
     return 1
   }
@@ -161,8 +155,9 @@ with_secret() {
 # List all top-level namespaces and keys in the encrypted store.
 # Usage: secret_list [namespace]
 secret_list() {
-  local ns="${1:-}"
-  _secret_yaml | python3 "$SECRET_PARSE_PY" list "$ns" 2> /dev/null
+  local ns="${1:-}" yaml
+  yaml=$(_secret_yaml) || return 1
+  printf '%s' "$yaml" | python3 "$SECRET_PARSE_PY" list "$ns" 2> /dev/null
 }
 
 # Edit the decrypted secrets file in the configured editor.
@@ -193,9 +188,6 @@ secrets_decrypt() {
     log_warn "sops not found; install sops first"
     return 1
   fi
-  # Create the plaintext working copy with a tight umask so the temp file and
-  # the file moved into place are never group/world-readable, even briefly.
-  umask 077
   local decrypted
   decrypted=$(_sops_decrypt) || return 1
   [ -z "$decrypted" ] && {
@@ -203,8 +195,19 @@ secrets_decrypt() {
     return 1
   }
   _validate_yaml "$decrypted" || return 1
+  # Create the plaintext working copy with a tight umask scoped to a subshell
+  # so the temp file and the file moved into place are never group/world-
+  # readable, even briefly. Setting the umask in the function body would leak
+  # into the interactive session and silently tighten every later file create.
   local tmp_file="$_SECRETS_PLAIN_FILE.$$.tmp"
-  printf '%s' "$decrypted" > "$tmp_file"
+  (
+    umask 077
+    printf '%s' "$decrypted" > "$tmp_file"
+  ) || {
+    rm -f "$tmp_file" 2> /dev/null || true
+    log_warn "failed to write decrypted secrets"
+    return 1
+  }
   mv -f "$tmp_file" "$_SECRETS_PLAIN_FILE" 2> /dev/null || {
     rm -f "$tmp_file" 2> /dev/null || true
     log_warn "failed to move decrypted secrets into place"
