@@ -1,4 +1,4 @@
-.PHONY: help bootstrap test clean audit verify status shellcheck fmt-check python-lint test-secrets test-compliance sast ci-local secrets-init secrets-edit secrets-encrypt secrets-decrypt secrets-list
+.PHONY: help bootstrap test test-zsh clean audit verify status shellcheck fmt-check python-lint test-secrets test-compliance sast ci-local ci-check secrets-init secrets-edit secrets-encrypt secrets-decrypt secrets-list
 
 help:
 	@echo "Dotfiles commands:"
