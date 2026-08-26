@@ -326,12 +326,17 @@ and GitLab's MR status API is not authoritative for them. The source of truth
 is the Drone server itself:
 
 ```bash
-make ci-check        # latest Drone build must be 'success'
+make ci-check        # latest Drone build must be 'success' AND cover HEAD
 ```
 
 `make ci-check` reads `drone.server` and `drone.token` from the SOPS store and
-runs `drone build ls`, exiting non-zero if the latest build is not green. Use
-this instead of trusting the GitLab MR UI for Drone-backed branches.
+runs `drone build ls`, exiting non-zero if the latest build is not green **or**
+was built for an older commit than this clone's tracked upstream HEAD. The
+coverage check catches a stalled mirror/webhook: without it, an old green build
+keeps the gate green forever while new commits on main ship untested. Pass
+`--no-coverage` to `scripts/drone-check.sh` to check status only (e.g. for a
+PR event build). Use this instead of trusting the GitLab MR UI for
+Drone-backed branches.
 
 ### Merge workflow (fast-forward only)
 
@@ -426,7 +431,7 @@ If `make` is available in your environment, you can also use:
 make verify
 make test
 make test-zsh      # zsh load-chain smoke test
-make ci-check      # confirm latest Drone build is green (reads token from SOPS)
+make ci-check      # confirm latest Drone build is green AND covers HEAD (reads token from SOPS)
 ```
 
 Helpful direct checks:

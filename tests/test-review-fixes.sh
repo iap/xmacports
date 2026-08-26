@@ -179,6 +179,53 @@ else
   bad "gitstat still broken (rc=$rc, out=[$out])"
 fi
 
+# ---- M: drone-check.sh fails when CI has not covered upstream HEAD ----
+echo "M drone-check HEAD-coverage gate:"
+dc="$DOTFILES_ROOT/scripts/drone-check.sh"
+# The gate must exist and be wired to a commit comparison, not just a status.
+grep -q 'CHECK_COVERAGE' "$dc" && grep -q 'merge-base --is-ancestor' "$dc" &&
+  grep -q 'no-coverage' "$dc" &&
+  {
+    ok "coverage check present (--no-coverage opt-out + ancestor compare)"
+  } || bad "drone-check.sh missing the HEAD-coverage gate"
+# The parser must strip ANSI codes before matching labeled fields — the real
+# CLI colorizes its output, and an unstripped match silently yields no SHA.
+# (The stale-build probe below re-verifies this functionally: its fake emits
+# colorized output and the gate must still read the commit SHA.)
+grep -q '033\\\[' "$dc" && ok "ANSI stripping in build-block parser" ||
+  bad "parser does not strip ANSI codes"
+# Negative control: prove the check can fail. Run against a fake drone whose
+# newest build is green but stale relative to this clone's upstream HEAD.
+MT=$(mktemp -d)
+mkdir -p "$MT/bin"
+cat > "$MT/bin/drone" << 'EOFAKE'
+#!/usr/bin/env bash
+printf '\033[33mBuild #99 \033[0m\nStatus: success\nEvent: push\nCommit: %s\nBranch: main\n' "${FAKE_SHA:?}"
+EOFAKE
+chmod +x "$MT/bin/drone"
+# Resolve the real upstream HEAD so the fake is genuinely stale.
+UP_SHA="$(git -C "$DOTFILES_ROOT" rev-parse --verify '@{u}' 2> /dev/null || git -C "$DOTFILES_ROOT" rev-parse --verify origin/main)"
+OLD_SHA="$(git -C "$DOTFILES_ROOT" rev-list --max-parents=0 "$UP_SHA" | head -1)"
+[ -n "$OLD_SHA" ] || OLD_SHA="$UP_SHA"
+env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" DRONE_SERVER=http://127.0.0.1:1 \
+  DRONE_TOKEN=test-only bash "$dc" > "$MT/out.txt" 2>&1
+mrc=$?
+if [ "$mrc" -ne 0 ] && grep -q 'CI has not covered HEAD' "$MT/out.txt"; then
+  ok "stale green build now FAILS with coverage message (rc=$mrc)"
+else
+  bad "stale build did not fail the gate (rc=$mrc)"
+fi
+# Opt-out path still passes on the same stale input.
+env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" DRONE_SERVER=http://127.0.0.1:1 \
+  DRONE_TOKEN=test-only bash "$dc" --no-coverage > "$MT/out.txt" 2>&1
+nrc=$?
+if [ "$nrc" -eq 0 ]; then
+  ok "--no-coverage skips the coverage check (rc=0)"
+else
+  bad "--no-coverage unexpectedly failed (rc=$nrc)"
+fi
+rm -rf "$MT"
+
 echo
 echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
 [ "$fail" -eq 0 ]
