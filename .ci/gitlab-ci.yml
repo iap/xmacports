@@ -62,7 +62,7 @@ script:
 - apk add --no-cache curl
 - |
 	if [ -z "${GITLAB_API_TOKEN:-}" ]; then
-		echo "GITLAB_API_TOKEN not set — skipping label"
+		echo "GITLAB_API_TOKEN not set - skipping label"
 		exit 0
 	fi
 curl --request PUT \
@@ -81,7 +81,7 @@ script:
 - apk add --no-cache curl
 - |
 	if [ -z "${GITLAB_API_TOKEN:-}" ]; then
-		echo "GITLAB_API_TOKEN not set — skipping label"
+		echo "GITLAB_API_TOKEN not set - skipping label"
 		exit 0
 	fi
 curl --request PUT \
