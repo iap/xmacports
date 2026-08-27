@@ -8,7 +8,8 @@ apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreu
 # Install SAST-specific tools when requested.
 if [ "${1:-}" = "sast" ]; then
   apk add --no-cache shellcheck shfmt
-  # ruff is not in Alpine's repos; install uv and use `uv tool run ruff`
-  # (the Makefile's python-lint target already handles this fallback).
-  apk add --no-cache uv
+  # Install uv via official installer (not in Alpine repos).
+  # uv provides 'uv tool run ruff' which the Makefile's python-lint target uses.
+  curl -LsSf https://astral.sh/uv/install.sh | sh -s -- --quiet
+  export PATH="$HOME/.local/bin:$PATH"
 fi
