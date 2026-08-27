@@ -51,16 +51,24 @@ verify:
 
 shellcheck:
 	@if ! command -v shellcheck >/dev/null 2>&1; then \
+		if [ -n "$${CI:-}" ]; then \
+			echo "ERROR: shellcheck not installed but CI=$${CI} is set - failing hard"; \
+			exit 1; \
+		fi; \
 		echo "shellcheck not found; install via: mise install"; \
-		echo "Skipping shellcheck in CI"; \
+		echo "Skipping shellcheck"; \
 	else \
 		bash scripts/shellcheck.sh && echo "shellcheck passed"; \
 	fi
 
 fmt-check:
 	@if ! command -v shfmt >/dev/null 2>&1; then \
+		if [ -n "$${CI:-}" ]; then \
+			echo "ERROR: shfmt not installed but CI=$${CI} is set - failing hard"; \
+			exit 1; \
+		fi; \
 		echo "shfmt not found; install via: mise install"; \
-		echo "Skipping fmt-check in CI"; \
+		echo "Skipping fmt-check"; \
 	else \
 		bash scripts/shfmt.sh --check && echo "fmt-check passed"; \
 	fi
@@ -70,9 +78,12 @@ python-lint:
 		ruff check scripts/ && echo "python-lint passed"; \
 	elif command -v uv >/dev/null 2>&1; then \
 		uv tool run ruff check scripts/ && echo "python-lint passed"; \
+	elif [ -n "$${CI:-}" ]; then \
+		echo "ERROR: ruff/uv not found but CI=$${CI} is set - failing hard"; \
+		exit 1; \
 	else \
 		echo "ruff/uv not found; install from https://astral.sh/uv"; \
-		echo "Skipping python-lint in CI"; \
+		echo "Skipping python-lint"; \
 	fi
 
 test-secrets:
@@ -123,8 +134,11 @@ test-compliance:
 sast: shellcheck fmt-check
 	@if command -v ruff >/dev/null 2>&1 || command -v uv >/dev/null 2>&1; then \
 		$(MAKE) python-lint; \
+	elif [ -n "$${CI:-}" ]; then \
+		echo "ERROR: ruff/uv not found but CI=$${CI} is set - failing hard"; \
+		exit 1; \
 	else \
-		echo "ruff/uv not found; skipping python-lint in CI"; \
+		echo "ruff/uv not found; skipping python-lint"; \
 	fi
 
 # Run the GitLab CI pipeline locally using 'glab' or 'act' (GitHub Actions runner).

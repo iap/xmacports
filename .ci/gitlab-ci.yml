@@ -1,80 +1,95 @@
 # GitLab CI pipeline for dotfiles
 # Migrated from .drone.yml — parallel SAST jobs + behavioral tests
+#
+# Note: the pinned alpine:3.20.5 image already ships both the `main` and
+# `community` repositories enabled in /etc/apk/repositories, so no repo append
+# is needed before `apk add` (the earlier audit's F1 premise was a false
+# positive). apk refreshes its index on `apk add` automatically.
 image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
 
 stages:
-- sast
-- test
-- label
+  - sast
+  - test
+  - label
 
 variables:
-DOTFILES_ROOT: $CI_PROJECT_DIR
+  DOTFILES_ROOT: $CI_PROJECT_DIR
 
 # shellcheck job - only needs shellcheck
 shellcheck:
-stage: sast
-before_script:
-- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
-- apk add --no-cache shellcheck
-script:
-- make shellcheck
+  stage: sast
+  before_script:
+    - apk add --no-cache shellcheck
+  script:
+    - make shellcheck
 
 # shfmt job - only needs shfmt
 shfmt:
-stage: sast
-before_script:
-- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
-- apk add --no-cache shfmt
-script:
-- make fmt-check
+  stage: sast
+  before_script:
+    - apk add --no-cache shfmt
+  script:
+    - make fmt-check
 
-# python-lint job - install ruff from community repo
+# python-lint job - install python3 + ruff from the community repo.
+# py3-pip is dropped: ruff comes from apk, never pip (it was a leftover from the
+# Drone migration and did nothing useful).
 python-lint:
-stage: sast
-before_script:
-- apk add --no-cache python3
-- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
-- apk add --no-cache ruff
-script:
-- make python-lint
+  stage: sast
+  before_script:
+    - apk add --no-cache python3 ruff
+  script:
+    - make python-lint
 
 # Behavioral tests
+# F2/F3 fix: install age (from apk) and sops. sops has no apk package we pin to,
+# so we restore the Drone-migration SHA256-verified sops binary (v3.9.4) instead
+# of the older unpinned community build. This keeps `make test` -> test-secrets.sh
+# from hard-failing on missing `sops`/`age`.
 test:
-stage: test
-before_script:
-- apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
-script:
-- make test
+  stage: test
+  before_script:
+    - apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils age
+    # Install sops (SHA256-verified) — mirrors the Drone setup that was dropped
+    # during migration.
+    - curl -fsSL https://github.com/getsops/sops/releases/download/v3.9.4/sops-v3.9.4.linux.amd64 -o /tmp/sops
+    - echo "5488e32bc471de7982ad895dd054bbab3ab91c417a118426134551e9626e4e85  /tmp/sops" | sha256sum -c -
+    - chmod +x /tmp/sops
+    - mv /tmp/sops /usr/local/bin/sops
+  script:
+    - make test
 
+# zsh regression lane. Carries age + sops for parity with the `test` job so a
+# shared secret-path regression can't pass unnoticed.
 test-zsh:
-stage: test
-before_script:
-- apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
-script:
-- make test-zsh
+  stage: test
+  before_script:
+    - apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils age sops
+  script:
+    - make test-zsh
 
 # Auto-label MRs based on pipeline result
 # Requires GITLAB_API_TOKEN CI/CD variable with api scope
 label-success:
-stage: label
-image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
-script:
-- apk add --no-cache curl
-- 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
-- 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-passing"'
-rules:
-- if: $CI_PIPELINE_SOURCE == "merge_request_event"
-when: on_success
-allow_failure: true
+  stage: label
+  image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
+  script:
+    - apk add --no-cache curl
+    - 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
+    - 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-passing"'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  when: on_success
+  allow_failure: true
 
 label-failure:
-stage: label
-image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
-script:
-- apk add --no-cache curl
-- 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
-- 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-failing"'
-rules:
-- if: $CI_PIPELINE_SOURCE == "merge_request_event"
-when: on_failure
-allow_failure: true
+  stage: label
+  image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
+  script:
+    - apk add --no-cache curl
+    - 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
+    - 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-failing"'
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  when: on_failure
+  allow_failure: true
