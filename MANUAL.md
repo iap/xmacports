@@ -14,6 +14,7 @@ This repo is organized around a small number of clear responsibilities:
 - `.zshrc.d/prompt.sh` provides zsh-specific prompt formatting
 - `bin/` contains small user-facing helper executables
 - `scripts/` contains verification, maintenance, and cleanup helpers
+- `.ci/` contains GitLab CI pipeline definition and helpers
 
 The repo does not automate package installation. It assumes required tools are installed manually.
 
@@ -81,81 +82,6 @@ Both shells now consistently load `foundry.sh` and `prompt.sh` if available.
 
 It must remain safe to source more than once and safe under `set -u`.
 
-## File Tree
-
-```text
-$HOME/.dotfiles/
-├── .bash_profile
-├── .bashrc
-├── .profile
-├── .zprofile
-├── .zshrc
-├── .forward
-├── .zshrc.d/
-│   └── prompt.sh
-├── .config/
-│   ├── env.d/
-│   │   ├── foundry.sh
-│   │   ├── proxy.sh
-│   │   └── user-local-bin.sh
-│   ├── gpg/
-│   │   ├── gpg.conf
-│   │   └── gpg-agent.conf
-│   ├── ssh/
-│   │   └── config
-│   ├── vim/
-│   │   ├── vimrc
-│   │   └── privacy.vim
-│   └── npm/
-│       └── config
-├── shared/
-│   ├── platform.sh
-│   ├── functions.sh
-│   ├── secrets.sh
-│   ├── aliases.sh
-│   └── prompt.sh
-├── bin/
-│   ├── pinentry-fallback
-│   ├── system-info
-│   ├── gpg-ssh-headless
-│   ├── timeout
-│   └── update
-├── scripts/
-│   ├── audit.sh
-│   ├── shellcheck.sh
-│   ├── shfmt.sh
-│   ├── compliance-check.sh
-│   ├── dotfiles-check.sh
-│   ├── drone-check.sh
-│   ├── verify-migration.sh
-│   ├── verify-gpg-ssh-auth.sh
-│   ├── secrets-init.sh
-│   ├── cleanup.sh
-│   ├── ci-setup.sh
-│   ├── install-cleanup-job.sh
-│   ├── uninstall-cleanup-job.sh
-│   ├── timeout_prompt.sh
-│   └── secret-parse.py
-├── templates/
-│   ├── profile-local.example
-│   └── server-profile.example
-├── examples/
-│   ├── gitconfig-local-example
-│   ├── forward-local-example
-│   ├── zshrc-local-example
-│   ├── vimrc-local-example
-│   ├── ssh-config-example
-│   ├── timeout-prompt-usage.sh
-│   ├── gpg-agent-conf-example
-│   ├── prompt-demo.sh
-│   └── forward-local-example
-├── secrets/
-│   ├── secrets.secrets.yaml.example
-│   ├── secrets.yaml          (gitignored decrypted working copy)
-│   └── secrets.enc.yaml      (committed encrypted store)
-└── .sops.yaml                (SOPS configuration with public age key)
-```
-
 ## SOPS + age Secret Management
 
 Secrets are managed with [SOPS](https://github.com/getsops/sops) and [age](https://age-encryption.org/). The encrypted store is committed to git; the decrypted working copy is gitignored.
@@ -193,7 +119,7 @@ The store is two files:
 - `secrets/secrets.enc.yaml` — encrypted, **committed**, useless without the private age key.
 
 The `.sops.yaml` `creation_rules.path_regex` selects which plaintext file gets
-encrypted (`secrets/[^.]*\.yaml$` → matches `secrets/secrets.yaml`, excludes the
+encrypted (`secrets/[^.]*\\.yaml$` → matches `secrets/secrets.yaml`, excludes the
 already-encrypted `secrets/secrets.enc.yaml`). The recipient age public key is
 also in `.sops.yaml`; only the holder of the matching private key can decrypt.
 
@@ -210,10 +136,10 @@ also in `.sops.yaml`; only the holder of the matching private key can decrypt.
 **Decrypt (enc → value, on demand)**
 
 - `secret <key> <namespace>` calls `_sops_decrypt` (`sops -d secrets/secrets.enc.yaml`,
-   STDOUT) and parses the requested field. The result is cached in-memory for the
-   session — no plaintext is written to disk unless you explicitly `make secrets-decrypt`.
+  STDOUT) and parses the requested field. The result is cached in-memory for the
+  session — no plaintext is written to disk unless you explicitly `make secrets-decrypt`.
 - `with_secret VAR=key -- cmd` injects a single secret as an env var for one command
-   and never exports it to the shell.
+  and never exports it to the shell.
 
 **Why the command shape matters**
 
@@ -299,44 +225,34 @@ several remotes and one of them is a mirror. Pushing the default branch or
 tags to a mirror is still allowed, so mirror syncing keeps working. Override
 with `git push --no-verify`.
 
-## CI / Drone
+## CI / GitLab CI
 
-Continuous integration runs on a self-hosted Drone instance; GitLab is the
-SCM, webhook source, and commit-status backend. The Drone server URL and an
-API token live in the encrypted secret store under the `drone` namespace and
-are read at runtime — **no server host is hardcoded in tracked files**.
+Continuous integration runs on GitLab CI (GitLab is the authoritative SCM).
+The pipeline is defined in `.gitlab-ci.yml` (which includes `.ci/gitlab-ci.yml`).
+It runs in two stages:
 
-`.drone.yml` is the pipeline definition (Drone v2, `kind: pipeline`,
-`type: docker`). It runs two lanes:
+- `sast` — parallel static analysis jobs (shellcheck, shfmt, python-lint)
+- `test` — behavioral tests (`make test` + `make test-zsh`)
 
-- `make test` — the full bash test suite (configuration, functions, secrets,
-  hooks, review-fix, and security-fix verification).
-- `make test-zsh` — a zsh load-chain smoke test (`tests/test-zsh.zsh`). The
-  dotfiles load chain is also sourced under zsh (`.zshrc` → `shared/*.sh`),
-  so this catches zsh-path regressions that the bash suite would miss.
+The pipeline uses Alpine 3.20.5 for environment parity.
 
-Local parity: `make ci-local` runs `.drone.yml` against a Docker daemon via
-`drone exec --trusted`, following the same pipeline definition CI uses.
+Local parity: `make ci-local` runs the pipeline locally via `act` (GitHub Actions
+runner) or `glab` CLI.
 
-### Verifying build status
+### Verifying pipeline status
 
-Drone reports build status to GitLab via the GitLab **Status API**, not GitLab
-CI pipelines. GitLab's merge-request UI therefore cannot surface Drone builds,
-and GitLab's MR status API is not authoritative for them. The source of truth
-is the Drone server itself:
+GitLab CI reports pipeline status natively to GitLab's commit/MR UI — no Status
+API workaround needed. The source of truth is GitLab itself:
 
 ```bash
-make ci-check        # latest Drone build must be 'success' AND cover HEAD
+make ci-check        # latest pipeline must be 'success' AND cover HEAD
 ```
 
-`make ci-check` reads `drone.server` and `drone.token` from the SOPS store and
-runs `drone build ls`, exiting non-zero if the latest build is not green **or**
-was built for an older commit than this clone's tracked upstream HEAD. The
-coverage check catches a stalled mirror/webhook: without it, an old green build
-keeps the gate green forever while new commits on main ship untested. Pass
-`--no-coverage` to `scripts/drone-check.sh` to check status only (e.g. for a
-PR event build). Use this instead of trusting the GitLab MR UI for
-Drone-backed branches.
+`make ci-check` reads the latest pipeline via the GitLab API (using `glab` or
+`GITLAB_TOKEN`), exiting non-zero if the latest pipeline is not green **or**
+was built for an older commit than HEAD. The coverage check catches a stalled
+webhook. Pass `--no-coverage` to `.ci/scripts/gitlab-ci-verify.sh` to check
+status only.
 
 ### Merge workflow (fast-forward only)
 
@@ -404,41 +320,6 @@ Recommended overlay files:
 - `~/.gitconfig.local`
 - `~/.forward.local`
 - `~/.ssh/config.local`
-
-## Maintenance Rules
-
-- Keep shell files small and focused
-- Prefer explicit path checks over hidden side effects
-- Avoid package-manager automation or install wrappers
-- Keep docs and tests aligned with the actual file layout
-- Preserve user data by backing up existing files before replacing them
-- Treat GPG and SSH permissions as part of the contract
-
-## Verification
-
-Run the project bash suites directly:
-
-```bash
-bash tests/verify-dotfiles.sh
-bash tests/test-functions.sh
-bash tests/test-bootstrap.sh
-bash tests/test-secrets.sh
-```
-
-If `make` is available in your environment, you can also use:
-
-```bash
-make verify
-make test
-make test-zsh      # zsh load-chain smoke test
-make ci-check      # confirm latest Drone build is green AND covers HEAD (reads token from SOPS)
-```
-
-Helpful direct checks:
-
-```bash
-bash --noprofile --norc -c 'set -u; source shared/platform.sh'
-```
 
 ## Troubleshooting
 

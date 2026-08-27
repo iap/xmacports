@@ -143,6 +143,54 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - Keep messages minimal and reviewable; align docs, tests, and code in the same change set
   when they are part of the same logical fix.
 
+## Branch Naming
+
+Use kebab-case with a scope prefix:
+
+```
+feat(<scope>): new feature
+fix(<scope>): bug fix
+docs(<scope>): documentation
+ci(<scope>): CI/CD changes
+refactor(<scope>): code restructuring
+test(<scope>): test additions/fixes
+chore(<scope>): maintenance
+```
+
+Examples:
+- `feat(secrets): add multi-machine sync`
+- `fix(ci): migrate from Drone to GitLab CI`
+- `docs(readme): add branch naming convention`
+
+## Document Callouts
+
+Use GitHub/GitLab alert syntax when writing documentation:
+
+```markdown
+> [!NOTE]
+> Supplemental information that's not critical to follow.
+
+> [!TIP]
+> Helpful suggestion for a better workflow or outcome.
+
+> [!IMPORTANT]
+> Critical information the reader must follow to avoid breakage.
+
+> [!WARNING]
+> Potential risk — data loss, security issue, or irreversible action.
+
+> [!CAUTION]
+> Stronger than WARNING — destructive or dangerous if ignored.
+```
+
+| Type | Use When |
+|------|----------|
+| `[!NOTE]` | Context, background, or "good to know" info |
+| `[!TIP]` | Best practice, shortcut, or recommendation |
+| `[!IMPORTANT]` | Must-follow instruction — skipping it causes failure |
+| `[!WARNING]` | Risk of data loss, security exposure, or breakage |
+| `[!CAUTION]` | Destructive/irreversible action (force-push, delete, etc.) |
+
 ## Cursor Plans
 
 - Use `.cursor/plans/` only for temporary plan drafts.
