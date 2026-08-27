@@ -3,98 +3,92 @@
 image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
 
 stages:
-  - sast
-  - test
-  - label
+- sast
+- test
+- label
 
 variables:
-  DOTFILES_ROOT: $CI_PROJECT_DIR
-
-# Helper to add community repo (shellcheck, shfmt, ruff live there)
-.add_community: &add_community
-  echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >> /etc/apk/repositories
+DOTFILES_ROOT: $CI_PROJECT_DIR
 
 # shellcheck job - only needs shellcheck
 shellcheck:
-  stage: sast
-  before_script:
-    - *add_community
-    - apk add --no-cache shellcheck
-  script:
-    - make shellcheck
+stage: sast
+before_script:
+- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
+- apk add --no-cache shellcheck
+script:
+- make shellcheck
 
 # shfmt job - only needs shfmt
 shfmt:
-  stage: sast
-  before_script:
-    - *add_community
-    - apk add --no-cache shfmt
-  script:
-    - make fmt-check
+stage: sast
+before_script:
+- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
+- apk add --no-cache shfmt
+script:
+- make fmt-check
 
 # python-lint job - install ruff from community repo
 python-lint:
-  stage: sast
-  before_script:
-    - apk add --no-cache python3
-    - *add_community
-    - apk add --no-cache ruff
-  script:
-    - make python-lint
+stage: sast
+before_script:
+- apk add --no-cache python3
+- echo "http://dl-cdn.alpinelinux.org/alpine/v3.20/community" >>/etc/apk/repositories
+- apk add --no-cache ruff
+script:
+- make python-lint
 
 # Behavioral tests
 test:
-  stage: test
-  before_script:
-    - apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
-  script:
-    - make test
+stage: test
+before_script:
+- apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
+script:
+- make test
 
 test-zsh:
-  stage: test
-  before_script:
-    - apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
-  script:
-    - make test-zsh
+stage: test
+before_script:
+- apk add --no-cache bash git python3 py3-yaml zsh make curl ca-certificates coreutils
+script:
+- make test-zsh
 
 # Auto-label MRs based on pipeline result
 # Requires GITLAB_API_TOKEN CI/CD variable with api scope
 label-success:
-  stage: label
-  image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
-  script:
-    - apk add --no-cache curl
-    - >-
-      if [ -z "${GITLAB_API_TOKEN:-}" ]; then
-        echo "GITLAB_API_TOKEN not set — skipping label"
-        exit 0
-      fi
-    - >-
-      curl --request PUT
-      --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}"
-      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}"
-      --data "labels=ci-passing"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  when: on_success
-  allow_failure: true
+stage: label
+image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
+script:
+- apk add --no-cache curl
+- |
+	if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+		echo "GITLAB_API_TOKEN not set — skipping label"
+		exit 0
+	fi
+curl --request PUT \
+	--header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+	"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" \
+	--data "labels=ci-passing"
+rules:
+- if: $CI_PIPELINE_SOURCE == "merge_request_event"
+when: on_success
+allow_failure: true
 
 label-failure:
-  stage: label
-  image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
-  script:
-    - apk add --no-cache curl
-    - >-
-      if [ -z "${GITLAB_API_TOKEN:-}" ]; then
-        echo "GITLAB_API_TOKEN not set — skipping label"
-        exit 0
-      fi
-    - >-
-      curl --request PUT
-      --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}"
-      "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}"
-      --data "labels=ci-failing"
-  rules:
-    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
-  when: on_failure
-  allow_failure: true
+stage: label
+image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
+script:
+- apk add --no-cache curl
+- |
+	if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+		echo "GITLAB_API_TOKEN not set — skipping label"
+		exit 0
+	fi
+curl --request PUT \
+	--header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" \
+	"${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" \
+	--data "labels=ci-failing"
+rules:
+- if: $CI_PIPELINE_SOURCE == "merge_request_event"
+when: on_failure
+allow_failure: true
