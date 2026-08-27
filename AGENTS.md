@@ -162,6 +162,19 @@ Examples:
 - `fix(ci): migrate from Drone to GitLab CI`
 - `docs(readme): add branch naming convention`
 
+## Branch-Based Workflow
+
+Never push directly to `main`. Always use topic branches:
+
+1. Create a topic branch from `origin/main`
+2. Make focused, single-purpose commits
+3. Push the topic branch
+4. Open an MR
+5. Let CI run
+6. Merge via fast-forward
+
+This applies to ALL changes — code, docs, CI, everything.
+
 ## Document Callouts
 
 Use GitHub/GitLab alert syntax when writing documentation:
