@@ -19,7 +19,7 @@ variables:
 shellcheck:
   stage: sast
   before_script:
-    - apk add --no-cache make shellcheck
+    - apk add --no-cache make bash shellcheck
   script:
     - make shellcheck
 
@@ -27,7 +27,7 @@ shellcheck:
 shfmt:
   stage: sast
   before_script:
-    - apk add --no-cache make shfmt
+    - apk add --no-cache make bash shfmt
   script:
     - make fmt-check
 
