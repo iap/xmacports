@@ -70,12 +70,17 @@ test-zsh:
 
 # Auto-label MRs based on pipeline result
 # Requires GITLAB_API_TOKEN CI/CD variable with api scope
+# These jobs are non-blocking (allow_failure: true) and skip if token is absent
 label-success:
   stage: label
   image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
   script:
     - apk add --no-cache curl
-    - 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
+    - |
+      if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+        echo "GITLAB_API_TOKEN not set — skipping label"
+        exit 0
+      fi
     - 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-passing"'
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
@@ -87,7 +92,11 @@ label-failure:
   image: alpine:3.20.5@sha256:a180ec8e5c7247c920c91508fa4ce86088946cc9e65f4aeb39091038bba88b0b
   script:
     - apk add --no-cache curl
-    - 'if [ -z "${GITLAB_API_TOKEN:-}" ]; then echo "GITLAB_API_TOKEN not set - skipping label"; exit 0; fi'
+    - |
+      if [ -z "${GITLAB_API_TOKEN:-}" ]; then
+        echo "GITLAB_API_TOKEN not set — skipping label"
+        exit 0
+      fi
     - 'curl --request PUT --header "PRIVATE-TOKEN: ${GITLAB_API_TOKEN}" "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/merge_requests/${CI_MERGE_REQUEST_IID}" --data "labels=ci-failing"'
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
