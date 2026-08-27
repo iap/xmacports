@@ -1,4 +1,2 @@
-# GitLab CI pipeline for dotfiles
-# Migrated from .drone.yml — parallel SAST jobs + behavioral tests
 include:
-  - local: '.ci/gitlab-ci.yml'
+  - local: .ci/gitlab-ci.yml
