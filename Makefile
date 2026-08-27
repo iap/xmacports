@@ -13,8 +13,8 @@ help:
 	@echo "  make test-secrets  - run SOPS/age secret tests"
 	@echo "  make test-compliance - run compliance checks"
 	@echo "  make sast           - run static analysis / security checks"
-	@echo "  make ci-local       - run .drone.yml locally via 'drone exec' (needs Docker daemon)"
-	@echo "  make ci-check       - verify latest Drone build is green (reads drone.token from SOPS)"
+	@echo "  make ci-local       - run GitLab CI pipeline locally via 'glab' or act"
+	@echo "  make ci-check       - verify latest GitLab CI pipeline is green (reads GITLAB_TOKEN from env)"
 	@echo "  make secrets-init   - generate the age key and initialise the secret store"
 	@echo "  make secrets-edit   - open the encrypted secrets in \$$EDITOR (via sops)"
 	@echo "  make secrets-encrypt - re-encrypt secrets/secrets.yaml -> secrets.enc.yaml"
@@ -127,26 +127,29 @@ sast: shellcheck fmt-check
 		echo "ruff/uv not found; skipping python-lint in CI"; \
 	fi
 
-# Run the real .drone.yml pipeline locally via the Drone CLI, so the local run
-# follows the same pipeline definition CI uses. Requires the Docker daemon
-# (Docker Desktop / Podman socket). No server token needed — drone exec is
-# fully local.
+# Run the GitLab CI pipeline locally using 'glab' or 'act' (GitHub Actions runner).
+# Requires: glab CLI authenticated OR act + Docker daemon.
+# The pipeline is defined in .ci/gitlab-ci.yml (included by .gitlab-ci.yml).
 ci-local:
-	@if ! command -v drone >/dev/null 2>&1; then \
-		echo "drone CLI not found. Install: download drone_darwin_$$(uname -m) from"; \
-		echo "https://github.com/harness/drone-cli/releases/latest into ~/bin"; \
+	@if command -v act >/dev/null 2>&1; then \
+		act --rm --workflows .gitlab-ci.yml --env DOTFILES_ROOT=/workspaces/$(CURDIR); \
+	elif command -v glab >/dev/null 2>&1; then \
+		echo "NOTE: glab doesn't run pipelines locally. Use 'act' or push to trigger."; \
+		echo "Install act: https://github.com/nektos/act"; \
+		exit 1; \
+	else \
+		echo "Neither act nor glab found. Install act for local pipeline runs:"; \
+		echo "  https://github.com/nektos/act"; \
 		exit 1; \
 	fi
-	DOTFILES_ROOT="$(CURDIR)" drone exec --trusted
 
-# Verify the latest Drone build for the authoritative repo is green. Drone
-# reports status to GitLab via the Status API (not GitLab CI pipelines), so the
-# GitLab MR UI cannot surface it — the Drone server is the source of truth.
-# Credentials come from the SOPS store (drone namespace).
+# Verify the latest GitLab CI pipeline for the authoritative repo is green.
+# GitLab CI reports status natively to GitLab's commit/MR UI, so it is the
+# authoritative source. Credentials: GITLAB_TOKEN env var (or glab auth).
 ci-check:
-	@if ! command -v drone >/dev/null 2>&1; then \
-		echo "drone CLI not found. Install: download drone_darwin_$$(uname -m) from"; \
-		echo "https://github.com/harness/drone-cli/releases/latest into ~/bin"; \
+	@if ! command -v glab >/dev/null 2>&1 && [ -z "${GITLAB_TOKEN:-}" ]; then \
+		echo "ERROR: neither glab CLI nor GITLAB_TOKEN found."; \
+		echo "Fix: install glab (https://gitlab.com/gitlab-org/cli) or set GITLAB_TOKEN."; \
 		exit 1; \
 	fi
-	DOTFILES_ROOT="$(CURDIR)" bash scripts/drone-check.sh
+	DOTFILES_ROOT="$(CURDIR)" bash .ci/scripts/gitlab-ci-verify.sh
