@@ -2,7 +2,7 @@
 
 > Cross-platform home directory configuration with deterministic shell startup, file-based bootstrap, and no package-manager automation.
 
-**[GitHub](https://github.com/iap/xmacports) | [GitLab](https://gitlab.com/iap/xmacports)**
+**Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) | **Mirror:** [GitHub](https://github.com/iap/xmacports)
 
 ## What This Repo Does
 
@@ -14,22 +14,17 @@
 ## Quick Start
 
 ```bash
-git clone <repository-url> "$HOME/.dotfiles"
+git clone git@gitlab.com:iap/xmacports.git "$HOME/.dotfiles"
 cd "$HOME/.dotfiles"
 make bootstrap
 make test
 ```
 
-Install required tools manually before bootstrapping:
+## Prerequisites
 
-- `bash`
-- `zsh`
-- `git`
-- `gpg` and `gpgconf`
-- `pinentry` of your choice
-- `shellcheck`
-- `shfmt`
-- `sops` and `age` _(for encrypted secret management)_
+- `bash`, `zsh`, `git`, `gpg`, `gpgconf`, `pinentry`
+- `make`, `mise`, `age`, `sops`
+- `shellcheck`, `shfmt` (for SAST)
 
 ## Layout
 
@@ -86,34 +81,6 @@ DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.c
 - **gh**: links only `config.yml` (preferences). `hosts.yml` holds OAuth tokens
   and is intentionally never tracked or linked — your tokens stay local.
 
-## Maintenance
-
-Direct test commands that work without `make`:
-
-```bash
-bash tests/verify-dotfiles.sh
-bash tests/test-functions.sh
-bash tests/test-bootstrap.sh
-bash tests/test-secrets.sh
-```
-
-If `make` is available:
-
-```bash
-make status
-make test
-make verify
-make audit
-```
-
-Optional maintenance:
-
-```bash
-make secrets-init
-make secrets-encrypt
-make secrets-edit
-```
-
 ## Security
 
 - Secrets are not exported from shell startup; use `secret()` or `with_secret()` for on-demand access
@@ -125,4 +92,5 @@ make secrets-edit
 ## Documentation
 
 - `MANUAL.md` - detailed startup order, architecture, and troubleshooting
+- `CONTRIBUTING.md` - how to contribute (branch naming, commit format, MR workflow)
 - `AGENTS.md` - repo operating rules for agentic edits
