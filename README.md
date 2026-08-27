@@ -74,8 +74,8 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 
 ## Opt-in app configs
 
-Two app configs are tracked but **opt-in** via env flags, so bootstrap never
-breaks an existing setup and never links secret-bearing files:
+Two app configs are tracked but **opt-in** via env flags. Bootstrap backs up
+any replaced files before linking and links no secret-bearing files:
 
 ```bash
 DOTFILES_ENABLE_FISH=1 make bootstrap   # links .config/fish/conf.d/* into ~/.config/fish/conf.d

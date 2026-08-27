@@ -316,7 +316,7 @@ are read at runtime — **no server host is hardcoded in tracked files**.
   so this catches zsh-path regressions that the bash suite would miss.
 
 Local parity: `make ci-local` runs `.drone.yml` against a Docker daemon via
-`drone exec --trusted`, so the local run can never drift from CI.
+`drone exec --trusted`, following the same pipeline definition CI uses.
 
 ### Verifying build status
 
@@ -355,7 +355,7 @@ git fetch origin
 git rebase origin/main        # resolve any conflicts, then force-with-lease if needed
 ```
 
-Only push `main` via fast-forward; never use `--force` (the repo forbids it).
+Only push `main` via fast-forward; never use `--force`.
 The `dotfiles-check.sh` behind-warning at shell init is your cue that `main`
 has moved and a rebase is due. Both the NixOS and macOS working copies must
 rebase onto `origin/main` before merging to keep history linear.

@@ -128,8 +128,9 @@ sast: shellcheck fmt-check
 	fi
 
 # Run the real .drone.yml pipeline locally via the Drone CLI, so the local run
-# can never drift from CI. Requires the Docker daemon (Docker Desktop / Podman
-# socket). No server token needed — drone exec is fully local.
+# follows the same pipeline definition CI uses. Requires the Docker daemon
+# (Docker Desktop / Podman socket). No server token needed — drone exec is
+# fully local.
 ci-local:
 	@if ! command -v drone >/dev/null 2>&1; then \
 		echo "drone CLI not found. Install: download drone_darwin_$$(uname -m) from"; \

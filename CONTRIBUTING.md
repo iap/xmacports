@@ -58,4 +58,4 @@ make test-compliance
 
 - The project uses **fast-forward** merges only. Rebase your branch onto the
   authoritative remote before merging (see MANUAL.md for the full workflow).
-- Never force-push `main` (the repo forbids it).
+- Never force-push `main`.
