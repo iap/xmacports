@@ -19,7 +19,7 @@ variables:
 shellcheck:
   stage: sast
   before_script:
-    - apk add --no-cache shellcheck
+    - apk add --no-cache make shellcheck
   script:
     - make shellcheck
 
@@ -27,7 +27,7 @@ shellcheck:
 shfmt:
   stage: sast
   before_script:
-    - apk add --no-cache shfmt
+    - apk add --no-cache make shfmt
   script:
     - make fmt-check
 
@@ -37,7 +37,7 @@ shfmt:
 python-lint:
   stage: sast
   before_script:
-    - apk add --no-cache python3 ruff
+    - apk add --no-cache make python3 ruff
   script:
     - make python-lint
 
