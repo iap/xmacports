@@ -44,7 +44,9 @@ elif [[ -n "${ZSH_VERSION:-}" ]]; then
   HISTORY_IGNORE="(${HISTORY_IGNORE:+$HISTORY_IGNORE|}export *|secret *|*TOKEN*|*SECRET*|*API_KEY*)"
 fi
 
-# mask a value for safe display (never reveals the secret)
+# mask a value for safe display: prefix+tail only for token-shaped (long)
+# values. Short values are hidden entirely — prefix+tail would reconstruct
+# most or all of them.
 mask() {
   local v="${1:-}"
   if [ -z "$v" ]; then
@@ -52,7 +54,7 @@ mask() {
     return
   fi
   if [[ ${#v} -le 8 ]]; then
-    printf '%s****%s\n' "${v:0:2}" "${v: -2}"
+    echo "****"
     return
   fi
   local prefix="${v:0:4}"
