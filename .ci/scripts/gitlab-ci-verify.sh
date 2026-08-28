@@ -64,9 +64,26 @@ fi
 echo "GitLab CI pipeline status for $BRANCH"
 
 # --- query GitLab API ---
-# Use glab CLI if available (authenticated), otherwise curl with token
-API_BASE="https://gitlab.com/api/v4"
-PROJECT_PATH="iap/xmacports"
+# Derive API base and project path dynamically.
+# Inside CI, GitLab injects CI_API_V4_URL + CI_PROJECT_PATH.
+# Locally, parse git remote to support forks and self-hosted instances.
+if [ -n "${CI_API_V4_URL:-}" ]; then
+  API_BASE="$CI_API_V4_URL"
+else
+  # Derive from git remote: git@host:path.git → https://host/api/v4
+  _remote_host="$(git -C "$DOTFILES_ROOT" remote get-url origin 2> /dev/null | sed -E 's|^.*@([^:/]+).*$|\1|' || true)"
+  [ -n "${_remote_host:-}" ] || _remote_host="gitlab.com"
+  API_BASE="https://${_remote_host}/api/v4"
+fi
+
+if [ -n "${CI_PROJECT_PATH:-}" ]; then
+  PROJECT_PATH="$CI_PROJECT_PATH"
+else
+  # Derive from git remote: git@host:path.git → path
+  PROJECT_PATH="$(git -C "$DOTFILES_ROOT" remote get-url origin 2> /dev/null | sed -E 's|^.*://[^/]+/||; s|^.*@[^:/]+:||; s|\.git$||' || true)"
+  [ -n "${PROJECT_PATH:-}" ] || PROJECT_PATH="iap/xmacports"
+fi
+
 ENCODED_PATH="$(printf '%s' "$PROJECT_PATH" | jq -sRr @uri 2> /dev/null || echo "$PROJECT_PATH")"
 
 if command -v glab > /dev/null 2>&1; then
