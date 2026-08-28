@@ -131,10 +131,9 @@ envinfo() {
 _git_info_core() {
   git rev-parse --git-dir > /dev/null 2>&1 || return 1
   local branch mark
-  # git branch --show-current returns empty (but exit 0) in detached HEAD
-  # (e.g. GitLab CI). Assign first, then fall back to short SHA if empty.
-  branch=$(git branch --show-current 2> /dev/null) || true
-  [ -z "$branch" ] && branch=$(git rev-parse --short HEAD 2> /dev/null) || true
+  # git branch --show-current returns empty in detached HEAD (e.g. GitLab CI).
+  # Fall back to the short SHA so the prompt still shows a ref.
+  branch=$(git branch --show-current 2> /dev/null || git rev-parse --short HEAD 2> /dev/null)
   git diff --quiet 2> /dev/null || mark="±"
   [ -z "$mark" ] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
   printf '%s%s' "$branch" "$mark"
