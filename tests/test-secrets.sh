@@ -72,6 +72,10 @@ echo "4. Encrypted file integrity"
 if [ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ] && command -v sops > /dev/null 2>&1; then
   # Check if the local age private key matches the one used for encryption
   AGE_KEYS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age/keys.txt"
+  # Point sops at the key the test already located; without this, sops falls
+  # back to its platform default (macOS: ~/Library/Application Support/sops/)
+  # and the decrypt check fails even though the keypair is valid.
+  export SOPS_AGE_KEY_FILE="$AGE_KEYS_FILE"
   if [ -f "$AGE_KEYS_FILE" ] && command -v age > /dev/null 2>&1; then
     EXTRACTED_KEY=$(age-keygen -y "$AGE_KEYS_FILE" 2> /dev/null | grep -E '^age1' | head -1)
     PUBLIC_KEY=$(grep -E 'age: +age1' "$DOTFILES_ROOT/.sops.yaml" | sed 's/.*age: *//' | tr -d ' ')

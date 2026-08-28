@@ -17,6 +17,12 @@ if [[ -n "${DOTFILES_SECRETS_LOADED:-}" ]]; then
 fi
 DOTFILES_SECRETS_LOADED=1
 
+# sops picks its own platform default key location (~/Library/Application
+# Support/sops/age/keys.txt on macOS) unless pointed elsewhere. The repo's
+# canonical key path is the XDG one (see scripts/secrets-init.sh), so default
+# the env var to it — otherwise direct `sops` calls on macOS fail to decrypt.
+export SOPS_AGE_KEY_FILE="${SOPS_AGE_KEY_FILE:-${XDG_CONFIG_HOME:-$HOME/.config}/sops/age/keys.txt}"
+
 SECRET_PARSE_PY="${DOTFILES_ROOT:-$HOME/.dotfiles}/scripts/secret-parse.py"
 
 _SECRETS_ENC_FILE="${DOTFILES_ROOT:-$HOME/.dotfiles}/secrets/secrets.enc.yaml"
