@@ -77,7 +77,10 @@ context() {
   echo "DIR: $(pwd)"
   echo "FILES: $(find . -maxdepth 1 -type f | wc -l | tr -d ' ')"
   if git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "GIT: $(git branch --show-current) ($(git status --porcelain | wc -l | tr -d ' ') changes)"
+    local _ctx_branch
+    _ctx_branch=$(git branch --show-current 2> /dev/null) || true
+    [ -z "$_ctx_branch" ] && _ctx_branch=$(git rev-parse --short HEAD 2> /dev/null) || true
+    echo "GIT: $_ctx_branch ($(git status --porcelain | wc -l | tr -d ' ') changes)"
   fi
 }
 
@@ -106,11 +109,13 @@ gitstat() {
     echo "Not a git repository"
     return 1
   fi
-  local root changes
+  local root changes _stat_branch
   root="$(git rev-parse --show-toplevel)"
   changes="$(git status --porcelain)"
+  _stat_branch=$(git branch --show-current 2> /dev/null) || true
+  [ -z "$_stat_branch" ] && _stat_branch=$(git rev-parse --short HEAD 2> /dev/null) || true
   echo "REPO: $(basename "$root")"
-  echo "BRANCH: $(git branch --show-current)"
+  echo "BRANCH: $_stat_branch"
   echo "CHANGES: $(echo "$changes" | grep -c . 2> /dev/null || true)"
   if [ -n "$changes" ]; then
     echo "$changes" | head -5
@@ -131,9 +136,10 @@ envinfo() {
 _git_info_core() {
   git rev-parse --git-dir > /dev/null 2>&1 || return 1
   local branch mark
-  # git branch --show-current returns empty in detached HEAD (e.g. GitLab CI).
-  # Fall back to the short SHA so the prompt still shows a ref.
-  branch=$(git branch --show-current 2> /dev/null || git rev-parse --short HEAD 2> /dev/null)
+  # git branch --show-current returns empty (but exit 0) in detached HEAD
+  # (e.g. GitLab CI). Assign first, then fall back to short SHA if empty.
+  branch=$(git branch --show-current 2> /dev/null) || true
+  [ -z "$branch" ] && branch=$(git rev-parse --short HEAD 2> /dev/null) || true
   git diff --quiet 2> /dev/null || mark="±"
   [ -z "$mark" ] && { git diff --cached --quiet 2> /dev/null || mark="+"; }
   printf '%s%s' "$branch" "$mark"
