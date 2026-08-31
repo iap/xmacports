@@ -56,7 +56,7 @@ echo "${output2:-}"
 echo
 
 echo "3. Symlink verification"
-for f in .profile .zprofile .bashrc .zshrc .bash_profile .gitconfig .gitignore_global .forward .vimrc; do
+for f in .profile .zprofile .bashrc .zshrc .bash_profile .gitconfig .gitignore_global .forward .hushlogin .vimrc; do
   if [ -L "$HOME/$f" ]; then
     target=$(readlink "$HOME/$f")
     case "$target" in

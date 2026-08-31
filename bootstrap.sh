@@ -104,6 +104,9 @@ backup_and_link "$DOTFILES/.zshrc" "$HOME/.zshrc"
 backup_and_link "$DOTFILES/.gitconfig" "$HOME/.gitconfig"
 backup_and_link "$DOTFILES/.gitignore_global" "$HOME/.gitignore_global"
 backup_and_link "$DOTFILES/.forward" "$HOME/.forward"
+# .hushlogin only functions as ~/.hushlogin (suppresses the login MOTD); from
+# inside the repo it is inert, so it must be linked like the other root files.
+backup_and_link "$DOTFILES/.hushlogin" "$HOME/.hushlogin"
 
 # Directory scaffolding. mkdir is tolerant: on NixOS a Home Manager-managed
 # $HOME may own e.g. .config and be read-only, and on WSL interop mounts
