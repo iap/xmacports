@@ -29,6 +29,13 @@ check() {
   fi
 }
 
+# .sops.yaml may list multiple comma-separated age recipients (primary +
+# recovery). Check membership instead of string equality so adding recipients
+# doesn't silently skip the keypair/decrypt checks.
+_sops_has_recipient() {
+  printf '%s\n' "$1" | tr ',' '\n' | grep -qxF "$2"
+}
+
 echo "SOPS + age Secret Management Tests"
 date '+%Y-%m-%d %H:%M:%S'
 echo
@@ -54,7 +61,7 @@ if [ -f "$DOTFILES_ROOT/.sops.yaml" ]; then
     AGE_KEYS_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/sops/age/keys.txt"
     if [ -f "$AGE_KEYS_FILE" ]; then
       EXTRACTED_KEY=$(age-keygen -y "$AGE_KEYS_FILE" 2> /dev/null | grep -E '^age1' | head -1)
-      if [ "$PUBLIC_KEY" = "$EXTRACTED_KEY" ]; then
+      if _sops_has_recipient "$PUBLIC_KEY" "$EXTRACTED_KEY"; then
         pass "public key in .sops.yaml matches local age keypair"
       else
         echo "   SKIP: public key in .sops.yaml doesn't match local age keypair (different keypair in CI)"
@@ -79,11 +86,19 @@ if [ -f "$DOTFILES_ROOT/secrets/secrets.enc.yaml" ] && command -v sops > /dev/nu
   if [ -f "$AGE_KEYS_FILE" ] && command -v age > /dev/null 2>&1; then
     EXTRACTED_KEY=$(age-keygen -y "$AGE_KEYS_FILE" 2> /dev/null | grep -E '^age1' | head -1)
     PUBLIC_KEY=$(grep -E 'age: +age1' "$DOTFILES_ROOT/.sops.yaml" | sed 's/.*age: *//' | tr -d ' ')
-    if [ "$PUBLIC_KEY" = "$EXTRACTED_KEY" ]; then
-      check "secrets.enc.yaml decrypts without error" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1
-      check "secrets.enc.yaml contains valid YAML when decrypted" sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" | python3 -c "import sys,yaml; yaml.safe_load(sys.stdin)" 2> /dev/null
+    if _sops_has_recipient "$PUBLIC_KEY" "$EXTRACTED_KEY"; then
+      # Redirects/pipes below belong to the sops commands, NOT to the check
+      # wrapper — attaching them to `check` used to swallow the PASS lines.
+      _decrypt_ok() {
+        sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" > /dev/null 2>&1
+      }
+      _decrypt_valid_yaml() {
+        sops -d "$DOTFILES_ROOT/secrets/secrets.enc.yaml" 2> /dev/null | python3 -c 'import sys,yaml; yaml.safe_load(sys.stdin)' 2> /dev/null
+      }
+      check "secrets.enc.yaml decrypts without error" _decrypt_ok
+      check "secrets.enc.yaml contains valid YAML when decrypted" _decrypt_valid_yaml
     else
-      echo "   SKIP: age private key doesn't match encrypted file (different keypair in CI)"
+      echo "   SKIP: local age keypair is not a recipient of the encrypted file (different keypair in CI)"
     fi
   else
     echo "   SKIP: sops or age private key missing"
