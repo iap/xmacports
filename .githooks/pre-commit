@@ -12,14 +12,18 @@ reject() {
 staged_files=$(git diff --cached --name-only --diff-filter=ACM)
 [ -z "$staged_files" ] && exit 0
 
-# Run format/lint (best-effort)
-if command -v shfmt > /dev/null 2>&1; then
-  if ! make fmt-check > /dev/null 2>&1; then
+# Run format/lint on the staged files only (best-effort). Full-repo linting
+# stays in CI / `make sast`. Lint is skipped when the lint scripts are absent
+# (e.g. other repos reusing this hook standalone) — the secret scan below is
+# the hard gate and is never skipped.
+TOP="$(git rev-parse --show-toplevel 2> /dev/null || true)"
+if [ -n "$TOP" ] && [ -f "$TOP/scripts/shfmt.sh" ] && command -v shfmt > /dev/null 2>&1; then
+  if ! bash "$TOP/scripts/shfmt.sh" --check --staged > /dev/null 2>&1; then
     reject "shfmt check failed. Run: make fmt-check"
   fi
 fi
-if command -v shellcheck > /dev/null 2>&1; then
-  if ! make shellcheck > /dev/null 2>&1; then
+if [ -n "$TOP" ] && [ -f "$TOP/scripts/shellcheck.sh" ] && command -v shellcheck > /dev/null 2>&1; then
+  if ! bash "$TOP/scripts/shellcheck.sh" --staged > /dev/null 2>&1; then
     reject "shellcheck failed. Run: make shellcheck"
   fi
 fi
