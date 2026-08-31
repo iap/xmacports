@@ -2,11 +2,13 @@
 # https://github.com/getsops/sops
 #
 # This file defines encryption rules for secrets stored in this repository.
-# The public age key below determines who can decrypt the encrypted files.
+# The public age keys below determine who can decrypt the encrypted files:
+# the primary machine key and a separate recovery key (private half stored
+# offline). Losing either single key must NOT make the store unreadable.
 
 creation_rules:
   - path_regex: secrets/[^.]*\.yaml$  # encrypts source to .enc.yaml
-    age: age1gptsedytxyrn7havhaf82fexlml3jque7g85w6ewgyapcjetyddqwxnmft
+    age: age1gptsedytxyrn7havhaf82fexlml3jque7g85w6ewgyapcjetyddqwxnmft,age1ue7gpf83k73edhd6u379jwcgxcde8s3e8kpxl4ema3rhmj74xpkqcccqnl
 
 # optional: enforced file matching for extra safety
 # encrypted_regex: ^(secrets/.*\.enc\.yaml)$
