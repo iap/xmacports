@@ -114,19 +114,32 @@ secrets-list:
 	@bash -c '$(SECRETS_SH) secret_list "$(NS)"'
 
 # Show which tracked dotfiles are currently linked into $HOME.
+# Mirrors bootstrap.sh's link set: root files, .gnupg/.ssh/.config targets,
+# every bin/* helper, and the gh opt-in (only reported when actually linked).
 status:
 	@bash -c 'cd "$(CURDIR)"; \
-	for t in .profile .bash_profile .bashrc .zprofile .zshrc .gitconfig \
-	         .gitignore_global .forward .vimrc; do \
-	  p="$$HOME/$$t"; \
+	report() { \
+	  p="$$HOME/$$1"; \
 	  if [ -L "$$p" ]; then \
-	    printf "linked    %-22s -> %s\n" "~/$$t" "$$(readlink "$$p")"; \
+	    printf "linked    %-30s -> %s\n" "~/$$1" "$$(readlink "$$p")"; \
 	  elif [ -e "$$p" ]; then \
-	    printf "REAL FILE %-22s (not linked)\n" "~/$$t"; \
+	    printf "REAL FILE %-30s (not linked)\n" "~/$$1"; \
 	  else \
-	    printf "missing   %-22s\n" "~/$$t"; \
+	    printf "missing   %-30s\n" "~/$$1"; \
 	  fi; \
-	done'
+	}; \
+	for t in .profile .bash_profile .bashrc .zprofile .zshrc .gitconfig \
+	         .gitignore_global .forward .hushlogin .vimrc \
+	         .gnupg/gpg.conf .gnupg/gpg-agent.conf .ssh/config \
+	         .config/vim/vimrc .config/vim/privacy.vim .config/npm/config \
+	         .config/env.d; do \
+	  report "$$t"; \
+	done; \
+	for b in bin/*; do \
+	  [ -f "$$b" ] && report "$$b"; \
+	done; \
+	[ -L "$$HOME/.config/gh/config.yml" ] && report .config/gh/config.yml; \
+	true'
 
 test-compliance:
 	DOTFILES_ROOT="$(CURDIR)" bash tests/run-tests.sh compliance
