@@ -2,7 +2,7 @@
 
 > Cross-platform home directory configuration with deterministic shell startup, file-based bootstrap, and no package-manager automation.
 
-**Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) | **Mirror:** [GitHub](https://github.com/iap/xmacports)
+**Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) — push-mirrored automatically to [GitHub](https://github.com/iap/xmacports) and [tildegit](https://tildegit.org/iap/xmacports); never push mirrors by hand
 
 ## What This Repo Does
 
@@ -87,6 +87,7 @@ DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.c
 - GPG and SSH config files are permission-checked
 - Local/private overlays stay outside the tracked repo
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
+- The store is encrypted to two age recipients — the primary machine key and an offline recovery key — so losing either single key leaves the store readable (see MANUAL.md)
 - Pre-commit hook blocks plaintext secret files and validates SOPS encryption
 
 ## Documentation
