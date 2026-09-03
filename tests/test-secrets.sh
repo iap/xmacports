@@ -201,6 +201,51 @@ fi
 rm -f "${XDG_RUNTIME_DIR:-/tmp}/.dotfiles-secrets-encrypt.lockdir" 2> /dev/null || true
 echo
 
+echo "10. Ephemeral dual-recipient round-trip (CI-safe)"
+# Validates the sops/age toolchain itself — including the two-recipient
+# topology .sops.yaml now uses — with throwaway keys, never touching the
+# real store or the machine's age identity. sops resolves creation rules
+# from the plaintext's directory tree, so the ephemeral store gets its own
+# .sops.yaml and encryption runs from inside the temp dir (otherwise the
+# repo's unanchored secrets/ rule would hijack the temp path).
+if command -v sops > /dev/null 2>&1 && command -v age-keygen > /dev/null 2>&1; then
+  SOPS_BIN="$(mise which sops 2> /dev/null)"
+  [ -n "$SOPS_BIN" ] || SOPS_BIN="$(command -v sops)"
+  RT_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-roundtrip.XXXXXX")"
+  mkdir -p "$RT_DIR/store"
+  age-keygen -o "$RT_DIR/k1.txt" > /dev/null 2>&1
+  age-keygen -o "$RT_DIR/k2.txt" > /dev/null 2>&1
+  K1_PUB="$(age-keygen -y "$RT_DIR/k1.txt" 2> /dev/null)"
+  K2_PUB="$(age-keygen -y "$RT_DIR/k2.txt" 2> /dev/null)"
+  printf 'creation_rules:\n  - path_regex: store/[^.]*\\.yaml$\n    age: %s,%s\n' "$K1_PUB" "$K2_PUB" > "$RT_DIR/.sops.yaml"
+  printf 'roundtrip:\n  probe: ephemeral-secret-value-12345\n' > "$RT_DIR/store/plain.yaml"
+  _rt_prev="$PWD"
+  _rt_enc=0
+  if cd "$RT_DIR" && SOPS_AGE_KEY_FILE="$RT_DIR/k1.txt" "$SOPS_BIN" encrypt --output store/enc.yaml store/plain.yaml 2> /dev/null; then
+    _rt_enc=1
+  fi
+  cd "$_rt_prev" || true
+  if [ "$_rt_enc" = "1" ]; then
+    check "ephemeral store encrypts to two recipients" test -s "$RT_DIR/store/enc.yaml"
+    if SOPS_AGE_KEY_FILE="$RT_DIR/k1.txt" "$SOPS_BIN" -d "$RT_DIR/store/enc.yaml" 2> /dev/null | grep -q "ephemeral-secret-value-12345"; then
+      pass "recipient 1 decrypts the round-trip"
+    else
+      fail "recipient 1 decrypts the round-trip"
+    fi
+    if SOPS_AGE_KEY_FILE="$RT_DIR/k2.txt" "$SOPS_BIN" -d "$RT_DIR/store/enc.yaml" 2> /dev/null | grep -q "ephemeral-secret-value-12345"; then
+      pass "recipient 2 decrypts the round-trip"
+    else
+      fail "recipient 2 decrypts the round-trip"
+    fi
+  else
+    fail "ephemeral two-recipient encryption"
+  fi
+  rm -rf "$RT_DIR"
+else
+  echo "   SKIP: sops or age-keygen missing"
+fi
+echo
+
 TOTAL=$((PASSED + FAILED))
 echo "────────────────────────────────"
 echo "Total: $TOTAL  Passed: $PASSED  Failed: $FAILED"
