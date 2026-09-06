@@ -13,6 +13,15 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 2. Treat this file as the repo-wide default policy.
 3. Prefer more specific repo docs or task plans only when they do not conflict here.
 
+## Environment Scope
+
+- The agent working in an environment adjusts the project for that environment only.
+- This checkout runs on macOS; fixes driven by other environments (e.g. Windows,
+  WSL, other machines' layouts) are handled by the agents working there.
+- Keep shared files cross-platform-safe: do not break other hosts, but do not
+  preempt or port their fixes — let the running environment's needs drive
+  changes here.
+
 ## Core Rules
 
 - Keep startup minimal and idempotent.
