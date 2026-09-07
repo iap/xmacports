@@ -2,7 +2,7 @@
 
 > Cross-platform home directory configuration with deterministic shell startup, file-based bootstrap, and no package-manager automation.
 
-**Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) — push-mirrored automatically to [GitHub](https://github.com/iap/xmacports) and [tildegit](https://tildegit.org/iap/xmacports); never push mirrors by hand
+**Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) | **Mirror:** [GitHub](https://github.com/iap/xmacports)
 
 ## What This Repo Does
 
