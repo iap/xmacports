@@ -184,7 +184,10 @@ This applies to ALL changes — code, docs, CI, everything.
 
 ## Document Callouts
 
-Use GitHub/GitLab alert syntax when writing documentation:
+Use GitHub/GitLab alert syntax when writing documentation.
+Alerts also render in MR/issue bodies and commit comments. Never use them in
+commit messages — messages travel as plain text (git log, terminals, emails),
+where the syntax shows up as literal clutter. Keep commits to plain prose.
 
 ```markdown
 > [!NOTE]
