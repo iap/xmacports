@@ -6,7 +6,8 @@ Thanks for contributing to these dotfiles.
 
 - `mise` for project tooling and runtimes
 - Git with GPG signing configured
-- GPG key registered locally (see AGENTS.md for the project signing key)
+- GPG key registered locally (see AGENTS.md Git Commit Signing for the signing
+  conventions; your key id lives in `~/.gitconfig.local`, never in tracked files)
 
 ## Setup
 
@@ -25,22 +26,19 @@ mise install
 
 ## Branch Naming
 
-Use kebab-case with a scope prefix:
+Use kebab-case with a scope prefix (`<scope>/<short-name>`). Branch names
+never use the `type(scope):` form — that shape is reserved for commit subjects.
 
 ```
-feat(<scope>): new feature
-fix(<scope>): bug fix
-docs(<scope>): documentation
-ci(<scope>): CI/CD changes
-refactor(<scope>): code restructuring
-test(<scope>): test additions/fixes
-chore(<scope>): maintenance
+fix/audit-2026-09
+feat/secrets-sync
+docs/readme-branch-naming
 ```
 
 Examples:
-- `feat(secrets): add multi-machine sync`
-- `fix(ci): migrate from Drone to GitLab CI`
-- `docs(readme): add branch naming convention`
+- `feat/secrets-sync`: add multi-machine sync
+- `fix/ci-label-jobs`: migrate from Drone to GitLab CI
+- `docs/readme-branch-naming`: document the branch naming convention
 
 ## Commits
 
@@ -58,6 +56,7 @@ Examples:
 
 ```bash
 make test
+make test-zsh
 make verify
 ```
 

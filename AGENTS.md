@@ -30,10 +30,8 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - Back up existing user files before replacing them.
 - Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
 - Keep changes small and reviewable.
-- Use `mise` for project-scoped tooling (shellcheck, shfmt, age, sops) and global runtimes (uv/python, pnpm/node).
-- Use MacPorts only for system packages (git, gpg, coreutils, python3 for system scripts).
-- All external dependencies fetched via `curl`/`wget` with SHA256 verification — never package managers in bootstrap/startup.
-- Pin all versions in `.mise.toml` and CI workflows.
+- See `Mise Configuration` and `No Package Manager Automation` below for the
+  tooling and dependency rules.
 
 ## Repo Layout
 
@@ -71,6 +69,8 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ## Mise Configuration
 
+Pin all versions in `.mise.toml` and CI workflows.
+
 ### Project Tools (`.mise.toml`)
 - `shellcheck` — linting
 - `shfmt` — formatting
@@ -83,14 +83,13 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ### PATH Order (in `shared/platform.sh`)
 1. mise global shims (`~/.local/share/mise/shims`)
-2. Project mise shims (auto via `mise activate` in shell rc)
-3. User `~/bin`, `~/.local/bin`
-4. Foundry (if installed)
-5. MacPorts (`/opt/local/bin`, `/opt/local/sbin`)
-6. System paths
+2. User `~/bin`, then `~/.local/bin`
+3. Foundry (if installed)
+4. MacPorts (`/opt/local/bin`, `/opt/local/sbin`)
+5. System paths (`/usr/local/bin`, `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`, Nix profiles when present)
 
 ### Verification
-Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
+Run `make verify` after any mise/MacPorts changes.
 
 ## Secret Management
 
@@ -99,7 +98,7 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - The private age key lives at `~/.config/sops/age/keys.txt` and must never be committed.
 - Access secrets on demand with `secret()`, `with_secret()`, `secret_list()`, `secrets_edit()`, `secrets_encrypt()`, `secrets_decrypt()`.
 - Never export secrets at shell startup; keep secret loading lazy and scoped.
-- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files decrypt correctly.
+- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files contain SOPS ciphertext markers (fail-closed, no decryption key needed).
 
 ## Git Configuration
 
@@ -145,7 +144,9 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 - One logical change per commit. Do not bundle unrelated fixes into a single commit.
 - Subject: short and direct. The `type(scope):` prefix plus the subject carries the label;
   do not pad the subject with filler.
-- Body: state what changed and why. No email addresses, and no mechanic narration
+- Body: state what changed and why. No email addresses, no attribution trailers
+  (`Co-authored-by:`, `Signed-off-by:`) unless the credited party explicitly
+  asked for one, and no mechanic narration
   (do not describe GPG/SSH internals or signing mechanics). Do not claim outcomes you have
   not verified (e.g. "tests pass") — verify, then report.
 - Sign commits (`commit.gpgsign true`) and author with the GPG key's uid email.
@@ -154,22 +155,19 @@ Run `scripts/verify-migration.sh` after any mise/MacPorts changes.
 
 ## Branch Naming
 
-Use kebab-case with a scope prefix:
+Use kebab-case with a scope prefix (`<scope>/<short-name>`). Branch names
+never use the `type(scope):` form — that shape is reserved for commit subjects.
 
 ```
-feat(<scope>): new feature
-fix(<scope>): bug fix
-docs(<scope>): documentation
-ci(<scope>): CI/CD changes
-refactor(<scope>): code restructuring
-test(<scope>): test additions/fixes
-chore(<scope>): maintenance
+fix/audit-2026-09
+feat/secrets-sync
+docs/readme-branch-naming
 ```
 
 Examples:
-- `feat(secrets): add multi-machine sync`
-- `fix(ci): migrate from Drone to GitLab CI`
-- `docs(readme): add branch naming convention`
+- `feat/secrets-sync`: add multi-machine sync
+- `fix/ci-label-jobs`: migrate from Drone to GitLab CI
+- `docs/readme-branch-naming`: document the branch naming convention
 
 ## Branch-Based Workflow
 

@@ -25,6 +25,7 @@ make test
 - `bash`, `zsh`, `git`, `gpg`, `gpgconf`, `pinentry`
 - `make`, `mise`, `age`, `sops`
 - `shellcheck`, `shfmt` (for SAST)
+- `uv` (provides `ruff` for python-lint via `uv tool run ruff`)
 
 ## Layout
 
@@ -46,6 +47,7 @@ make test
 - `scripts/` - maintenance and verification helpers
 - `templates/` and `examples/` - starter configs for local overrides
 - `secrets/` - SOPS + age encrypted secret store
+- `tests/` - behavior checks; `.githooks/` - commit/push guards; `.ci/` - GitLab pipeline
 
 ## Bootstrap
 
@@ -73,11 +75,12 @@ Two app configs are tracked but **opt-in** via env flags. Bootstrap backs up
 any replaced files before linking and links no secret-bearing files:
 
 ```bash
-DOTFILES_ENABLE_FISH=1 make bootstrap   # links .config/fish/conf.d/* into ~/.config/fish/conf.d
+DOTFILES_ENABLE_FISH=1 make bootstrap   # planned: no fish files tracked yet, flag accepted but links nothing
 DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.config/gh
 ```
 
-- **fish**: links tracked `conf.d/*` files only.
+- **fish**: planned opt-in; no `conf.d/*` files are tracked yet, so the flag
+  currently links nothing.
 - **gh**: links only `config.yml` (preferences). `hosts.yml` holds OAuth tokens
   and is intentionally never tracked or linked — your tokens stay local.
 
@@ -87,7 +90,7 @@ DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.c
 - GPG and SSH config files are permission-checked
 - Local/private overlays stay outside the tracked repo
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
-- The store is encrypted to two age recipients — the primary machine key and an offline recovery key — so losing either single key leaves the store readable (see MANUAL.md)
+- The store is encrypted to two age recipients — the primary machine key and an offline recovery key — so losing either single key leaves the store readable (recipients listed in `.sops.yaml`)
 - Pre-commit hook blocks plaintext secret files and validates SOPS encryption
 
 ## Documentation
