@@ -10,10 +10,16 @@ fi
 # .profile normally sets DOTFILES_ROOT, but default it here too: zsh sources
 # .zshrc directly for interactive non-login shells, where .profile never ran.
 : "${DOTFILES_ROOT:=$HOME/.dotfiles}"
-for _config_file in "$DOTFILES_ROOT/shared/"*.sh; do
-  [[ -f "$_config_file" ]] && source "$_config_file"
-done
-unset _config_file
+# Load platform detection first
+[[ -f "$DOTFILES_ROOT/shared/platform.sh" ]] && source "$DOTFILES_ROOT/shared/platform.sh"
+# Load shared functions
+[[ -f "$DOTFILES_ROOT/shared/functions.sh" ]] && source "$DOTFILES_ROOT/shared/functions.sh"
+# Load shared aliases
+[[ -f "$DOTFILES_ROOT/shared/aliases.sh" ]] && source "$DOTFILES_ROOT/shared/aliases.sh"
+# Load shared prompt module
+[[ -f "$DOTFILES_ROOT/shared/prompt.sh" ]] && source "$DOTFILES_ROOT/shared/prompt.sh"
+# Load secret management
+[[ -f "$DOTFILES_ROOT/shared/secrets.sh" ]] && source "$DOTFILES_ROOT/shared/secrets.sh"
 
 # Load per-host environment overrides from XDG config. Mirrors .bashrc so both
 # shells get the same env.d modules — previously bash-only, which silently left

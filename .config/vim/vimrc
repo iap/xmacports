@@ -2,7 +2,7 @@
 " This file is sourced when vim is started with XDG_CONFIG_HOME set
 
 " Source the main vimrc
-if filereadable(expand('$HOME/.dotfiles/.vimrc'))
+if filereadable(expand('$HOME/.vimrc'))
     source $HOME/.dotfiles/.vimrc
 endif
 

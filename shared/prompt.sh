@@ -26,7 +26,7 @@ short_pwd() {
 
 # Git status is provided by shared/functions.sh/_git_info_core.
 # Keep prompt.sh shell-agnostic and avoid duplicating core git logic.
-if [[ -z "${_git_info_core:-}" ]] && [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh" ]]; then
+if [[ -z "$(command -v _git_info_core)" ]] && [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh" ]]; then
   source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh"
 fi
 
@@ -50,7 +50,7 @@ git_prompt_info() {
     if stat --version > /dev/null 2>&1; then
       cache_mtime=$(stat -c %Y "$cache_file" 2> /dev/null || echo 0)
     else
-      cache_mtime=$(/usr/bin/stat -f %m "$cache_file" 2> /dev/null || echo 0)
+      cache_mtime=$(stat -f %m "$cache_file" 2> /dev/null || echo 0)
     fi
   fi
   if [[ -f "$cache_file" ]] && [[ $(($(date +%s) - cache_mtime)) -lt $cache_timeout ]]; then
