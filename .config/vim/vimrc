@@ -3,7 +3,7 @@
 
 " Source the main vimrc
 if filereadable(expand('$HOME/.vimrc'))
-    source $HOME/.dotfiles/.vimrc
+    source $HOME/.vimrc
 endif
 
 " XDG Base Directory overrides

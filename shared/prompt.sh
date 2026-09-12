@@ -26,8 +26,13 @@ short_pwd() {
 
 # Git status is provided by shared/functions.sh/_git_info_core.
 # Keep prompt.sh shell-agnostic and avoid duplicating core git logic.
-if [[ -z "$(command -v _git_info_core)" ]] && [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh" ]]; then
-  source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh"
+# A bare `command -v` also matches a PATH binary of the same name, which would
+# then run inside the prompt. Require a shell function in both bash and zsh
+# (`type` prints "is a function" / "is a shell function" for functions only).
+if ! type _git_info_core 2> /dev/null | grep -q function; then
+  if [[ -f "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh" ]]; then
+    source "${DOTFILES_ROOT:-$HOME/.dotfiles}/shared/functions.sh"
+  fi
 fi
 
 git_prompt_info() {

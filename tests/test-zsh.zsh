@@ -2,11 +2,12 @@
 # zsh load-chain smoke test.
 #
 # The dotfiles load chain is exercised in CI only under bash (tests/run-tests.sh
-# is a bash runner). But .zshrc sources shared/*.sh under zsh, and shared/prompt.sh
-# defines the zsh-only renderer _prompt_render_zsh. A zsh-path regression (e.g. a
-# bashism that parses under bash but breaks under zsh, or a broken zsh glob/source)
-# would ship green. This test replicates .zshrc's exact load chain under a real
-# zsh and asserts the result is sane.
+# is a bash runner). But .zshrc sources the shared modules under zsh in an
+# explicit ordered list, and shared/prompt.sh defines the zsh-only renderer
+# _prompt_render_zsh. A zsh-path regression (e.g. a bashism that parses under
+# bash but breaks under zsh, or a broken source) would ship green. This test
+# replicates .zshrc's exact ordered module list under a real zsh and asserts
+# the result is sane.
 #
 # It sources the SAME files .zshrc sources (minus $HOME/.profile / env.d / local
 # overlays, which are host-specific) using DOTFILES_ROOT so it is deterministic in
@@ -38,20 +39,17 @@ echo "Dotfiles zsh Load-Chain Smoke Test"
 echo "DOTFILES_ROOT: $DOTFILES_ROOT"
 echo
 
-# 1. Source the load chain exactly as .zshrc does (platform is the single
-#    source of truth; the rest are functions, secrets, prompt, aliases).
+# 1. Source the load chain exactly as .zshrc does: the same explicit ordered
+#    module list (platform, functions, aliases, prompt, secrets). A glob here
+#    would load future shared/*.sh files that real zsh startup never sources,
+#    making coverage lie. Keep this list in sync with .zshrc.
 echo "1. Load chain sources cleanly under zsh"
 _load_ok=1
-if ! source "$DOTFILES_ROOT/shared/platform.sh"; then
-  echo "FAIL: error sourcing shared/platform.sh under zsh"
-  _load_ok=0
-fi
-for _f in "$DOTFILES_ROOT"/shared/*.sh; do
-  [ -f "$_f" ] || continue
-  source "$_f" 2> /dev/null || {
-    echo "FAIL: error sourcing $_f under zsh"
+for _f in platform.sh functions.sh aliases.sh prompt.sh secrets.sh; do
+  if ! source "$DOTFILES_ROOT/shared/$_f"; then
+    echo "FAIL: error sourcing shared/$_f under zsh"
     _load_ok=0
-  }
+  fi
 done
 for _f in "$DOTFILES_ROOT"/.zshrc.d/*.sh; do
   [ -f "$_f" ] || continue
