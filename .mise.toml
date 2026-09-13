@@ -11,7 +11,7 @@ nodejs = "20.17.0"
 pnpm = "9.0.2"
 
 # Global runtimes managed by mise
-python = "3.12.13"
+python = "3.11.16"
 uv = "0.5.4"
 
 # Python tooling for scripts/ (secret-parse.py) is managed via `uv tool install ruff`
