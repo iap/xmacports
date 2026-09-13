@@ -15,6 +15,10 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 
 ## Environment Scope
 
+- Naming: the forge repo is called `xmacports`; the canonical checkout path is
+  `~/.dotfiles` (overridable via `DOTFILES_ROOT`). Never rename either to
+  match the other, and never hardcode `~/xmacports` — resolve paths through
+  `DOTFILES_ROOT` instead.
 - The agent working in an environment adjusts the project for that environment only.
 - This checkout runs on macOS; fixes driven by other environments (e.g. Windows,
   WSL, other machines' layouts) are handled by the agents working there.

@@ -171,7 +171,7 @@ unset _secrets_found
 echo
 
 echo "User security directories:"
-gnupg_dir="$HOME/.gnupg" ssh_dir="$HOME/.ssh" dotfiles_dir="$HOME/.dotfiles"
+gnupg_dir="$HOME/.gnupg" ssh_dir="$HOME/.ssh" dotfiles_dir="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
 if [ -d "$dotfiles_dir" ]; then
   owner=$(stat -c %U "$dotfiles_dir" 2> /dev/null || stat -f %Su "$dotfiles_dir" 2> /dev/null || echo unknown)

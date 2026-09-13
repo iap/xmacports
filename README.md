@@ -4,6 +4,11 @@
 
 **Authoritative remote:** [GitLab](https://gitlab.com/iap/xmacports.git) | **Mirror:** [GitHub](https://github.com/iap/xmacports)
 
+> [!NOTE]
+> Naming: the forge repo is called `xmacports` for history; the canonical
+> checkout path is `~/.dotfiles`. Never rename either to match the other.
+> Code must use `DOTFILES_ROOT`, never a hardcoded `~/xmacports`.
+
 ## What This Repo Does
 
 - Links shell, Git, SSH, GPG, and editor configuration into `$HOME`
