@@ -129,7 +129,15 @@ Run `make verify` after any mise/MacPorts changes.
 - Some users prefer **SSH signing** over GPG: set `gpg.format = ssh`,
   point `user.signingkey` at the SSH public key path, and register the key on
   GitHub/GitLab. SSH signing reuses keys devs already have and avoids the GPG
-  agent/pinentry setup.
+  agent/pinentry setup. Verify it locally with `gpg.ssh.allowedSignersFile`
+  pointed at an allowed-signers file that maps the committer email to the SSH
+  public key; without it, `git log --show-signature` cannot check the signature.
+- **If the environment has no working GPG, use SSH signing or ask the user.**
+  Do not leave commits unsigned: sign with an SSH key (`gpg.format = ssh`,
+  `user.signingkey` set to the SSH public key path, with that key registered as a
+  signing key on GitHub/GitLab), or ask the user which signing method to use
+  before committing. Do not silently switch signing methods on a repository whose
+  history is GPG-signed.
 - Verify before pushing: `git log --show-signature -1` or `git verify-commit HEAD`.
 - Do not rewrite or force-push already-published signed history unless coordinated;
   re-signing rewrites commit hashes and diverges from every clone/remote.
