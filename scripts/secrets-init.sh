@@ -58,18 +58,22 @@ else
     # pattern silently no-op'd on indented files and would have broken the YAML
     # even if it had matched.
     if ! grep -q "age: $PUBLIC_KEY" "$SOPS_YAML"; then
-      # Refuse to silently rewrite a .sops.yaml that already lists more than one
-      # recipient. The unanchored sed below would drop every OTHER recipient and
-      # leave the ciphertext unre-encryptable for other machines. If multiple
-      # recipients are expected, add them explicitly with `sops updatekeys`.
-      _recipient_count=$(grep -cE '^[[:space:]]*age: age1' "$SOPS_YAML" 2> /dev/null || echo 0)
+      # Count REAL recipients, not matching lines: the age list is
+      # comma-separated on a single line, so a line count under-reports and the
+      # guard would miss a second recipient, then the sed below would drop it.
+      # Strip inline comments first so a key merely named in a comment is not
+      # counted. Refuse rather than rewrite a multi-recipient file; add a key
+      # explicitly with `sops updatekeys`.
+      _recipient_count=$(grep -E '^[[:space:]]*age:' "$SOPS_YAML" 2> /dev/null | sed 's/#.*//' | grep -oE 'age1[0-9a-z]+' | wc -l | tr -d ' ')
       if [ "${_recipient_count:-0}" -gt 1 ]; then
         echo "❌ $SOPS_YAML lists $_recipient_count age recipients; refusing to" >&2
         echo "   overwrite them. Add the new key with: sops updatekeys $SECRETS_ENC" >&2
         exit 1
       fi
       echo "Updating .sops.yaml with generated public key..."
-      sed -E "s/([[:space:]]*)age: age1[^[:space:]]*/\1age: $PUBLIC_KEY/" "$SOPS_YAML" > "$SOPS_YAML.tmp"
+      # Stop the match at the first key so a comma-separated list can never be
+      # collapsed into a single recipient.
+      sed -E "s/([[:space:]]*)age: age1[0-9a-z]*/\1age: $PUBLIC_KEY/" "$SOPS_YAML" > "$SOPS_YAML.tmp"
       mv "$SOPS_YAML.tmp" "$SOPS_YAML"
     fi
     if ! grep -q "age: $PUBLIC_KEY" "$SOPS_YAML"; then
