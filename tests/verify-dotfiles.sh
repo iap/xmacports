@@ -38,7 +38,7 @@ if [[ "$PATH_COUNT" -eq 0 ]]; then
   echo "   - PASS: No duplicate PATH entries after platform.sh"
 else
   echo "   - FAIL: Duplicate PATH entries found: $PATH_COUNT"
-  ((FAILED++))
+  FAILED=$((FAILED + 1))
 fi
 
 if [[ ":$test_path:" == *":$HOME/bin:"* ]] && [[ ":$test_path:" == *":$HOME/.local/bin:"* ]]; then
@@ -46,7 +46,7 @@ if [[ ":$test_path:" == *":$HOME/bin:"* ]] && [[ ":$test_path:" == *":$HOME/.loc
 else
   echo "   - FAIL: User bin directories missing after platform.sh load"
   echo "   - PATH: $test_path"
-  ((FAILED++))
+  FAILED=$((FAILED + 1))
 fi
 
 echo ""
@@ -57,7 +57,7 @@ for tool in ls grep sed curl; do
     echo "   - PASS: $tool available"
   else
     echo "   - FAIL: $tool missing"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
   fi
 done
 
@@ -71,7 +71,7 @@ for var in XDG_CONFIG_HOME XDG_DATA_HOME XDG_CACHE_HOME XDG_STATE_HOME; do
     echo "   - PASS: $val"
   else
     echo "   - FAIL: $var not set after sourcing platform.sh"
-    ((FAILED++))
+    FAILED=$((FAILED + 1))
   fi
 done
 
@@ -102,7 +102,7 @@ if [[ $FAILED -eq 0 ]]; then
             echo "   - secrets.enc.yaml decrypts successfully"
           else
             echo "   - FAIL: secrets.enc.yaml failed to decrypt"
-            ((FAILED++))
+            FAILED=$((FAILED + 1))
           fi
         else
           echo "   - SKIP: age private key does not match encrypted file (different keypair in CI)"
