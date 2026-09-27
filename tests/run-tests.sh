@@ -105,6 +105,16 @@ run_security_fix_tests() {
   fi
 }
 
+run_secrets_init_guard_tests() {
+  echo "Running secrets-init recipient-guard tests..."
+  if [[ -f "$SCRIPT_DIR/test-secrets-init-guard.sh" ]]; then
+    bash "$SCRIPT_DIR/test-secrets-init-guard.sh"
+  else
+    echo "❌ test-secrets-init-guard.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -139,6 +149,9 @@ main() {
       ;;
     "security-fixes")
       check_prerequisites && run_security_fix_tests
+      ;;
+    "secrets-init-guard")
+      check_prerequisites && run_secrets_init_guard_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -196,7 +209,14 @@ main() {
       secfix_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0)); then
+      echo "7. Secrets-Init Guard Tests"
+      echo
+
+      run_secrets_init_guard_tests
+      guard_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
@@ -213,6 +233,7 @@ main() {
       echo "  secrets     Run secret management tests only"
       echo "  review-fixes Run review-finding verification tests only"
       echo "  security-fixes Run security-fix verification tests only"
+      echo "  secrets-init-guard  Run secrets-init recipient-guard tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"
