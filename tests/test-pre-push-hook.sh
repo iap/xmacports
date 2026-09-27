@@ -76,8 +76,13 @@ check "tag to mirror is allowed" 0 $?
 git checkout -q topic/x
 git push --no-verify mirror topic/x > /dev/null 2>&1
 check "--no-verify bypasses the hook" 0 $?
+# A URL/path push still hits the topic-branch policy: anything that is not the
+# authoritative remote is refused. Push a NEW commit first, because pushing an
+# up-to-date ref sends an empty pre-push ref list, so the hook never evaluates
+# it and the check would pass vacuously.
+git commit -q --allow-empty -m url-push
 git push "$T/mirror.git" topic/x > /dev/null 2>&1
-check "push by URL is not blocked" 0 $?
+check "topic branch pushed by URL to a mirror is blocked" 1 $?
 
 # --- Single remote: hook must be inert --------------------------------------
 cd "$T" || exit 1
