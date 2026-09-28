@@ -145,7 +145,7 @@ Run `make verify` after any mise/MacPorts changes.
   and per-machine settings — git `user.name` / `user.email` / `user.signingkey`, GPG pinentry
   choices, shell `.local` overlays (`.bashrc.local`, `.zshrc.local`, `.profile.local`) — belong
   in private files that are NOT committed to the public repo (e.g. `.gitconfig.local`, included
-  first by the tracked `.gitconfig`; see `examples/gitconfig-local-example`). Keep the tracked
+  last by the tracked `.gitconfig`; see `examples/gitconfig-local-example`). Keep the tracked
   files free of personal identity. Publish such settings to the public repo only when the user
   explicitly asks.
 

@@ -1,7 +1,5 @@
-# Include personal settings (load first for override priority)
-
-[include]
-    path = ~/.gitconfig.local
+# Shared defaults for every machine. Machine-specific settings live in
+# ~/.gitconfig.local, included at the end so they take precedence.
 
 # Sample configuration - override in ~/.gitconfig.local
 #[commit]
@@ -59,3 +57,7 @@
 	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = !gh auth git-credential
+
+# Personal overrides - included last so local settings take precedence.
+[include]
+    path = ~/.gitconfig.local
