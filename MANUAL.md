@@ -40,9 +40,9 @@ non-login bash (where `.profile` never runs) does `.bashrc` load it after
 ~/.zprofile -> ~/.profile -> ~/.zshrc
 ```
 
-Under zsh `.zshrc` sources `.profile` on every start, so `.profile.local` is
-loaded there once, before `platform.sh`; its `PATH` additions do not take
-precedence over the system directories.
+Under zsh `.zshrc` sources `.profile` on every interactive or login start, so
+`.profile.local` is loaded there once, before `platform.sh`; its `PATH` additions
+do not take precedence over the system directories.
 
 ### Shared interactive layer
 
@@ -70,9 +70,12 @@ shared/prompt.sh
 
 Both shells now consistently load `foundry.sh` and `prompt.sh` if available.
 `.profile.local` is loaded exactly once per shell session, from `.profile`
-whenever it runs (every login shell, and every zsh session because `.zshrc`
-sources `.profile`); only an interactive non-login bash loads it from `.bashrc`,
-after `platform.sh`.
+whenever it runs (every login shell, and every interactive or login zsh session
+because `.zshrc` sources `.profile`); only an interactive non-login bash loads it
+from `.bashrc`, after `platform.sh`.
+
+A non-interactive, non-login shell (`sh -c`, `bash -c`, `zsh -c`) reads none of
+these files, so per-host settings are not applied there.
 
 ## Environment Rules
 
