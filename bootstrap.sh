@@ -119,6 +119,11 @@ _ensure_dir "$HOME/bin" "$HOME/.local/bin"
 _ensure_dir "$HOME/.gnupg" "$HOME/.ssh"
 _ensure_dir "$HOME/.config/vim" "$HOME/.config/npm"
 
+# XDG base directories. compliance-check.sh fails when any is missing, and
+# platform.sh only creates the cache/state subdirectories at login — nothing
+# creates .local/share — so a freshly bootstrapped home would otherwise fail.
+_ensure_dir "$HOME/.config" "$HOME/.cache" "$HOME/.local/share" "$HOME/.local/state"
+
 # GPG/SSH dirs must stay private. On some interop mounts (WSL against NTFS
 # without the `metadata` flag) chmod is a no-op — tolerate that instead of
 # dying under `set -e` (consistent with the guarded chmods below).
