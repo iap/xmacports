@@ -59,7 +59,7 @@ done < <(find "$DOTFILES_ROOT" -maxdepth 2 -type d ! -path "*/.git" ! -path "*/.
 echo
 
 echo "Executable scripts (expect +x):"
-for f in "$DOTFILES_ROOT"/bootstrap.sh "$DOTFILES_ROOT/bin/"*.sh "$DOTFILES_ROOT/scripts/"*.sh "$DOTFILES_ROOT/tests/"*.sh; do
+for f in "$DOTFILES_ROOT"/bootstrap.sh "$DOTFILES_ROOT"/bin/* "$DOTFILES_ROOT"/scripts/*.sh "$DOTFILES_ROOT"/tests/*.sh; do
   [ -e "$f" ] || continue
   if [ -x "$f" ]; then
     echo "✅ $f"
