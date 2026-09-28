@@ -190,26 +190,25 @@ Never push directly to `main`. Always use topic branches:
 3. Push the topic branch
 4. Open an MR
 5. Let CI run
-6. Sync the branch with `origin/main` (see below)
-7. Merge via fast-forward
+6. Sync the branch with `origin/main` (recommended — see below)
+7. Merge — GitLab creates a merge commit
 
 This applies to ALL changes — code, docs, CI, everything.
 
-**Sync before merging.** This project merges by fast-forward, and GitLab rewrites
-the source branch server-side when it is behind the target. GitLab cannot sign, so
-a branch merged while behind lands unsigned commits on `main` — every GPG
-signature in it is lost. Bring the branch up to date before merging:
+**Merge commits, not fast-forward.** The project merges with the *merge commit*
+method, so the source branch is never rewritten: its signed commits land on
+`main` unchanged. GitLab cannot sign, so the merge commit it creates is unsigned
+— expected, and the reason to judge history integrity by the branch commits.
+Merging a branch that is behind the target still works (nothing is rebased), but
+syncing first keeps the merge small and surfaces conflicts early:
 
-- Keep the branch current while it is still private: `git rebase origin/main`
-  re-creates each commit, and `commit.gpgsign` re-signs it.
-- If the branch is already published, do not rewrite it (see Git Commit Signing).
-  Merge the target in instead — `git merge origin/main` produces a signed merge
-  commit — then push.
+- While the branch is still private, `git rebase origin/main` re-creates each
+  commit and `commit.gpgsign` re-signs it.
+- Once it is published, do not rewrite it (see Git Commit Signing) — merge the
+  target in (`git merge origin/main`) instead, then push.
 - Confirm before merging: `git log --format='%h %G?' origin/main..HEAD` should
-  show `G` for every commit.
-
-A branch that already contains the target tip merges as a pure fast-forward and
-keeps every signature.
+  show `G` for every commit, so nothing unsigned reaches `main` apart from the
+  merge commit GitLab adds.
 
 ## Document Callouts
 
