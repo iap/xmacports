@@ -12,6 +12,12 @@
 # [commit]
 #     gpgsign = false
 
+# Example: Start editor commits from the tracked template (~/.gitmessage,
+# linked by bootstrap). Kept out of the tracked base because git aborts with
+# "could not read" when the template file is absent.
+# [commit]
+#     template = ~/.gitmessage
+
 # Example: Additional excludes
 # [core]
 #     excludesfile = ~/.gitignore_work
