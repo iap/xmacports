@@ -5,6 +5,9 @@
 #[commit]
 #    gpgsign = true
 
+[commit]
+    template = ~/.gitmessage
+
 [core]
     editor = nano
     excludesfile = ~/.gitignore_global

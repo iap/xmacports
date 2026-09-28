@@ -129,7 +129,7 @@ status:
 	  fi; \
 	}; \
 	for t in .profile .bash_profile .bashrc .zprofile .zshrc .gitconfig \
-	         .gitignore_global .forward .hushlogin .vimrc \
+	         .gitignore_global .forward .hushlogin .vimrc .gitmessage \
 	         .gnupg/gpg.conf .gnupg/gpg-agent.conf .ssh/config \
 	         .config/vim/vimrc .config/vim/privacy.vim .config/npm/config \
 	         .config/env.d; do \
