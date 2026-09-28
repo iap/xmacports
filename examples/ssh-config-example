@@ -5,7 +5,7 @@ Host <hostname>
     HostName <server-ip>
     User <username>
     Port 22
-    IdentityFile ~/.ssh/id_rsa
+    IdentityFile ~/.ssh/id_ed25519
 
     UserKnownHostsFile ~/.ssh/known_hosts
     StrictHostKeyChecking ask

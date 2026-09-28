@@ -12,8 +12,8 @@ max-cache-ttl 86400
 default-cache-ttl-ssh 28800
 max-cache-ttl-ssh 86400
 
-# Pinentry program (adjust for macOS)
-pinentry-program ~/.dotfiles/bin/pinentry-fallback
+# Pinentry program (the tracked gpg-agent.conf uses ~/bin/pinentry-fallback)
+pinentry-program ~/bin/pinentry-fallback
 
 # Allow preset passphrases
 allow-preset-passphrase
