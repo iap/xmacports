@@ -59,5 +59,3 @@
 	helper = !gh auth git-credential
 [credential "https://gist.github.com"]
 	helper = !gh auth git-credential
-[commit]
-	gpgsign = true
