@@ -1,7 +1,6 @@
 * text=auto eol=lf
 
 bootstrap.sh             text eol=lf
-bootstrap-private.sh     text eol=lf
 bin/*                    text eol=lf
 scripts/*.sh             text eol=lf
 tests/*.sh               text eol=lf
@@ -23,4 +22,4 @@ shared/*.sh              text eol=lf
 Makefile                 text eol=lf
 
 # SOPS-encrypted secrets — treat as binary (no eol translation, clean diffs)
-secrets/secrets.enc.yaml  -text diff=sops
+secrets/secrets.enc.yaml  -text
