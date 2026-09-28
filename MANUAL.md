@@ -28,8 +28,11 @@ The repo does not automate package installation. It assumes required tools are i
 ~/.bash_profile -> ~/.profile -> ~/.bashrc
 ```
 
-`.profile.local` is sourced by `.bashrc` after `platform.sh` loads, so user PATH
-additions take precedence over system directories.
+`.profile` sources `.profile.local` once (the `DOTFILES_PROFILE_LOCAL_LOADED`
+guard prevents a second load). `.bash_profile` sources `.profile`, so a login
+shell loads it there, before `platform.sh` builds `PATH`; only in an interactive
+non-login bash (where `.profile` never runs) does `.bashrc` load it after
+`platform.sh`, so its `PATH` additions take precedence only in that case.
 
 ### zsh login shell
 
@@ -37,8 +40,9 @@ additions take precedence over system directories.
 ~/.zprofile -> ~/.profile -> ~/.zshrc
 ```
 
-`.profile.local` is sourced by `.zshrc` after `platform.sh` loads, so user PATH
-additions take precedence over system directories.
+Under zsh `.zshrc` sources `.profile` on every start, so `.profile.local` is
+loaded there once, before `platform.sh`; its `PATH` additions do not take
+precedence over the system directories.
 
 ### Shared interactive layer
 
@@ -51,7 +55,7 @@ shared/functions.sh -> shared/secrets.sh
 shared/aliases.sh
 shared/prompt.sh
 .config/env.d/*.sh (proxy, foundry, user-local-bin)
-~/.profile.local (after platform.sh, with double-sourcing guard)
+~/.profile.local (loaded once per session)
 
 # .zshrc loads via its own entrypoint:
 .profile
@@ -61,11 +65,14 @@ shared/aliases.sh
 shared/prompt.sh
 .config/env.d/*.sh (proxy, foundry, user-local-bin)
 .zshrc.d/prompt.sh
-~/.profile.local (after platform.sh, with double-sourcing guard)
+~/.profile.local (loaded once per session)
 ```
 
 Both shells now consistently load `foundry.sh` and `prompt.sh` if available.
-`.profile.local` is loaded exactly once per shell session, after `platform.sh` assembles PATH.
+`.profile.local` is loaded exactly once per shell session, from `.profile`
+whenever it runs (every login shell, and every zsh session because `.zshrc`
+sources `.profile`); only an interactive non-login bash loads it from `.bashrc`,
+after `platform.sh`.
 
 ## Environment Rules
 
