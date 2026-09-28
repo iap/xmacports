@@ -240,3 +240,9 @@ fi
 if [[ ! -f "$HOME/.forward.local" ]]; then
   echo "Create ~/.forward.local for private mail forwarding"
 fi
+if [[ ! -f "$HOME/.profile.local" ]]; then
+  echo "Create ~/.profile.local for per-host environment overrides (see templates/profile-local.example)"
+fi
+if [[ ! -f "$HOME/.ssh/config.local" ]]; then
+  echo "Create ~/.ssh/config.local for machine-local SSH overrides (see MANUAL.md)"
+fi
