@@ -2,10 +2,19 @@
 # GPG agent socket is set via SSH_AUTH_SOCK in shared/platform.sh
 # This avoids hardcoded paths that differ between Linux and macOS
 
+# Machine-local overrides live in ~/.ssh/config.local (kept outside this repo).
+# OpenSSH keeps the FIRST value found for each keyword, so this include must stay
+# above the shared blocks below: whatever it sets wins, everything else falls
+# through to the defaults here. A missing file is ignored, so machines without a
+# local overlay are unaffected.
+Include ~/.ssh/config.local
+
 # Git hosting services
 # Uses the dedicated passphrase-less ed25519 key (~/.ssh/id_ed25519) for
 # headless/CI. IdentityFile + IdentitiesOnly yes => only that key is offered,
 # so the GPG-agent key (which needs a TTY unlock) is never tried here.
+# These are defaults only: a machine-local overlay may relax IdentitiesOnly via
+# the Include above.
 # For INTERACTIVE GPG-agent SSH, see `bin/gpg-ssh-headless` (and MANUAL.md), then
 # use `ssh -o IdentitiesOnly=no git@gitlab.com` after a TTY passphrase unlock.
 # Specific host directives MUST come BEFORE the Host * wildcard.
