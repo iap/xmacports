@@ -76,8 +76,11 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
   that happens, build git from the official tarball into a user-owned prefix with
   `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
   - the version and its SHA256 are pinned at the top of the script, and the checksum
-    is cross-checked against upstream's signed manifest at build time
-  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo
+    is corroborated against upstream's published manifest at build time
+  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
+    system and package-managed prefixes are refused outright
+  - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
+    if the install fails, so a failed upgrade never leaves the prefix without git
   - run `--check` first, so the change in state is known before anything is written
   - the floor is `2.38.0` (required by the Graphite CLI); never pin below it
 - Never invoke the installer from `bootstrap.sh` or a shell startup file. It is a

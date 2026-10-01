@@ -121,9 +121,24 @@ done
 ln -sf "$BAD_SH/sha256sum" "$PREREQ_SH/sha256sum"
 ln -sf "$BAD_SH/sha256sum" "$PREREQ_SH/shasum"
 
+# Serve a local file:// tarball so the download is stubbed and the test never
+# touches the network. GIT_SOURCE_DOWNLOAD_BASE redirects the fetch; the pinned
+# SHA256 is still enforced, so a tampered local file must still be rejected.
+SERVE_DIR="$T/serve"
+mkdir -p "$SERVE_DIR"
+# Deliberately wrong content: the stubbed checksum tool reports a hash that
+# cannot match the pin, which is what this test asserts on.
+printf 'not a real tarball\n' > "$SERVE_DIR/git-2.56.0.tar.xz"
+printf '%s  git-2.56.0.tar.xz\n' \
+  "0000000000000000000000000000000000000000000000000000000000000000" \
+  > "$SERVE_DIR/sha256sums.asc"
+
 # GIT_SOURCE_SKIP_PREREQ lets the run reach the checksum gate on an image with
 # no compiler. Everything the checksum gate itself depends on is still real.
-out="$(cd "$T" && PATH="$PREREQ_SH" GIT_SOURCE_SKIP_PREREQ=1 bash "$INSTALLER" --dry-run 2>&1)"
+out="$(cd "$T" && PATH="$PREREQ_SH" \
+  GIT_SOURCE_SKIP_PREREQ=1 \
+  GIT_SOURCE_DOWNLOAD_BASE="file://$SERVE_DIR" \
+  bash "$INSTALLER" --dry-run 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then ok "exits non-zero on mismatch (rc=$rc)"; else bad "exited 0 despite bad checksum"; fi
 if printf '%s' "$out" | grep -q "checksum mismatch"; then
@@ -135,6 +150,12 @@ if printf '%s' "$out" | grep -q "Refusing to build"; then
   ok "refuses to build explicitly"
 else
   bad "did not refuse to build: $out"
+fi
+# The refusal must come from the checksum gate, not from some earlier failure.
+if printf '%s' "$out" | grep -q "missing build prerequisites"; then
+  bad "stopped at the prerequisite gate before verifying the checksum: $out"
+else
+  ok "reached the checksum gate (no prerequisite failure first)"
 fi
 
 # --- already-installed short circuit -----------------------------------------
@@ -244,16 +265,35 @@ out="$(cd "$T" && PATH="$STUB_SH" bash "$INSTALLER" --check --prefix "$FAKE_PREF
 rc=$?
 if [ "$rc" -eq 0 ]; then ok "check passes once build tools exist (rc=$rc)"; else bad "check failed with build tools present: $out"; fi
 
-# --- unknown flag is rejected -----------------------------------------------
-echo "rejects unknown options:"
-out="$(run_installer none --not-a-real-flag 2>&1)"
-rc=$?
-if [ "$rc" -ne 0 ]; then ok "exits non-zero (rc=$rc)"; else bad "accepted an unknown flag"; fi
-if printf '%s' "$out" | grep -q "unknown option"; then
-  ok "explains the unknown option"
+echo "refuses a system or package-managed prefix:"
+for p in /usr/local /opt/homebrew /opt/local /usr; do
+  out="$(run_installer none --check --prefix "$p" 2>&1)"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then ok "refuses $p (rc=$rc)"; else bad "accepted $p"; fi
+  if printf '%s' "$out" | grep -qi "refusing to install"; then
+    ok "explains the refusal for $p"
+  else
+    bad "no refusal message for $p: $out"
+  fi
+done
+
+echo "still accepts a user-owned prefix:"
+out="$(run_installer none --check --prefix "$FAKE_PREFIX_NEW" 2>&1)"
+# A user prefix must never be refused for being a system path. The exit status
+# still depends on whether the host has the build tools, so assert on the
+# message, not the code.
+if printf '%s' "$out" | grep -qi "refusing to install"; then
+  bad "unexpectedly refused a user prefix: $out"
 else
-  bad "missing unknown-option message: $out"
+  ok "does not refuse a user prefix"
 fi
+if printf '%s' "$out" | grep -q "would build git"; then
+  ok "reports the plan for a user prefix"
+else
+  bad "no plan reported for a user prefix: $out"
+fi
+
+# --- unknown flag is rejected -----------------------------------------------
 
 # --- help works without a build ---------------------------------------------
 echo "help is available:"

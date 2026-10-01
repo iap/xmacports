@@ -25,8 +25,11 @@ set -euo pipefail
 GIT_VERSION="2.56.0"
 GIT_SHA256="26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3"
 
-# Upstream release tarball plus the signed checksum manifest that authorises it.
-DOWNLOAD_BASE="https://mirrors.edge.kernel.org/pub/software/scm/git"
+# Upstream release tarball plus the checksum manifest that lists it. Both may be
+# redirected with GIT_SOURCE_DOWNLOAD_BASE, which the test suite uses to serve a
+# local file:// URL instead of hitting the network. The pinned SHA256 is the
+# trust anchor either way, so overriding the host cannot weaken verification.
+DOWNLOAD_BASE="${GIT_SOURCE_DOWNLOAD_BASE:-https://mirrors.edge.kernel.org/pub/software/scm/git}"
 SHA256_MANIFEST="${DOWNLOAD_BASE}/sha256sums.asc"
 
 # Install prefix. Must stay ahead of /usr/bin and /usr/local/bin on PATH;
@@ -213,6 +216,23 @@ fi
 
 # --- Check-only mode ---------------------------------------------------------
 
+# Refuse a prefix that this script would destructively clean. It removes
+# $PREFIX/libexec/git-core recursively and $PREFIX/bin/git, so a package-managed
+# or shared prefix (/usr, /opt/homebrew, /opt/local, /opt/local, a system path)
+# would be damaged. The promise in AGENTS.md is a user-owned prefix; enforce it.
+case "$PREFIX" in
+  /usr | /usr/* | /bin | /bin/* | /sbin | /sbin/* | /etc | /etc/* | /System | /System/*)
+    die "refusing to install into system path: $PREFIX
+  This script replaces $PREFIX/bin/git and $PREFIX/libexec/git-core.
+  Use a user-owned prefix such as \$HOME/.local."
+    ;;
+  /opt/homebrew | /opt/homebrew/* | /opt/local | /opt/local/* | /sw | /sw/* | /nix | /nix/*)
+    die "refusing to install into a package-managed prefix: $PREFIX
+  This script replaces $PREFIX/bin/git and $PREFIX/libexec/git-core.
+  Use a user-owned prefix such as \$HOME/.local."
+    ;;
+esac
+
 if [ "$CHECK_ONLY" -eq 1 ]; then
   # Distinct name from the missing_prereq function: a variable called `missing`
   # collides with it in shellcheck's view and hides real findings.
@@ -231,12 +251,17 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
   # reporting mode: a caller on a host that lacks a build tool still needs to
   # know what the script *would* do, so the plan is never withheld. This also
   # keeps the mode useful on CI images without a compiler.
+  #
+  # The forecast must match what a plain run would actually do. A plain run only
+  # short-circuits when the *prefix* already has the pinned version, so a
+  # sufficiently new git on PATH is NOT a reason to say "nothing to do" — this
+  # script would still build into the prefix. Never exit 0 on the PATH state.
   if [ -n "$PREFIX_VERSION" ]; then
     log "check: would rebuild $PREFIX_VERSION -> $GIT_VERSION"
-  elif [ -n "$PATH_VERSION" ] && version_ge "$PATH_VERSION" "$GIT_VERSION"; then
-    log "check: PATH git $PATH_VERSION already satisfies the pin; nothing to do"
-    exit 0
   else
+    if [ -n "$PATH_VERSION" ] && version_ge "$PATH_VERSION" "$GIT_VERSION"; then
+      log "check: note: PATH already has git $PATH_VERSION, but the pinned build still installs into $PREFIX"
+    fi
     log "check: would build git $GIT_VERSION into $PREFIX"
   fi
 
@@ -301,18 +326,33 @@ if [ "$ACTUAL_SHA" != "$GIT_SHA256" ]; then
 fi
 log "checksum matches the pinned value"
 
-# Cross-check the pin against the upstream signed manifest when reachable. This
-# is best-effort so a network hiccup cannot block an install whose tarball
-# already matched the reviewed pin. A *disagreement* is always fatal.
+# Cross-check the pin against upstream's published manifest when reachable.
+#
+# Trust model, stated precisely: the real trust anchor is GIT_SHA256 pinned in
+# this file and reviewed in the commit that changed it. This manifest fetch is a
+# convenience cross-check that catches a mistyped pin or a re-released tarball.
+# The manifest is fetched over HTTPS from the same host as the tarball and its
+# PGP signature is NOT verified here — that would require git's release key to be
+# present in the operator's keyring, which this script does not manage. So treat
+# a match as corroboration, never as independent proof.
+#
+# A network failure must not block an install whose tarball already matched the
+# reviewed pin, so an unreachable manifest is a warning. A *disagreement* is
+# always fatal.
 if curl -fsSL --retry 2 --max-time 60 -o "$DOWNLOAD_DIR/sha256sums.asc" "$SHA256_MANIFEST" 2> /dev/null; then
   UPSTREAM_SHA="$(awk -v t="$TARBALL" '$2 == t || $2 == "./" t {print $1; exit}' "$DOWNLOAD_DIR/sha256sums.asc")"
-  if [ -n "$UPSTREAM_SHA" ] && [ "$UPSTREAM_SHA" != "$GIT_SHA256" ]; then
+  if [ -z "$UPSTREAM_SHA" ]; then
+    warn "no entry for $TARBALL in the upstream manifest; continuing on the pinned checksum alone"
+  elif [ "$UPSTREAM_SHA" != "$GIT_SHA256" ]; then
     die "upstream manifest disagrees with the pinned checksum for $TARBALL
   pinned:   $GIT_SHA256
   upstream: $UPSTREAM_SHA
   Reconcile by hand before building."
+  else
+    log "corroborated by upstream manifest (signature not verified; pin remains the trust anchor)"
   fi
-  [ -n "$UPSTREAM_SHA" ] && log "cross-checked against the upstream signed manifest"
+else
+  warn "could not fetch the upstream manifest; continuing on the pinned checksum alone"
 fi
 
 # --- Build -------------------------------------------------------------------
@@ -349,8 +389,22 @@ fi
 # git's configure exits outright when it cannot find a working libcurl, which is
 # the single most common failure on a host with no system libcurl. Fail with a
 # readable message instead of a configure error dump.
-if [ ! -d "$PORT_PREFIX/include/curl" ] && ! ls /usr/include/curl/curl.h > /dev/null 2>&1; then
-  die "no libcurl headers found (looked in $PORT_PREFIX/include/curl and /usr/include/curl).
+# git needs libcurl headers, but they are not always in one obvious place:
+#   - MacPorts puts them under $PORT_PREFIX/include/curl
+#   - the Xcode/CLT SDK ships them inside the SDK, which is NOT /usr/include
+# So probe the SDK too rather than assuming /usr/include/curl exists. Getting
+# this wrong would reject a perfectly buildable no-MacPorts host.
+curl_headers_present() {
+  [ -d "$PORT_PREFIX/include/curl" ] && return 0
+  [ -f /usr/include/curl/curl.h ] && return 0
+  local sdk
+  sdk="$(xcrun --show-sdk-path 2> /dev/null || true)"
+  [ -n "$sdk" ] && [ -f "$sdk/usr/include/curl/curl.h" ] && return 0
+  return 1
+}
+
+if ! curl_headers_present; then
+  die "no libcurl headers found (looked in $PORT_PREFIX/include/curl, /usr/include/curl, and the active SDK).
   git cannot be built without libcurl. Install curl's headers, or point
   PORT_PREFIX at a prefix that provides them."
 fi
@@ -392,20 +446,47 @@ fi
 # git's upgrade advice is to remove the old bin/git and libexec/git-core
 # wholesale. A bare `make install` overlays the new tree and leaves stale
 # helpers behind, so remove the git-owned paths first.
-if [ -d "$PREFIX/libexec/git-core" ]; then
-  log "removing previous $PREFIX/libexec/git-core"
-  rm -rf "$PREFIX/libexec/git-core"
-fi
-if [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; then
-  log "removing previous $TARGET_GIT"
-  rm -f "$TARGET_GIT"
+#
+# The removal is staged: the old tree is moved aside, not deleted, and restored
+# if `make install` fails. Deleting first would leave the prefix with no git at
+# all when the install errors out (full disk, unwritable prefix), which is worse
+# than the stale-helper problem this cleanup exists to prevent.
+if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; }; then
+  BACKUP_DIR="$WORK_DIR/previous-git"
+  mkdir -p "$BACKUP_DIR"
+  if [ -d "$PREFIX/libexec/git-core" ]; then
+    log "moving previous $PREFIX/libexec/git-core aside"
+    mv "$PREFIX/libexec/git-core" "$BACKUP_DIR/git-core"
+  fi
+  if [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; then
+    log "moving previous $TARGET_GIT aside"
+    mv "$TARGET_GIT" "$BACKUP_DIR/git"
+  fi
+  # Restore on any failure between here and a successful install.
+  restore_previous_git() {
+    if [ -d "$BACKUP_DIR/git-core" ] && [ ! -e "$PREFIX/libexec/git-core" ]; then
+      mkdir -p "$PREFIX/libexec"
+      log "restoring previous $PREFIX/libexec/git-core"
+      mv "$BACKUP_DIR/git-core" "$PREFIX/libexec/git-core" || true
+    fi
+    if [ -e "$BACKUP_DIR/git" ] && [ ! -e "$TARGET_GIT" ]; then
+      log "restoring previous $TARGET_GIT"
+      mv "$BACKUP_DIR/git" "$TARGET_GIT" || true
+    fi
+  }
+else
+  BACKUP_DIR=""
+  restore_previous_git() { :; }
 fi
 
 log "installing to $PREFIX"
 if ! (cd "$SRC_DIR" && make install) > "$WORK_DIR/install.log" 2>&1; then
   log "install failed; last 40 lines:"
   tail -n 40 "$WORK_DIR/install.log" | sed 's/^/  [install] /' >&2
-  die "git install failed"
+  # Put the previous git back before bailing out, so a failed upgrade never
+  # leaves the prefix without a working git.
+  restore_previous_git
+  die "git install failed${BACKUP_DIR:+ (previous git restored)}"
 fi
 tail -n 3 "$WORK_DIR/install.log" | sed 's/^/  [install] /'
 

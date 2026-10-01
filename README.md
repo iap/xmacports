@@ -118,8 +118,19 @@ scripts/install-git-source.sh --dry-run   # build but do not install
 ```
 
 - The version and its SHA256 are pinned at the top of the script. The checksum is
-  verified against that pin, then cross-checked against upstream's signed
-  manifest; a mismatch is always fatal.
+  verified against that pin, then corroborated against upstream's published
+  manifest; a mismatch is always fatal. The pin is the trust anchor — the
+  manifest fetch is corroboration, not independent proof, because its PGP
+  signature is not verified here.
+- System and package-managed prefixes (`/usr`, `/opt/homebrew`, `/opt/local`, …)
+  are refused outright: the installer replaces `bin/git` and `libexec/git-core`.
+- The build refuses to run below the `2.38.0` floor.
+- An upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
+  if `make install` fails, so a failed upgrade never leaves the prefix without a
+  working git.
+- After installing, open a new login shell (or `hash -r`) so `PATH` resolves the
+  new binary. `shared/platform.sh` already orders `~/.local/bin` ahead of
+  `/usr/local/bin` and `/usr/bin`.
 - The build refuses to run below the `2.38.0` floor.
 - `make install` overlays git's helpers, so the script removes the previous
   `bin/git` and `libexec/git-core` first to avoid mixing old and new files.
