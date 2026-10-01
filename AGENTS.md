@@ -195,6 +195,13 @@ Never push directly to `main`. Always use topic branches:
 
 This applies to ALL changes — code, docs, CI, everything.
 
+**Never push to the default branch.** Not fast-forward, not force, not by any
+route. Every change reaches `main` through a merge request, so GitLab authors the
+merge and history stays auditable. The `pre-push` hook enforces this locally: a push
+that would move `main` is refused, and so is any non-fast-forward update to an
+already-published branch. A bypass (`--no-verify`) exists for the rare legitimate
+case and must be stated in the MR, not used quietly.
+
 **Merge commits, not fast-forward.** The project merges with the *merge commit*
 method, so the source branch is never rewritten: its signed commits land on
 `main` unchanged. GitLab cannot sign, so the merge commit it creates is unsigned
@@ -209,6 +216,11 @@ syncing first keeps the merge small and surfaces conflicts early:
 - Confirm before merging: `git log --format='%h %G?' origin/main..HEAD` should
   show `G` for every commit, so nothing unsigned reaches `main` apart from the
   merge commit GitLab adds.
+
+**This section is the single source of truth for the merge policy.** `CONTRIBUTING.md`
+and `MANUAL.md` deliberately point here instead of restating the rules: when the
+three disagreed, the two restatements were both wrong, and one of them told the
+reader to rebase and force-push a signed published branch.
 
 ## Document Callouts
 

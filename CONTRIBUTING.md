@@ -94,12 +94,20 @@ See AGENTS.md for the full reference with usage guidance.
 
 ## Merge Request Workflow
 
+**AGENTS.md "Branch-Based Workflow" is the single source of truth for the merge
+policy.** This file deliberately does not restate it: when the two disagreed, this
+file was the one that was wrong, and a contributor following it would have rebased a
+signed, published branch and force-pushed to recover.
+
+In short: topic branch, focused commits, MR, CI green, GitLab merges with a merge
+commit. Never push to `main` directly, and never force-push anything that is already
+published.
+
 1. Create a topic branch from `origin/main`
 2. Make focused, single-purpose commits
-3. Rebase onto latest `origin/main` before submitting
-4. Open an MR against `main`
-5. Ensure CI is green (GitLab CI runs on every push)
-6. Fast-forward merge only — no merge commits
+3. Open an MR against `main`
+4. Ensure CI is green (GitLab CI runs on every push)
+5. Merge — GitLab creates a merge commit
 
 ## CI
 
@@ -107,6 +115,10 @@ See AGENTS.md for the full reference with usage guidance.
 
 ## Merge policy
 
-- The project uses **fast-forward** merges only. Rebase your branch onto the
-  authoritative remote before merging (see MANUAL.md for the full workflow).
-- Never force-push `main`.
+- See AGENTS.md "Branch-Based Workflow" and "Git Commit Signing" for the authoritative
+  rules. The short version:
+  - Never push directly to the default branch; always go through an MR.
+  - The project merges with **merge commits**, so a topic branch is never rewritten and
+    its signed commits reach `main` unchanged.
+  - Never force-push a published branch. Once a branch is on the remote, sync with
+    `git merge origin/main` rather than rebasing it.
