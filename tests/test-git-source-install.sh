@@ -235,6 +235,9 @@ fi
 # validated at the download, not at argument parsing, so a real --check with a
 # bare --version still works: only a run that would fetch needs both flags.
 echo "requires --sha256 alongside --version for a real build:"
+# A syntactically valid but wrong checksum. Built from a literal rather than
+# `seq`, which busybox/alpine may not provide.
+FAKE_SHA=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 no_sha="$(cd "$T" && bash "$INSTALLER" --version 9.9.9 \
   --prefix "$T/pairing-prefix" --dry-run 2>&1 || true)"
 if printf '%s' "$no_sha" | grep -q "only makes sense together with --sha256"; then
@@ -268,7 +271,7 @@ else
   bad "an early gate hid the pairing check: $bare_out"
 fi
 sha_bare="$(cd "$T" && PATH="$NOPREREQ_SH" bash "$INSTALLER" \
-  --sha256 "$(printf 'a%.0s' $(seq 64))" \
+  --sha256 "$FAKE_SHA" \
   --prefix "$T/noprerq-prefix" --dry-run 2>&1 || true)"
 if printf '%s' "$sha_bare" | grep -q "only makes sense together with --version"; then
   ok "refuses an unpaired --sha256 on a host with no compiler"
@@ -276,14 +279,14 @@ else
   bad "an early gate hid the --sha256 check: $sha_bare"
 fi
 sha_alone="$(cd "$T" && bash "$INSTALLER" --sha256 \
-  "$(printf 'a%.0s' $(seq 64))" --dry-run 2>&1 || true)"
+  "$FAKE_SHA" --dry-run 2>&1 || true)"
 if printf '%s' "$sha_alone" | grep -q "only makes sense together with --version"; then
   ok "refuses --sha256 without --version"
 else
   bad "accepted --sha256 alone: $sha_alone"
 fi
 both="$(cd "$T" && bash "$INSTALLER" --version 9.9.9 \
-  --sha256 "$(printf 'a%.0s' $(seq 64))" --dry-run 2>&1 || true)"
+  --sha256 "$FAKE_SHA" --dry-run 2>&1 || true)"
 if printf '%s' "$both" | grep -q "only makes sense together"; then
   bad "refused a valid --version/--sha256 pair: $both"
 else
