@@ -70,6 +70,19 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
 - `mise` is the **only** allowed tool manager for developer runtimes and shims.
 - MacPorts is restricted to system packages (git, gpg, coreutils).
 - All other dependencies fetched via `curl`/`wget` with SHA256 verification.
+- **Exception — git may come from a pinned source build.** Some tooling needs a
+  git newer than the host's system git, and MacPorts is not always usable: it
+  requires sudo, and its support matrix does not cover every macOS release. When
+  that happens, build git from the official tarball into a user-owned prefix with
+  `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
+  - the version and its SHA256 are pinned at the top of the script, and the checksum
+    is cross-checked against upstream's signed manifest at build time
+  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo
+  - run `--check` first, so the change in state is known before anything is written
+  - the floor is `2.38.0` (required by the Graphite CLI); never pin below it
+- Never invoke the installer from `bootstrap.sh` or a shell startup file. It is a
+  manual, operator-run step: this repo configures a machine, it does not provision
+  one.
 
 ## Mise Configuration
 

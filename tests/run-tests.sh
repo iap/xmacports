@@ -115,6 +115,16 @@ run_secrets_init_guard_tests() {
   fi
 }
 
+run_git_source_install_tests() {
+  echo "Running git source-install tests..."
+  if [[ -f "$SCRIPT_DIR/test-git-source-install.sh" ]]; then
+    bash "$SCRIPT_DIR/test-git-source-install.sh"
+  else
+    echo "❌ test-git-source-install.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -152,6 +162,9 @@ main() {
       ;;
     "secrets-init-guard")
       check_prerequisites && run_secrets_init_guard_tests
+      ;;
+    "git-source-install")
+      check_prerequisites && run_git_source_install_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -216,7 +229,14 @@ main() {
       guard_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0)); then
+      echo "8. Git Source-Install Tests"
+      echo
+
+      run_git_source_install_tests
+      gitsrc_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || gitsrc_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
@@ -234,6 +254,7 @@ main() {
       echo "  review-fixes Run review-finding verification tests only"
       echo "  security-fixes Run security-fix verification tests only"
       echo "  secrets-init-guard  Run secrets-init recipient-guard tests only"
+      echo "  git-source-install  Run git source-installer decision-logic tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"

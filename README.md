@@ -50,6 +50,7 @@ make test
 - `shared/` - cross-shell functions and aliases
 - `bin/` - small executable helpers
 - `scripts/` - maintenance and verification helpers
+- `scripts/install-git-source.sh` - manual, pinned git source build (no sudo)
 - `templates/` and `examples/` - starter configs for local overrides
 - `secrets/` - SOPS + age encrypted secret store
 - `tests/` - behavior checks; `.githooks/` - commit/push guards; `.ci/` - GitLab pipeline
@@ -97,6 +98,38 @@ DOTFILES_ENABLE_GH=1    make bootstrap   # links .config/gh/config.yml into ~/.c
 - Sensitive values are encrypted with age via SOPS and committed as `secrets/secrets.enc.yaml`
 - The store is encrypted to two age recipients — the primary machine key and an offline recovery key — so losing either single key leaves the store readable (recipients listed in `.sops.yaml`)
 - Pre-commit hook blocks plaintext secret files and validates SOPS encryption
+
+## Git source build
+
+Some tools require a git newer than the one macOS ships — the Graphite CLI needs
+`2.38.0` or newer, and the system git on this host is `2.37.1`. When MacPorts is
+not an option (it needs sudo, and its support matrix does not cover every macOS
+release), `scripts/install-git-source.sh` builds a pinned git from the official
+tarball into `~/.local` — no sudo, no system directories touched.
+
+This is a **manual, operator-run step**. It is deliberately not wired into
+`make bootstrap` or any shell startup file, per the "No Package Manager
+Automation" rule in `AGENTS.md`.
+
+```bash
+scripts/install-git-source.sh --check     # report current state, change nothing
+scripts/install-git-source.sh             # download, verify, build, install
+scripts/install-git-source.sh --dry-run   # build but do not install
+```
+
+- The version and its SHA256 are pinned at the top of the script. The checksum is
+  verified against that pin, then cross-checked against upstream's signed
+  manifest; a mismatch is always fatal.
+- The build refuses to run below the `2.38.0` floor.
+- `make install` overlays git's helpers, so the script removes the previous
+  `bin/git` and `libexec/git-core` first to avoid mixing old and new files.
+- After installing, open a new login shell (or `hash -r`) so `PATH` resolves the
+  new binary. `shared/platform.sh` already orders `~/.local/bin` ahead of
+  `/usr/local/bin` and `/usr/bin`.
+
+To change the pinned version, edit `GIT_VERSION` and `GIT_SHA256` at the top of the
+script and re-run it. Re-derive the checksum from
+<https://mirrors.edge.kernel.org/pub/software/scm/git/sha256sums.asc>.
 
 ## Documentation
 
