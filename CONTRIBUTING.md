@@ -99,9 +99,10 @@ policy.** This file deliberately does not restate it: when the two disagreed, th
 file was the one that was wrong, and a contributor following it would have rebased a
 signed, published branch and force-pushed to recover.
 
-In short: topic branch, focused commits, MR, CI green, GitLab merges with a merge
-commit. Never push to `main` directly, and never force-push anything that is already
-published.
+The rules themselves — what the merge method is, when a branch may be rebased, and
+what the push guard refuses — live in AGENTS.md under "Branch-Based Workflow" and
+"Git Commit Signing". This file deliberately does not restate them; keep the summary
+below pointed at AGENTS.md so the two cannot drift apart again.
 
 1. Create a topic branch from `origin/main`
 2. Make focused, single-purpose commits
@@ -115,10 +116,11 @@ published.
 
 ## Merge policy
 
-- See AGENTS.md "Branch-Based Workflow" and "Git Commit Signing" for the authoritative
-  rules. The short version:
-  - Never push directly to the default branch; always go through an MR.
-  - The project merges with **merge commits**, so a topic branch is never rewritten and
-    its signed commits reach `main` unchanged.
-  - Never force-push a published branch. Once a branch is on the remote, sync with
-    `git merge origin/main` rather than rebasing it.
+See AGENTS.md "Branch-Based Workflow" and "Git Commit Signing" for the authoritative
+rules. This file intentionally does not repeat them: when these two documents
+disagreed previously, this one was the incorrect copy, and following it would have
+cost a contributor their signed history. Read AGENTS.md for what the rules *are*;
+this page only tells you where to open the MR.
+
+For the reasoning behind the merge method and the signing rules, see MANUAL.md
+"Merge workflow (merge commits)" — rationale, not policy.

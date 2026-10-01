@@ -287,7 +287,14 @@ git fetch origin
 # Refuse to continue with uncommitted work: `reset --hard` would discard it, and a
 # backup branch only preserves committed state.
 git status --porcelain                      # must be empty
-git branch backup/<name>-before-recovery    # keep the rewritten state, do not delete
+
+# Create the backup and VERIFY it before the reset. A unique name avoids
+# clashing with an earlier attempt; if creation fails, stop — there is nothing
+# to recover to.
+git branch backup/<name>-before-recovery-$(date +%s) || exit 1
+git show-ref --verify --quiet "refs/heads/backup/<name>-before-recovery-$(date +%s)" \
+  || { echo "backup branch missing - stopping, nothing was reset"; exit 1; }
+
 git reset --hard origin/<name>              # only on a branch with no open MR
 ```
 
@@ -302,7 +309,8 @@ Syncing a branch that has fallen behind `main` is a **merge**, not a rebase:
 
 ```bash
 git fetch origin
-git merge origin/main        # private branch: rebase is still fine, it re-signs
+git merge origin/main        # see "Branch-Based Workflow" in AGENTS.md for when a
+                             # rebase is still permitted before first publication
 git push                     # published branch: plain push, no force
 ```
 
@@ -316,8 +324,11 @@ git push -u origin <name>    # first push: no force needed, nothing to rewrite
 ```
 
 Once a branch has been pushed it is **published**, even if nobody else has pulled
-it. From that point the `pre-push` guard rejects any non-fast-forward update, so
-`git rebase` + `git push --force-with-lease` will be refused. Merge instead:
+it. From that point the `pre-push` guard rejects any non-fast-forward update to it
+on the authoritative remote, so `git rebase` + `git push --force-with-lease` will be
+refused. (Mirror remotes are exempt: re-syncing a mirror is a normal force push.
+AGENTS.md "Branch-Based Workflow" is the authoritative statement of the rule.)
+Merge instead:
 
 ```bash
 git fetch origin

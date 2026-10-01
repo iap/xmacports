@@ -29,16 +29,22 @@ remote=$2
 # remote's real default is one of them. The remote's own HEAD is the only
 # authoritative signal, so try it first and fall back only when it is absent.
 # --------------------------------------------------------------------------
+# The remote the current branch tracks is preferred below, so a mirror's HEAD
+# can never decide what the default branch is.
+_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null | sed "s|^[^/]*/||").remote" 2> /dev/null || true)
+[ -n "$_auth_hint" ] || _auth_hint=origin
 _dfb=""
-if git symbolic-ref --quiet --short "refs/remotes/${_r:-origin}/HEAD" >/dev/null 2>&1; then
-	for _r in $(git remote 2>/dev/null); do
-		if _dfb=$(git symbolic-ref --quiet --short "refs/remotes/$_r/HEAD" 2>/dev/null); then
-			_dfb=${_dfb##*/}
-			break
-		fi
-		_dfb=""
-	done
-fi
+# Prefer the authoritative remote's HEAD, then any other remote, rather than
+# whichever `git remote` lists first: alphabetically a mirror can sort before
+# origin, and a mirror must not define the default branch.
+for _r in "$_auth_hint" $(git remote 2> /dev/null); do
+	[ -n "$_r" ] || continue
+	if _dfb=$(git symbolic-ref --quiet --short "refs/remotes/$_r/HEAD" 2> /dev/null); then
+		_dfb=${_dfb##*/}
+		break
+	fi
+	_dfb=""
+done
 if [ -z "$_dfb" ]; then
 	for _b in main master trunk; do
 		if git show-ref --verify --quiet "refs/heads/$_b"; then
@@ -68,8 +74,13 @@ fi
 _push_remote=$remote
 case "$remote" in
 *://* | *@*:*)
+	# Compare the PUSH url as well as the fetch url: with
+	# `git remote set-url --push` the two differ, and matching only the
+	# fetch url would let a push naming the push url slip past the policy.
 	for _r in $(git remote); do
-		if [ "$(git remote get-url "$_r" 2>/dev/null)" = "$remote" ]; then
+		_fetch=$(git remote get-url "$_r" 2> /dev/null || true)
+		_push=$(git remote get-url --push "$_r" 2> /dev/null || true)
+		if [ "$_fetch" = "$remote" ] || [ "$_push" = "$remote" ]; then
 			_push_remote=$_r
 			break
 		fi

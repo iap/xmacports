@@ -197,10 +197,17 @@ This applies to ALL changes — code, docs, CI, everything.
 
 **Never push to the default branch.** Not fast-forward, not force, not by any
 route. Every change reaches `main` through a merge request, so GitLab authors the
-merge and history stays auditable. The `pre-push` hook enforces this locally: a push
-that would move `main` is refused, and so is any non-fast-forward update to an
-already-published branch. A bypass (`--no-verify`) exists for the rare legitimate
-case and must be stated in the MR, not used quietly.
+merge and history stays auditable. The `pre-push` hook enforces this locally: on the
+**authoritative remote** it refuses a push that would create, update, or delete
+`main`, and refuses any non-fast-forward update to an already-published branch.
+
+Mirror remotes are deliberately exempt. Syncing the default branch out to a mirror
+is a normal, intentional operation, and the hook's mirror policy governs what may go
+there. A push to a target that is not a configured remote is not judged by the
+default-branch rule either — it cannot reach this project's `main` at all.
+
+A bypass (`--no-verify`) exists for the rare legitimate case and must be stated in
+the MR, not used quietly.
 
 **Merge commits, not fast-forward.** The project merges with the *merge commit*
 method, so the source branch is never rewritten: its signed commits land on
