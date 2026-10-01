@@ -461,16 +461,25 @@ fi
 
 if ! (cd "$SRC_DIR" && make -j"$JOBS" "${MAKE_FLAGS[@]+"${MAKE_FLAGS[@]}"}") > "$WORK_DIR/make.log" 2>&1; then
   log "build failed; last 40 lines:"
+  # Replay the log BEFORE dying: the EXIT trap removes $WORK_DIR, so anything
+  # read afterwards would fail and, under `set -u`, mask the real error.
   tail -n 40 "$WORK_DIR/make.log" | sed 's/^/  [make] /' >&2
   die "git build failed"
 fi
 tail -n 5 "$WORK_DIR/make.log" | sed 's/^/  [make] /'
 
+# Record the built version now, while the tree still exists. The EXIT trap
+# deletes $SRC_DIR on the way out, so the dry-run report cannot re-read it.
+BUILT_VERSION=""
+if [ -x "$SRC_DIR/git" ]; then
+  BUILT_VERSION="$("$SRC_DIR/git" --version 2> /dev/null | awk '{print $3}' || true)"
+fi
+
 # --- Install -----------------------------------------------------------------
 
 if [ "$DRY_RUN" -eq 1 ]; then
   log "dry-run: build succeeded, skipping 'make install'"
-  log "dry-run: built binary reports $("$SRC_DIR/git" --version 2> /dev/null | awk '{print $3}')"
+  log "dry-run: built binary reports ${BUILT_VERSION:-unknown}"
   exit 0
 fi
 
