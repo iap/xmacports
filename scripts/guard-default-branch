@@ -1,0 +1,156 @@
+#!/bin/sh
+# Default-branch and force-push guard.
+#
+# Invoked as a SEPARATE PROCESS by .githooks/pre-push, never sourced:
+#
+#     guard-default-branch <push-lines-file> <remote-name-or-url>
+#
+# It is a separate process on purpose. An earlier revision was sourced, and every
+# `exit` in it terminated the whole hook - including the mirror guard that runs
+# after it, which silently stopped enforcing. Calling it as a command makes that
+# class of bug impossible: exit 1 here fails only this program.
+#
+# Contract: <push-lines-file> holds git's pre-push stdin, one
+# "<local-ref> <local-oid> <remote-ref> <remote-oid>" record per line, already
+# buffered by the hook because two policies need to read the same records.
+#
+# Exit 0 = allow, 1 = refuse. Prints the reason to stderr when it refuses.
+
+lines=$1
+remote=$2
+
+[ -n "$lines" ] && [ -r "$lines" ] || exit 0
+
+# --------------------------------------------------------------------------
+# Resolve the default branch and the authoritative remote.
+#
+# Order matters. A local `main` ref proves nothing: a contributor may hold only a
+# topic branch locally, and a clone can have both `main` and `master` while the
+# remote's real default is one of them. The remote's own HEAD is the only
+# authoritative signal, so try it first and fall back only when it is absent.
+# --------------------------------------------------------------------------
+_dfb=""
+if git symbolic-ref --quiet --short "refs/remotes/${_r:-origin}/HEAD" >/dev/null 2>&1; then
+	for _r in $(git remote 2>/dev/null); do
+		if _dfb=$(git symbolic-ref --quiet --short "refs/remotes/$_r/HEAD" 2>/dev/null); then
+			_dfb=${_dfb##*/}
+			break
+		fi
+		_dfb=""
+	done
+fi
+if [ -z "$_dfb" ]; then
+	for _b in main master trunk; do
+		if git show-ref --verify --quiet "refs/heads/$_b"; then
+			_dfb="$_b"
+			break
+		fi
+	done
+fi
+[ -n "$_dfb" ] || exit 0
+
+# The authoritative remote is the one the default branch tracks. With a single
+# remote there is no ambiguity, so that remote is authoritative by definition.
+_auth=$(git config "branch.$_dfb.remote" 2>/dev/null || true)
+if [ -z "$_auth" ]; then
+	if [ "$(git remote | grep -c .)" = "1" ]; then
+		_auth=$(git remote)
+	else
+		_auth=""
+	fi
+fi
+# An empty _auth means the topology cannot be decided, so the default-branch rule
+# is not applied. Say so rather than pretending the push was checked.
+[ -n "$_auth" ] || exit 0
+
+# Resolve a URL push back to its remote name, so `git push <url> main` is judged
+# by the same policy as `git push origin main`.
+_push_remote=$remote
+case "$remote" in
+*://* | *@*:*)
+	for _r in $(git remote); do
+		if [ "$(git remote get-url "$_r" 2>/dev/null)" = "$remote" ]; then
+			_push_remote=$_r
+			break
+		fi
+	done
+	;;
+esac
+
+_is_authoritative=0
+[ "$_push_remote" = "$_auth" ] && _is_authoritative=1
+
+# The null object name is 40 zeros on SHA-1 and 64 on SHA-256; accept any run.
+_is_null_oid() {
+	case "$1" in
+	'') return 0 ;;
+	*[!0]*) return 1 ;;
+	*) return 0 ;;
+	esac
+}
+
+# A record is "<local-ref> <local-oid> <remote-ref> <remote-oid>". Anything that
+# is not exactly four fields cannot be judged, so skip it: a short line yields a
+# plausible-looking oid that fails the ancestry test and reports a false rewrite.
+while read -r _lr _lo _rr _ro _extra; do
+	[ -n "$_lr" ] && [ -n "$_lo" ] && [ -n "$_rr" ] && [ -n "$_ro" ] || continue
+	[ -z "$_extra" ] || continue
+
+	# ---------------------------------------------------------------------
+	# 1. Never create, update, or delete the default branch by direct push.
+	#    Only on the authoritative remote: syncing the default branch out to a
+	#    mirror is a normal, intentional operation that the mirror policy allows.
+	# ---------------------------------------------------------------------
+	if [ "$_is_authoritative" = "1" ] && [ "$_rr" = "refs/heads/$_dfb" ]; then
+		if _is_null_oid "$_ro"; then
+			echo "ERROR: refusing to create the default branch '$_dfb' on '$_push_remote'." >&2
+			echo "       It is created by the platform or by a merge request, never by" >&2
+			echo "       a direct push. Push a topic branch and open a merge request." >&2
+			exit 1
+		fi
+		if _is_null_oid "$_lo"; then
+			echo "ERROR: refusing to delete the default branch '$_dfb' on '$_push_remote'." >&2
+			echo "       Every merge request targets it. Deleting it would strand open" >&2
+			echo "       requests and any local clone still tracking it." >&2
+			exit 1
+		fi
+		if [ "$_lo" != "$_ro" ]; then
+			echo "ERROR: refusing to update the default branch '$_dfb' directly." >&2
+			echo "       A direct push bypasses review, CI, and the merge commit, so" >&2
+			echo "       history stops being auditable." >&2
+			echo "       Use:  git switch -c <topic>   then push that and open an MR." >&2
+			echo "       Override (rare, must be stated in the MR): git push --no-verify" >&2
+			exit 1
+		fi
+		continue
+	fi
+
+	# ---------------------------------------------------------------------
+	# 2. Never rewrite published history on the authoritative remote. A
+	#    non-fast-forward update invalidates every signature already in the
+	#    replaced range. Mirrors are exempt: re-syncing one is a normal force
+	#    push, and the authoritative copy is protected by the rule above.
+	# ---------------------------------------------------------------------
+	if [ "$_is_authoritative" = "1" ]; then
+		_is_null_oid "$_ro" && continue # new ref: nothing published to rewrite
+		_is_null_oid "$_lo" && continue # deletion: not a rewrite
+		[ "$_lo" = "$_ro" ] && continue # no-op
+
+		if ! git merge-base --is-ancestor "$_ro" "$_lo" 2>/dev/null; then
+			case "$_rr" in
+			refs/heads/*) _br=${_rr#refs/heads/} ;;
+			refs/tags/*) _br="tag ${_rr#refs/tags/}" ;;
+			*) _br=$_rr ;;
+			esac
+			echo "ERROR: refusing a non-fast-forward update to '$_br' on '$_push_remote'." >&2
+			echo "       The remote already has $_ro, which is not an ancestor of" >&2
+			echo "       $_lo, so this rewrites published history and invalidates" >&2
+			echo "       every signature in the replaced range." >&2
+			echo "       On a published branch, merge instead:  git merge origin/$_br" >&2
+			echo "       Override (rare, needs authorization):  git push --force-with-lease" >&2
+			exit 1
+		fi
+	fi
+done <"$lines"
+
+exit 0

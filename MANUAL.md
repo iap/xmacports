@@ -264,27 +264,73 @@ was built for an older commit than HEAD. The coverage check catches a stalled
 webhook. Pass `--no-coverage` to `.ci/scripts/gitlab-ci-verify.sh` to check
 status only.
 
-### Merge workflow (fast-forward only)
+### Merge workflow (merge commits)
 
-The project uses GitLab's **fast-forward** merge method. GitLab therefore never
-authors a merge or squash commit, so your commits land on `main` verbatim —
-author and committer both stay the GPG key's uid email (see AGENTS.md) and GPG
-signatures remain valid. This is deliberate: it avoids GitLab substituting the
-`users.noreply.gitlab.com` address on server-side rebases.
+**AGENTS.md "Branch-Based Workflow" is the single source of truth.** This section
+exists to explain *why*; it does not define the rules.
 
-Because fast-forward requires a linear history, an MR that has diverged from
-`main` is **rejected** ("cannot be merged: fast-forward only"). Before merging,
-rebase your branch onto the authoritative remote:
+The project merges with GitLab's **merge commit** method. A topic branch is therefore
+never rewritten: its GPG-signed commits land on `main` unchanged, keeping author and
+committer on the key's uid email. GitLab cannot sign, so the merge commit it authors
+is unsigned — that is expected, and the reason to judge history integrity by the
+branch commits, not by the merge commit GitLab adds.
+
+This section previously claimed a fast-forward-only policy and instructed the reader
+to `git rebase origin/main` followed by `force-with-lease`. That was wrong on both
+counts: the repository does not use fast-forward (see the 14 merge commits on
+`main`), and rebasing a published signed branch to recover rewrites signed history and
+invalidates every signature in it. If you arrived here following that advice, restore
+the branch instead:
 
 ```bash
 git fetch origin
-git rebase origin/main        # resolve any conflicts, then force-with-lease if needed
+# Refuse to continue with uncommitted work: `reset --hard` would discard it, and a
+# backup branch only preserves committed state.
+git status --porcelain                      # must be empty
+git branch backup/<name>-before-recovery    # keep the rewritten state, do not delete
+git reset --hard origin/<name>              # only on a branch with no open MR
 ```
 
-Only push `main` via fast-forward; never use `--force`.
-The `dotfiles-check.sh` behind-warning at shell init is your cue that `main`
-has moved and a rebase is due. Both the NixOS and macOS working copies must
-rebase onto `origin/main` before merging to keep history linear.
+Stash or commit anything outstanding first (`git stash push -u`, or a WIP commit on
+the backup branch). `git reset --hard` discards staged and working-tree changes, and
+the backup branch does **not** capture them.
+
+If the branch has an open MR, do **not** reset it. Ask the maintainer; a force-push
+to a shared, published branch needs explicit authorization.
+
+Syncing a branch that has fallen behind `main` is a **merge**, not a rebase:
+
+```bash
+git fetch origin
+git merge origin/main        # private branch: rebase is still fine, it re-signs
+git push                     # published branch: plain push, no force
+```
+
+An **unpublished** branch — one that exists only locally, with no upstream yet — may
+be rebased freely, because `commit.gpgsign` re-signs each recreated commit and the
+old SHAs were never published:
+
+```bash
+git rebase origin/main       # only before the first push of this branch
+git push -u origin <name>    # first push: no force needed, nothing to rewrite
+```
+
+Once a branch has been pushed it is **published**, even if nobody else has pulled
+it. From that point the `pre-push` guard rejects any non-fast-forward update, so
+`git rebase` + `git push --force-with-lease` will be refused. Merge instead:
+
+```bash
+git fetch origin
+git merge origin/main
+git push
+```
+
+To rebase a branch that was pushed by mistake, delete the remote branch first
+(`git push origin --delete <name>`) and then push the rewritten local branch as new.
+
+The `dotfiles-check.sh` behind-warning at shell init is your cue that `main` has
+moved and a sync is due. Both the NixOS and macOS working copies must merge
+`origin/main` before merging the MR.
 
 ## NixOS / WSL Notes
 
