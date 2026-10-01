@@ -293,6 +293,42 @@ else
   bad "no plan reported for a user prefix: $out"
 fi
 
+echo "rejects a relative or root prefix:"
+# A relative prefix resolves against whatever CWD the install runs in, and a
+# bare "/" writes /bin/git. Both must be refused before any build work.
+for p in "/" "." ".." "relative/path" ""; do
+  out="$(run_installer none --check --prefix "$p" 2>&1)"
+  rc=$?
+  if [ "$rc" -ne 0 ]; then ok "refuses '$p' (rc=$rc)"; else bad "accepted '$p'"; fi
+  if printf '%s' "$out" | grep -qE "refusing to install|must be an absolute"; then
+    ok "explains the refusal for '$p'"
+  else
+    bad "no refusal message for '$p': $out"
+  fi
+done
+
+echo "normalizes before matching a system prefix:"
+# These are all the same directory as a refused prefix; a literal glob would
+# let them through.
+for p in "/usr/local/.." "/opt/local/." "/usr/./local"; do
+  out="$(run_installer none --check --prefix "$p" 2>&1)"
+  if printf '%s' "$out" | grep -qi "refusing to install"; then
+    ok "refuses $p"
+  else
+    bad "accepted unnormalized $p: $out"
+  fi
+done
+
+echo "accepts ordinary user prefixes:"
+for p in "$HOME/.local" "$HOME/dev/git" "/Volumes/Work/git" "/private/tmp/git-sandbox"; do
+  out="$(run_installer none --check --prefix "$p" 2>&1)"
+  if printf '%s' "$out" | grep -qi "refusing to install"; then
+    bad "wrongly refused a user prefix $p: $out"
+  else
+    ok "accepts $p"
+  fi
+done
+
 # --- unknown flag is rejected -----------------------------------------------
 
 # --- help works without a build ---------------------------------------------

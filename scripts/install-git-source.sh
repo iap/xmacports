@@ -216,19 +216,38 @@ fi
 
 # --- Check-only mode ---------------------------------------------------------
 
-# Refuse a prefix that this script would destructively clean. It removes
-# $PREFIX/libexec/git-core recursively and $PREFIX/bin/git, so a package-managed
-# or shared prefix (/usr, /opt/homebrew, /opt/local, /opt/local, a system path)
-# would be damaged. The promise in AGENTS.md is a user-owned prefix; enforce it.
-case "$PREFIX" in
-  /usr | /usr/* | /bin | /bin/* | /sbin | /sbin/* | /etc | /etc/* | /System | /System/*)
-    die "refusing to install into system path: $PREFIX
-  This script replaces $PREFIX/bin/git and $PREFIX/libexec/git-core.
+# Refuse a prefix that this script would destructively clean. It replaces
+# <prefix>/bin/git and <prefix>/libexec/git-core, so a package-managed or shared
+# prefix would be damaged. The promise in AGENTS.md is a user-owned prefix;
+# enforce it.
+#
+# Normalize before matching, and require an absolute path. Without this,
+# `--prefix /usr/local/..` slips past a literal glob, a bare `--prefix /` matches
+# no pattern at all (and would write /bin/git), and a relative prefix resolves
+# against whatever directory the install happens to run in.
+if [ "${PREFIX#/}" = "$PREFIX" ]; then
+  die "--prefix must be an absolute path (got '$PREFIX')
+  A relative prefix would resolve against the current directory at install time.
+  Use something like \$HOME/.local."
+fi
+
+# Canonicalize so symlinks and dot segments cannot disguise a system prefix.
+# Fall back to the literal value when the path does not exist yet (a fresh
+# prefix is normal) or python3 is unavailable; the literal match still applies.
+NORMALISED_PREFIX="$PREFIX"
+if command -v python3 > /dev/null 2>&1; then
+  NORMALISED_PREFIX="$(python3 -c 'import os,sys; print(os.path.normpath(sys.argv[1]))' "$PREFIX" 2> /dev/null || printf '%s' "$PREFIX")"
+fi
+
+case "$NORMALISED_PREFIX" in
+  / | /usr | /usr/* | /bin | /bin/* | /sbin | /sbin/* | /etc | /etc/* | /System | /System/* | /Library | /Library/* | /Applications | /Applications/* | /private/etc | /private/var | /dev | /dev/*)
+    die "refusing to install into system path: $NORMALISED_PREFIX
+  This script replaces <prefix>/bin/git and <prefix>/libexec/git-core.
   Use a user-owned prefix such as \$HOME/.local."
     ;;
   /opt/homebrew | /opt/homebrew/* | /opt/local | /opt/local/* | /sw | /sw/* | /nix | /nix/*)
-    die "refusing to install into a package-managed prefix: $PREFIX
-  This script replaces $PREFIX/bin/git and $PREFIX/libexec/git-core.
+    die "refusing to install into a package-managed prefix: $NORMALISED_PREFIX
+  This script replaces <prefix>/bin/git and <prefix>/libexec/git-core.
   Use a user-owned prefix such as \$HOME/.local."
     ;;
 esac
@@ -428,7 +447,19 @@ fi
 
 JOBS="$(detect_jobs)"
 log "building with -j$JOBS (a few minutes)"
-if ! (cd "$SRC_DIR" && make -j"$JOBS") > "$WORK_DIR/make.log" 2>&1; then
+# git's po/*.po -> .mo step needs msgfmt at build time, so a host without
+# gettext-tools dies with "msgfmt: command not found" (make error 127). git has
+# no --without-gettext configure flag; the supported switch is the NO_GETTEXT
+# make variable (INSTALL: "Set NO_GETTEXT to disable localization support"),
+# which empties MOFILES and makes the locale step a no-op. Only used when
+# msgfmt is genuinely absent, so a host with gettext keeps translations.
+MAKE_FLAGS=()
+if ! command -v msgfmt > /dev/null 2>&1; then
+  MAKE_FLAGS+=(NO_GETTEXT=YesPlease)
+  log "build: msgfmt not found, building with NO_GETTEXT (English only)"
+fi
+
+if ! (cd "$SRC_DIR" && make -j"$JOBS" "${MAKE_FLAGS[@]+"${MAKE_FLAGS[@]}"}") > "$WORK_DIR/make.log" 2>&1; then
   log "build failed; last 40 lines:"
   tail -n 40 "$WORK_DIR/make.log" | sed 's/^/  [make] /' >&2
   die "git build failed"
