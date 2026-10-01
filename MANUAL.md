@@ -347,6 +347,46 @@ The `dotfiles-check.sh` behind-warning at shell init is your cue that `main` has
 moved and a sync is due. Both the NixOS and macOS working copies must merge
 `origin/main` before merging the MR.
 
+## Commit-signing verification (`allowed_signers`)
+
+SSH-signed commits are valid, but `git log --format='%G?'` only reports a good
+signature once git knows which **public** keys may sign for which identity. That
+mapping is `~/.ssh/allowed_signers`, named by `gpg.ssh.allowedSignersFile` in the
+tracked `.gitconfig`. Without the file, git reports `N` for good signatures.
+
+One-time setup, per machine:
+
+```bash
+cp ~/.dotfiles/examples/allowed-signers-example ~/.ssh/allowed_signers
+$EDITOR ~/.ssh/allowed_signers      # put your email + PUBLIC key on one line
+git log -1 --format='%G? %GS'       # want: G you@example.com
+```
+
+The example file documents the format. Key points:
+
+- The key is the **public** one (`~/.ssh/id_ed25519.pub`). Publishing it is safe:
+  a public key can only verify a signature, never create one. The private key stays
+  in `~/.ssh` and must never be written here or into any tracked file.
+- The principal is the email you author commits with, not the key's file comment.
+  If they differ, git still verifies — it reads the identity from the signature —
+  but keeping them aligned avoids confusion.
+- One line per identity. To rotate a key, keep the old line: history already
+  signed with it continues to verify.
+- Bootstrap creates `~/.ssh` but deliberately does **not** create this file: it
+  cannot know your email or key, and a wrong entry is worse than a missing one.
+
+Reading `%G?`:
+
+| | meaning |
+|---|---|
+| `G` | good signature, and the principal-to-key pair is listed here |
+| `U` | good signature, but that key is not listed |
+| `N` | no signature, or no `allowedSignersFile` configured |
+| `B` | bad signature — the commit was altered |
+
+`U` and `G` both mean the signature is cryptographically valid; the difference is
+only whether git has a trust anchor for that key.
+
 ## NixOS / WSL Notes
 
 This repo is shell- and file-based, so it works on NixOS and WSL, but the

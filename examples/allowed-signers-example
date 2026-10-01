@@ -1,0 +1,39 @@
+# allowed_signers — SSH commit-signing trust list
+#
+# Git needs to know which public keys may sign for which identity before it can
+# report a verified signature. That mapping is this file, pointed at by
+# `gpg.ssh.allowedSignersFile` in the tracked `.gitconfig`. Without it, `git log
+# --format='%G?'` reports `N` for perfectly good SSH-signed commits.
+#
+# SETUP
+#   1. Copy this file to ~/.ssh/allowed_signers
+#        cp ~/.dotfiles/examples/allowed-signers-example ~/.ssh/allowed_signers
+#   2. Put YOUR email and YOUR public key on one line, then delete this header:
+#        <your-email> ssh-ed25519 <your-public-key>
+#   3. Verify it took effect:
+#        git log -1 --format='%G? %GS'     # want: G <your-email>
+#
+# The key is your PUBLIC key - the one in ~/.ssh/*.pub. It is safe to publish: a
+# public key can only verify a signature, never create one. Your private key stays
+# in ~/.ssh and must never appear here or anywhere tracked.
+#
+# Get your public key with:  ssh-keygen -y -f ~/.ssh/id_ed25519
+# or copy the contents of   ~/.ssh/id_ed25519.pub
+#
+# FORMAT (one identity per line; the key follows the identity on the same line):
+#   <principal> [namespaces="..."] ssh-ed25519 <base64-public-key> [comment]
+#
+#   <principal> is the identity git checks the commit's author/committer email
+#   against. It should be the email you author commits with.
+#
+# MORE THAN ONE LINE IS FINE — add a line per identity you sign as, and keep an
+# old key when you rotate so history already signed with it still verifies:
+#   you@example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... old-laptop
+#   you@example.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAA... new-laptop
+#
+# `namespaces="git"` is what git itself writes and what git reads. Keep it.
+#
+# This file must NOT contain a private key. If you ever paste a PRIVATE key here,
+# remove it from git history: the file is tracked.
+
+# <your-email> ssh-ed25519 <your-public-key>
