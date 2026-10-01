@@ -96,12 +96,20 @@ BAD_SH="$T/badsh"
 mkdir -p "$BAD_SH"
 cat > "$BAD_SH/sha256sum" << 'STUB'
 #!/bin/sh
+# Stand-in for GNU coreutils' sha256sum. It must behave like the real tool:
+# SHA-256 is the default and `-a` is NOT a valid option. A stub that quietly
+# accepted `-a` would let the suite pass while the installer was broken on
+# every host with coreutils installed, so the rejection is deliberate.
+case "${1:-}" in
+  -a | --algorithm)
+    echo "sha256sum: invalid option -- '${1#-}'" >&2
+    echo "Try 'sha256sum --help' for more information." >&2
+    exit 1
+    ;;
+esac
 # Always report a hash that cannot match the pinned value.
-if [ "${1:-}" = "-a" ]; then
-  echo "0000000000000000000000000000000000000000000000000000000000000000  ${3:-?}"
-  exit 0
-fi
-exec shasum "$@"
+echo "0000000000000000000000000000000000000000000000000000000000000000  ${1:-?}"
+exit 0
 STUB
 chmod +x "$BAD_SH/sha256sum"
 
@@ -156,6 +164,111 @@ if printf '%s' "$out" | grep -q "missing build prerequisites"; then
   bad "stopped at the prerequisite gate before verifying the checksum: $out"
 else
   ok "reached the checksum gate (no prerequisite failure first)"
+fi
+
+# --- the checksum tool is called correctly for each implementation -------------
+# GNU coreutils' sha256sum and Perl's shasum are the same utility under two
+# names, but they do NOT share a CLI: sha256sum defaults to SHA-256 and rejects
+# `-a`, while shasum needs `-a 256`. Calling them interchangeably made the
+# installer fail on any host with coreutils, and the previous stub accepted
+# `-a` so the suite never noticed. Assert the real calling convention.
+echo "passes no -a to GNU sha256sum (it rejects that flag):"
+GNU_SH="$T/gnush"
+mkdir -p "$GNU_SH"
+cat > "$GNU_SH/sha256sum" << 'STUB'
+#!/bin/sh
+# Mimics GNU coreutils 9.x: `-a` is an invalid option, SHA-256 is the default.
+for a in "$@"; do
+  case "$a" in
+    -a | --algorithm)
+      echo "sha256sum: invalid option -- 'a'" >&2
+      exit 1
+      ;;
+  esac
+done
+echo "5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03  ${1:-?}"
+exit 0
+STUB
+chmod +x "$GNU_SH/sha256sum"
+if "$GNU_SH/sha256sum" -a 256 /dev/null > /dev/null 2>&1; then
+  bad "test double accepts -a, so it cannot model GNU coreutils"
+else
+  ok "test double rejects -a like GNU coreutils does"
+fi
+
+# Drive the helper through the installer: a matching hash must NOT be reported
+# as a mismatch, which can only happen if the tool was called correctly.
+MATCH_SH="$T/matchpath"
+mkdir -p "$MATCH_SH"
+# Make the served tarball hash to exactly what the stub reports, so the installer
+# proceeds past the checksum gate instead of reporting a mismatch.
+PINNED_SHA="$(sed -n 's/^GIT_SHA256="\(.*\)"$/\1/p' "$INSTALLER")"
+cat > "$MATCH_SH/sha256sum" << STUB
+#!/bin/sh
+for a in "\$@"; do
+  case "\$a" in
+    -a | --algorithm) echo "invalid option" >&2; exit 1 ;;
+  esac
+done
+echo "$PINNED_SHA  \${1:-?}"
+exit 0
+STUB
+chmod +x "$MATCH_SH/sha256sum"
+match_out="$(cd "$T" && PATH="$MATCH_SH:$PATH" \
+  GIT_SOURCE_SKIP_PREREQ=1 \
+  GIT_SOURCE_DOWNLOAD_BASE="file://$SERVE_DIR" \
+  bash "$INSTALLER" --dry-run 2>&1 || true)"
+if printf '%s' "$match_out" | grep -q "checksum mismatch"; then
+  bad "a matching hash was rejected as a mismatch: $match_out"
+else
+  ok "a matching hash is accepted (tool called with valid arguments)"
+fi
+if printf '%s' "$match_out" | grep -qi "invalid option"; then
+  bad "the checksum tool rejected the installer's arguments: $match_out"
+else
+  ok "no invalid-option error from the checksum tool"
+fi
+
+# --- version and checksum must be overridden as a pair -------------------------
+# --version alone would download a different tarball and verify it against the
+# pinned checksum, failing as if the download were tampered. The pairing is
+# validated at the download, not at argument parsing, so a real --check with a
+# bare --version still works: only a run that would fetch needs both flags.
+echo "requires --sha256 alongside --version for a real build:"
+no_sha="$(cd "$T" && bash "$INSTALLER" --version 9.9.9 \
+  --prefix "$T/pairing-prefix" --dry-run 2>&1 || true)"
+if printf '%s' "$no_sha" | grep -q "only makes sense together with --sha256"; then
+  ok "refuses --version without --sha256 before downloading"
+else
+  bad "accepted --version alone: $no_sha"
+fi
+# A --check must stay answerable with --version alone; it fetches nothing.
+check_only="$(cd "$T" && bash "$INSTALLER" --check --version 2.37.0 2>&1 || true)"
+if printf '%s' "$check_only" | grep -q "only makes sense together"; then
+  bad "--check with a bare --version was rejected: $check_only"
+else
+  ok "--check still works with --version alone (no download)"
+fi
+sha_alone="$(cd "$T" && bash "$INSTALLER" --sha256 \
+  "$(printf 'a%.0s' $(seq 64))" --dry-run 2>&1 || true)"
+if printf '%s' "$sha_alone" | grep -q "only makes sense together with --version"; then
+  ok "refuses --sha256 without --version"
+else
+  bad "accepted --sha256 alone: $sha_alone"
+fi
+both="$(cd "$T" && bash "$INSTALLER" --version 9.9.9 \
+  --sha256 "$(printf 'a%.0s' $(seq 64))" --dry-run 2>&1 || true)"
+if printf '%s' "$both" | grep -q "only makes sense together"; then
+  bad "refused a valid --version/--sha256 pair: $both"
+else
+  ok "accepts --version with --sha256"
+fi
+bad_sha="$(cd "$T" && bash "$INSTALLER" --version 9.9.9 --sha256 nothex \
+  --dry-run 2>&1 || true)"
+if printf '%s' "$bad_sha" | grep -q "invalid --sha256"; then
+  ok "rejects a malformed --sha256"
+else
+  bad "accepted a malformed --sha256: $bad_sha"
 fi
 
 # --- already-installed short circuit -----------------------------------------

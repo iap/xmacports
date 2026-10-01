@@ -7,16 +7,19 @@
 # tarball into a user-owned prefix. No sudo, no system directories touched.
 #
 # Usage:
-#   scripts/install-git-source.sh [--version X.Y.Z] [--prefix DIR]
-#                                 [--force] [--check] [--dry-run]
+#   scripts/install-git-source.sh [--version X.Y.Z --sha256 HEX]
+#                                 [--prefix DIR] [--force] [--check] [--dry-run]
 #
 #   --check     report what is installed and what would change; install nothing
 #   --dry-run   download, verify and build, but skip `make install`
 #   --force     rebuild even when the requested version is already installed
+#   --version   build a version other than the pinned one; requires --sha256
+#   --sha256    checksum for that version; requires --version
 #
 # Version and checksum are pinned below. Bumping either is a deliberate edit:
 # the SHA256 is reviewed in the commit and cross-checked against the upstream
-# signed manifest at build time.
+# signed manifest at build time. --version and --sha256 override the pair and
+# must be given together.
 
 set -euo pipefail
 
@@ -24,6 +27,14 @@ set -euo pipefail
 
 GIT_VERSION="2.56.0"
 GIT_SHA256="26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3"
+# The pinned pair above is the trust anchor. --version/--sha256 may override both,
+# but only together: a different tarball has a different checksum, and pairing one
+# flag without the other silently verifies the new tarball against the old pin.
+# Remember the defaults so the pairing check below compares against them instead
+# of re-stating them.
+PINNED_VERSION="$GIT_VERSION"
+GIT_VERSION_OVERRIDDEN=0
+GIT_SHA256_OVERRIDDEN=0
 
 # Upstream release tarball plus the checksum manifest that lists it. Both may be
 # redirected with GIT_SOURCE_DOWNLOAD_BASE, which the test suite uses to serve a
@@ -65,7 +76,7 @@ cleanup() {
 trap cleanup EXIT
 
 usage() {
-  sed -n '2,20p' "$0" | sed 's/^# \{0,1\}//'
+  sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'
 }
 
 # --- Helpers -----------------------------------------------------------------
@@ -132,6 +143,18 @@ find_sha_tool() {
   return 1
 }
 
+# Print the SHA256 of a file. The two tools are NOT interchangeable: GNU
+# coreutils' sha256sum defaults to SHA-256 and rejects `-a` ("invalid option"),
+# while Perl's shasum needs `-a 256` to select the algorithm.
+sha256_of() {
+  local tool="$1" file="$2"
+  case "$tool" in
+    sha256sum) sha256sum "$file" | awk '{print $1}' ;;
+    shasum) shasum -a 256 "$file" | awk '{print $1}' ;;
+    *) die "unknown sha256 tool: $tool" ;;
+  esac
+}
+
 # Parallel job count, honouring MAKEFLAGS from a login shell when it carries -j.
 detect_jobs() {
   local jobs="${MAKEFLAGS:-}"
@@ -159,6 +182,13 @@ while [ $# -gt 0 ]; do
     --version)
       [ $# -ge 2 ] || die "--version needs a value"
       GIT_VERSION="$2"
+      GIT_VERSION_OVERRIDDEN=1
+      shift 2
+      ;;
+    --sha256)
+      [ $# -ge 2 ] || die "--sha256 needs a value"
+      GIT_SHA256="$2"
+      GIT_SHA256_OVERRIDDEN=1
       shift 2
       ;;
     --prefix)
@@ -189,6 +219,54 @@ while [ $# -gt 0 ]; do
 done
 
 TARGET_GIT="$PREFIX/bin/git"
+
+# --- Validate the pin ---------------------------------------------------------
+
+# A checksum must be 64 lowercase hex characters; anything else cannot match a
+# real SHA256 and would fail later with a confusing "mismatch" instead of a
+# clear argument error.
+case "$GIT_SHA256" in
+  *[!0-9a-f]* | "")
+    die "invalid --sha256: expected 64 lowercase hex characters, got '$GIT_SHA256'"
+    ;;
+esac
+[ "${#GIT_SHA256}" -eq 64 ] ||
+  die "invalid --sha256: expected 64 hex characters, got ${#GIT_SHA256}"
+
+# --version and --sha256 describe one artefact, so they must be supplied as a
+# pair. Overriding only the version would download a different tarball and
+# verify it against the pinned checksum, failing the build for a reason that
+# looks like tampering.
+#
+# The two halves are checked at different points, because they differ:
+#   * --sha256 alone is always meaningless -- the pinned version's checksum is
+#     already in GIT_SHA256 -- so it is rejected immediately, before any
+#     download or "already installed" short circuit can hide the mistake.
+#   * --version alone is legitimate for --check, which answers a question about
+#     a version without fetching anything. It is rejected only on a path that
+#     would actually download and verify a tarball.
+if [ "$GIT_SHA256_OVERRIDDEN" -eq 1 ] && [ "$GIT_VERSION_OVERRIDDEN" -eq 0 ]; then
+  die "--sha256 only makes sense together with --version.
+  A checksum describes one tarball, and the pinned version's checksum is
+  already in GIT_SHA256. Re-pin GIT_VERSION and GIT_SHA256 in the script,
+  or pass both flags."
+fi
+
+validate_pin_pairing() {
+  if [ "$GIT_VERSION_OVERRIDDEN" -eq 0 ]; then
+    return 0
+  fi
+  if [ "$GIT_VERSION" = "$PINNED_VERSION" ] && [ "$GIT_SHA256_OVERRIDDEN" -eq 0 ]; then
+    # Still the pinned version, so the pinned checksum is correct for it.
+    return 0
+  fi
+  if [ "$GIT_SHA256_OVERRIDDEN" -eq 0 ]; then
+    die "--version $GIT_VERSION only makes sense together with --sha256.
+  A different tarball has a different checksum, and verifying it against the
+  pinned GIT_SHA256 would fail as if the download were tampered.
+  Re-pin GIT_VERSION and GIT_SHA256 in the script, or pass both flags."
+  fi
+}
 
 # --- Report current state ----------------------------------------------------
 
@@ -261,7 +339,7 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
   prereq_gaps="$(missing_prereq make cc perl tar xz curl)"
   sha_tool="$(find_sha_tool || true)"
   if [ -z "$sha_tool" ]; then
-    prereq_gaps="${prereq_gaps}sha256sum-or-shasum"
+    prereq_gaps="${prereq_gaps:+$prereq_gaps +}sha256sum-or-shasum"
   fi
 
   if [ "$FORCE" -eq 0 ] && [ "$PREFIX_VERSION" = "$GIT_VERSION" ]; then
@@ -331,6 +409,10 @@ fi
 TARBALL="git-${GIT_VERSION}.tar.xz"
 TARBALL_URL="${DOWNLOAD_BASE}/${TARBALL}"
 
+# The pin is about to be consumed against a real download, so this is the point
+# where an unpaired override must stop the run.
+validate_pin_pairing
+
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-git-src.XXXXXX")"
 DOWNLOAD_DIR="$WORK_DIR/download"
 mkdir -p "$DOWNLOAD_DIR"
@@ -341,7 +423,7 @@ curl -fsSL --retry 3 --retry-delay 2 -o "$DOWNLOAD_DIR/$TARBALL" "$TARBALL_URL" 
 
 # Verify against the pinned checksum first. This is the value reviewed in the
 # commit, so it is the trust anchor; the manifest check below is a cross-check.
-ACTUAL_SHA="$("$HAVE_SHA" -a 256 "$DOWNLOAD_DIR/$TARBALL" | awk '{print $1}')"
+ACTUAL_SHA="$(sha256_of "$HAVE_SHA" "$DOWNLOAD_DIR/$TARBALL")"
 if [ "$ACTUAL_SHA" != "$GIT_SHA256" ]; then
   die "checksum mismatch for $TARBALL
   pinned: $GIT_SHA256
