@@ -344,7 +344,24 @@ operations, so that sequence would sidestep the rewrite rule it exists to enforc
 AGENTS.md "Branch-Based Workflow" is the authoritative statement of the policy.
 
 The `dotfiles-check.sh` behind-warning at shell init is your cue that `main` has
-moved and a sync is due. Both the NixOS and macOS working copies must merge
+moved and a sync is due.
+
+### Where the push guard is verified
+
+The guard and its test suite were written and exercised on **Linux (WSL nixos)**
+and in GitLab CI, which also runs Linux runners. It has **not** been run on
+macOS.
+
+That matters because the guard is POSIX `sh` and leans on `git merge-base` and
+`case` globbing, and macOS ships bash 3.2 with a BSD userland. Before relying on
+it there:
+
+```bash
+bash tests/test-pre-push-hook.sh    # 18 cases, a few seconds
+```
+
+Run that on the macOS checkout. If a case fails, the guard needs a fix on that host
+before it is trusted there — do not work around it with `--no-verify` as a habit. Both the NixOS and macOS working copies must merge
 `origin/main` before merging the MR.
 
 ## Commit-signing verification (`allowed_signers`)

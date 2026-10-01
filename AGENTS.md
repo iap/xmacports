@@ -20,8 +20,21 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
   match the other, and never hardcode `~/xmacports` — resolve paths through
   `DOTFILES_ROOT` instead.
 - The agent working in an environment adjusts the project for that environment only.
-- This checkout runs on macOS; fixes driven by other environments (e.g. Windows,
-  WSL, other machines' layouts) are handled by the agents working there.
+- **Checkouts exist on more than one host, and an agent must know which one it is
+  editing.** The canonical path `~/.dotfiles` resolves on each of them:
+  - **macOS** — the primary machine. Shell, userland and paths there are Darwin
+    with bash 3.2; changes are expected to work there first.
+  - **Windows + WSL (nixos)** — a working copy in the Linux distro, edited by
+    agents whose host process is Windows. Linux-only verification does not
+    transfer.
+  Fixes driven by one environment are handled by the agents working there.
+- **State the environment you actually verified in**, and do not describe the
+  execution environment as the project environment. An agent hosted on Windows
+  driving a WSL checkout is working on Linux files from a Windows host; a claim
+  tested on Linux is not a claim tested on macOS.
+- Before relying on shell, path or tool behaviour, confirm it on the host that
+  will run it. `sh`, `case` globbing, and userland tools differ between Darwin and
+  Linux, and a green CI run on Linux says nothing about macOS.
 - Keep shared files cross-platform-safe: do not break other hosts, but do not
   preempt or port their fixes — let the running environment's needs drive
   changes here.
