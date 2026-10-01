@@ -238,35 +238,29 @@ esac
 # verify it against the pinned checksum, failing the build for a reason that
 # looks like tampering.
 #
-# The two halves are checked at different points, because they differ:
-#   * --sha256 alone is always meaningless -- the pinned version's checksum is
-#     already in GIT_SHA256 -- so it is rejected immediately, before any
-#     download or "already installed" short circuit can hide the mistake.
-#   * --version alone is legitimate for --check, which answers a question about
-#     a version without fetching anything. It is rejected only on a path that
-#     would actually download and verify a tarball.
+# Both halves are checked here, right after parsing, because anything later is
+# too late: the prerequisite gate and the "already installed" short circuit can
+# both exit first, and on a host without a compiler the prerequisite gate always
+# does. Validating at the download left this reachable on a bare CI image, where
+# the pairing was never checked at all.
+#
+# --check is exempt: it answers a question about a version without fetching
+# anything, so it can legitimately ask about a version that is not pinned.
 if [ "$GIT_SHA256_OVERRIDDEN" -eq 1 ] && [ "$GIT_VERSION_OVERRIDDEN" -eq 0 ]; then
   die "--sha256 only makes sense together with --version.
   A checksum describes one tarball, and the pinned version's checksum is
   already in GIT_SHA256. Re-pin GIT_VERSION and GIT_SHA256 in the script,
   or pass both flags."
 fi
-
-validate_pin_pairing() {
-  if [ "$GIT_VERSION_OVERRIDDEN" -eq 0 ]; then
-    return 0
-  fi
-  if [ "$GIT_VERSION" = "$PINNED_VERSION" ] && [ "$GIT_SHA256_OVERRIDDEN" -eq 0 ]; then
-    # Still the pinned version, so the pinned checksum is correct for it.
-    return 0
-  fi
-  if [ "$GIT_SHA256_OVERRIDDEN" -eq 0 ]; then
-    die "--version $GIT_VERSION only makes sense together with --sha256.
+if [ "$CHECK_ONLY" -eq 0 ] &&
+  [ "$GIT_VERSION_OVERRIDDEN" -eq 1 ] &&
+  [ "$GIT_SHA256_OVERRIDDEN" -eq 0 ] &&
+  [ "$GIT_VERSION" != "$PINNED_VERSION" ]; then
+  die "--version $GIT_VERSION only makes sense together with --sha256.
   A different tarball has a different checksum, and verifying it against the
   pinned GIT_SHA256 would fail as if the download were tampered.
   Re-pin GIT_VERSION and GIT_SHA256 in the script, or pass both flags."
-  fi
-}
+fi
 
 # --- Report current state ----------------------------------------------------
 
@@ -408,10 +402,6 @@ fi
 
 TARBALL="git-${GIT_VERSION}.tar.xz"
 TARBALL_URL="${DOWNLOAD_BASE}/${TARBALL}"
-
-# The pin is about to be consumed against a real download, so this is the point
-# where an unpaired override must stop the run.
-validate_pin_pairing
 
 WORK_DIR="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-git-src.XXXXXX")"
 DOWNLOAD_DIR="$WORK_DIR/download"

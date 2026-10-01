@@ -249,6 +249,32 @@ if printf '%s' "$check_only" | grep -q "only makes sense together"; then
 else
   ok "--check still works with --version alone (no download)"
 fi
+# The pairing must be rejected before any gate that can exit first. On a host
+# with no compiler the prerequisite gate dies before the download, so a check
+# placed at the download would never run -- which is how this slipped through
+# once already, green locally and failing in CI.
+NOPREREQ_SH="$T/noprerq"
+mkdir -p "$NOPREREQ_SH"
+for c in bash sh dash awk sed grep rm mkdir date env dirname basename cat \
+  printf id uname mktemp tr wc chmod ln find head tail; do
+  p="$(command -v "$c" 2> /dev/null || true)"
+  [ -n "$p" ] && ln -sf "$p" "$NOPREREQ_SH/$c"
+done
+bare_out="$(cd "$T" && PATH="$NOPREREQ_SH" bash "$INSTALLER" --version 9.9.9 \
+  --prefix "$T/noprerq-prefix" --dry-run 2>&1 || true)"
+if printf '%s' "$bare_out" | grep -q "only makes sense together with --sha256"; then
+  ok "refuses an unpaired --version on a host with no compiler"
+else
+  bad "an early gate hid the pairing check: $bare_out"
+fi
+sha_bare="$(cd "$T" && PATH="$NOPREREQ_SH" bash "$INSTALLER" \
+  --sha256 "$(printf 'a%.0s' $(seq 64))" \
+  --prefix "$T/noprerq-prefix" --dry-run 2>&1 || true)"
+if printf '%s' "$sha_bare" | grep -q "only makes sense together with --version"; then
+  ok "refuses an unpaired --sha256 on a host with no compiler"
+else
+  bad "an early gate hid the --sha256 check: $sha_bare"
+fi
 sha_alone="$(cd "$T" && bash "$INSTALLER" --sha256 \
   "$(printf 'a%.0s' $(seq 64))" --dry-run 2>&1 || true)"
 if printf '%s' "$sha_alone" | grep -q "only makes sense together with --version"; then
