@@ -12,6 +12,7 @@ set -uo pipefail
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 HOOK="$DOTFILES_ROOT/.githooks/pre-push"
+GUARD="$(cd "$(dirname "$HOOK")/.." && pwd)/scripts/guard-default-branch"
 
 pass=0
 fail=0
@@ -43,9 +44,14 @@ setup_repo() { # dir; extra remotes configured by caller
   # git's default branch name varies by version/platform (main vs master), and
   # the hook resolves it dynamically — pin it here so the test is deterministic.
   git symbolic-ref HEAD refs/heads/main
-  mkdir -p .githooks
+  mkdir -p .githooks scripts
   cp "$HOOK" .githooks/pre-push
   chmod +x .githooks/pre-push
+  # The default-branch guard is a SEPARATE program invoked by the hook. Without
+  # it here the hook takes the "guard not found" path, and every test below would
+  # pass while the guard was never exercised at all.
+  cp "$GUARD" scripts/guard-default-branch
+  chmod +x scripts/guard-default-branch
   git config core.hooksPath .githooks
 }
 
@@ -58,7 +64,7 @@ setup_repo work
 git remote add origin "$T/authoritative.git"
 git remote add mirror "$T/mirror.git"
 git commit -q --allow-empty -m init
-git push -q -u origin main 2> /dev/null
+git push -q --no-verify -u origin main 2> /dev/null
 git checkout -q -b topic/x
 git commit -q --allow-empty -m work
 
@@ -89,7 +95,7 @@ cd "$T" || exit 1
 setup_repo solo
 git remote add origin "$T/only.git"
 git commit -q --allow-empty -m init
-git push -q -u origin main 2> /dev/null
+git push -q --no-verify -u origin main 2> /dev/null
 git checkout -q -b feat/y
 git commit -q --allow-empty -m work
 
@@ -113,3 +119,76 @@ check "no false block when no default branch tracks a remote" 0 $?
 echo
 echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
 [ "$fail" -eq 0 ]
+
+# --- Default-branch guard -----------------------------------------------------
+# These only pass when scripts/guard-default-branch is present AND enforcing.
+
+setup_repo guardwork
+git remote add origin "$T/authoritative.git"
+git commit -q --allow-empty -m init
+# Seed with --no-verify: the FIRST push of the default branch is itself "create
+# main", which the guard refuses by design. Pushing it through the hook would
+# leave branch.main.remote unset, and every check below would then run against a
+# repo with no authoritative remote - passing or failing for the wrong reason.
+git push -q --no-verify origin main 2> /dev/null
+git config branch.main.remote origin
+git config branch.main.merge refs/heads/main
+git fetch -q origin 2> /dev/null
+git symbolic-ref refs/remotes/origin/HEAD refs/remotes/origin/main 2> /dev/null
+
+# A mirror remote, so the mirror cases are exercised alongside the guard ones.
+git init -q --bare "$T/guard-mirror.git"
+git remote add mirror "$T/guard-mirror.git"
+
+echo "Pre-push hook — default-branch guard:"
+
+git commit -q --allow-empty -m direct
+git push origin main > /dev/null 2>&1
+check "direct push to the default branch is blocked" 1 $?
+
+git push origin :main > /dev/null 2>&1
+check "deleting the default branch is blocked" 1 $?
+
+# A push by local PATH must be judged the same as one by remote name: the guard
+# has to resolve the path back to the remote or the rule is silently skipped.
+git commit -q --allow-empty -m via-path
+git push "$T/authoritative.git" main > /dev/null 2>&1
+check "direct push by local path is blocked" 1 $?
+
+# ...and the same for a URL-shaped argument.
+git commit -q --allow-empty -m via-url
+git push "file://$T/authoritative.git" main > /dev/null 2>&1
+check "direct push by file:// URL is blocked" 1 $?
+
+# A fast-forward topic push must still be allowed, or the guard is useless.
+git checkout -q -b topic/ok
+git commit -q --allow-empty -m work
+git push -u origin topic/ok > /dev/null 2>&1
+check "new topic branch is still allowed" 0 $?
+
+git commit -q --allow-empty -m more
+git push origin topic/ok > /dev/null 2>&1
+check "fast-forward topic update is still allowed" 0 $?
+
+# A force-pushed topic branch rewrites published history and must be refused.
+git reset -q --hard HEAD~1
+git commit -q --allow-empty -m divergent
+git push --force origin topic/ok > /dev/null 2>&1
+check "force-pushing a rewritten topic branch is blocked" 1 $?
+
+# Mirror cases: the guard must stay out of the way. Syncing the default branch to
+# a mirror is legitimate, and a topic branch must not go there - whether the target
+# is named or given as a path.
+#
+# Each of these pushes for real, with the hook active. Pre-pushing with --no-verify
+# would leave nothing to send and git would report success without the hook ever
+# seeing a ref, so the assertion would be vacuous.
+git commit -q --allow-empty -m mirror-sync
+git push mirror main > /dev/null 2>&1
+check "default branch to mirror is allowed" 0 $?
+
+git push mirror topic/ok > /dev/null 2>&1
+check "topic branch to mirror is blocked" 1 $?
+
+git push "$T/guard-mirror.git" topic/ok > /dev/null 2>&1
+check "topic branch to mirror by path is blocked" 1 $?
