@@ -65,15 +65,33 @@ if [ -z "$_auth" ]; then
 		_auth=""
 	fi
 fi
-# An empty _auth means the topology cannot be decided, so the default-branch rule
-# is not applied. Say so rather than pretending the push was checked.
-[ -n "$_auth" ] || exit 0
+# When the authoritative remote cannot be determined, do NOT skip the rule: that
+# silently left a multi-remote clone with no tracking config completely unprotected.
+# Instead treat every push target as non-authoritative, which is the safe direction -
+# a legitimate push to the authoritative remote is still allowed below via the
+# single-remote and origin-HEAD paths, and anything genuinely ambiguous is refused
+# loudly rather than waved through.
+# _auth_authentic=1 means the authoritative remote is known and the
+# default-branch rules apply only to it. When it is 0 the topology is ambiguous,
+# so the rules apply to EVERY target: skipping them would leave a multi-remote
+# clone with no tracking config completely unprotected, which is the opposite of
+# what a guard is for.
+if [ -z "$_auth" ]; then
+	_auth_known=0
+	echo "WARNING: cannot determine which remote is authoritative." >&2
+	echo "         Applying the default-branch rules to every target." >&2
+	echo "         Record it with: git push -u <remote> <branch>" >&2
+else
+	_auth_known=1
+fi
 
-# Resolve a URL push back to its remote name, so `git push <url> main` is judged
-# by the same policy as `git push origin main`.
+# Resolve the push target to a remote name, so `git push <target> main` is
+# judged by the same policy as `git push origin main`. `git push` accepts a
+# name, a URL, or a local path; all three must resolve, or a path push would
+# leave the target unrecognised and the rule silently skipped.
 _push_remote=$remote
 case "$remote" in
-*://* | *@*:*)
+*://* | *@*:* | */*)
 	# Compare the PUSH url as well as the fetch url: with
 	# `git remote set-url --push` the two differ, and matching only the
 	# fetch url would let a push naming the push url slip past the policy.
@@ -88,8 +106,53 @@ case "$remote" in
 	;;
 esac
 
-_is_authoritative=0
-[ "$_push_remote" = "$_auth" ] && _is_authoritative=1
+# Authoritative when the remote is known and matches; when it is unknown, every
+# target counts as authoritative so the rules actually run.
+# A target is authoritative when it is the known authoritative remote. When the
+# authoritative remote is UNDETERMINED, no target can be shown to be authoritative,
+# so the default-branch rules apply to every target EXCEPT a remote that the
+# default branch demonstrably does not track - which is how a mirror is recognised.
+# If the target could not be resolved to a configured remote (a bare path, a
+# file:// url, a host we have no remote for), it is not a remote we can vouch
+# for. Keep the rules applied so a direct push that way is still examined.
+_push_remote_is_named=0
+case "$_push_remote" in
+	*/* | *://* | *@*:*) ;;
+	*) _push_remote_is_named=1 ;;
+esac
+
+# Default to enforcing. A target is exempt only when we can positively identify it
+# as the authoritative remote, or as a named mirror. Anything we cannot identify -
+# an unmatched url, a file:// path, a host with no configured remote - keeps the
+# rules ON, so an unrecognised target can never be a way around them.
+# Is this push target one the default-branch rules must govern?
+#
+# Positive matches only. The rules apply when the target IS the authoritative
+# remote, or when the target cannot be identified at all - an unmatched url, a
+# filesystem path, a host with no configured remote. Failing to identify a target
+# must never be a way around the rules.
+#
+# The only exemption is a NAMED remote that is not the authoritative one: that is
+# a mirror, and re-syncing a mirror with a force push is normal.
+_is_mirror=0
+if [ "$_push_remote_is_named" = "1" ]; then
+	for _r in $(git remote 2> /dev/null); do
+		if [ "$_push_remote" = "$_r" ]; then
+			if [ "$_auth_known" = "1" ]; then
+				[ "$_r" != "$_auth" ] && _is_mirror=1
+			else
+				[ "$_r" != "$_auth_hint" ] && _is_mirror=1
+			fi
+			break
+		fi
+	done
+fi
+
+if [ "$_is_mirror" = "1" ]; then
+	_is_authoritative=0
+else
+	_is_authoritative=1
+fi
 
 # The null object name is 40 zeros on SHA-1 and 64 on SHA-256; accept any run.
 _is_null_oid() {

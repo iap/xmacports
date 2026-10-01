@@ -336,8 +336,12 @@ git merge origin/main
 git push
 ```
 
-To rebase a branch that was pushed by mistake, delete the remote branch first
-(`git push origin --delete <name>`) and then push the rewritten local branch as new.
+If a branch was pushed before it was ready to be, and it has no open MR, the honest
+options are to merge instead of rebase, or to close any MR and ask the maintainer to
+delete the remote branch. Do not plan around deleting and recreating a branch
+yourself: the guard judges a deletion and a new-branch push as separate, legitimate
+operations, so that sequence would sidestep the rewrite rule it exists to enforce.
+AGENTS.md "Branch-Based Workflow" is the authoritative statement of the policy.
 
 The `dotfiles-check.sh` behind-warning at shell init is your cue that `main` has
 moved and a sync is due. Both the NixOS and macOS working copies must merge
