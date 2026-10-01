@@ -303,12 +303,15 @@ if [ "${PREFIX#/}" = "$PREFIX" ]; then
   Use something like \$HOME/.local."
 fi
 
-# Canonicalize so symlinks and dot segments cannot disguise a system prefix.
-# Fall back to the literal value when the path does not exist yet (a fresh
-# prefix is normal) or python3 is unavailable; the literal match still applies.
+# Canonicalize so dot segments cannot disguise a system prefix, and resolve
+# symlinks too: normpath is lexical, so a prefix reached through a symlink
+# would otherwise hide where the install actually lands. Fall back to the
+# literal value when the path does not exist yet (a fresh prefix is normal),
+# and to the lexical form when python3 is unavailable; the literal match below
+# still applies in both cases.
 NORMALISED_PREFIX="$PREFIX"
 if command -v python3 > /dev/null 2>&1; then
-  NORMALISED_PREFIX="$(python3 -c 'import os,sys; print(os.path.normpath(sys.argv[1]))' "$PREFIX" 2> /dev/null || printf '%s' "$PREFIX")"
+  NORMALISED_PREFIX="$(python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$PREFIX" 2> /dev/null || printf '%s' "$PREFIX")"
 fi
 
 case "$NORMALISED_PREFIX" in
@@ -543,9 +546,11 @@ if ! command -v msgfmt > /dev/null 2>&1; then
   MAKE_FLAGS+=(NO_GETTEXT=YesPlease)
   log "build: msgfmt not found, building with NO_GETTEXT (English only)"
 fi
-if ! command -v cargo > /dev/null 2>&1; then
+# `cargo --version`, not `command -v cargo`: a rustup shim on PATH can exist
+# with no toolchain configured, in which case the build still fails.
+if ! cargo --version > /dev/null 2>&1; then
   MAKE_FLAGS+=(NO_RUST=YesPlease)
-  log "build: cargo not found, building with NO_RUST"
+  log "build: cargo not usable, building with NO_RUST"
 fi
 #
 # git derives CURL_LDFLAGS from `curl-config --libs`, so without curl-config on

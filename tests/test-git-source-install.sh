@@ -419,6 +419,36 @@ for p in /usr/local /opt/homebrew /opt/local /usr; do
   fi
 done
 
+# A prefix reached through a symlink must be judged by where it actually
+# lands. The canonicalization was lexical, so a link pointing at a
+# package-managed prefix passed the check and the install would then replace
+# that prefix's git.
+echo "refuses a package-managed prefix reached through a symlink:"
+LINK_BASE="$T/symlink-prefix"
+mkdir -p "$LINK_BASE"
+ln -sfn /opt/local "$LINK_BASE/link"
+out="$(run_installer none --check --prefix "$LINK_BASE/link" 2>&1)"
+rc=$?
+if [ "$rc" -ne 0 ]; then
+  ok "refuses a symlinked package-managed prefix (rc=$rc)"
+else
+  bad "accepted a symlink pointing at /opt/local"
+fi
+if printf '%s' "$out" | grep -qi "refusing to install"; then
+  ok "explains the refusal for a symlinked prefix"
+else
+  bad "no refusal message for a symlinked prefix: $out"
+fi
+# The same link to a harmless directory must still be accepted, or the check is
+# refusing symlinks rather than protected prefixes.
+ln -sfn "$FAKE_PREFIX_NEW" "$LINK_BASE/ok-link"
+out="$(run_installer none --check --prefix "$LINK_BASE/ok-link" 2>&1)"
+if printf '%s' "$out" | grep -qi "refusing to install"; then
+  bad "refused a symlink to a user prefix: $out"
+else
+  ok "still accepts a symlink to a user-owned prefix"
+fi
+
 echo "still accepts a user-owned prefix:"
 out="$(run_installer none --check --prefix "$FAKE_PREFIX_NEW" 2>&1)"
 # A user prefix must never be refused for being a system path. The exit status
