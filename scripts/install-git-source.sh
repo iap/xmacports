@@ -459,10 +459,32 @@ log "building with -j$JOBS (a few minutes)"
 # make variable (INSTALL: "Set NO_GETTEXT to disable localization support"),
 # which empties MOFILES and makes the locale step a no-op. Only used when
 # msgfmt is genuinely absent, so a host with gettext keeps translations.
+#
+# Rust is a second optional dependency: git 2.56 vendors a small Rust library
+# (libgitcore) and its Makefile builds it via `cargo build`, so a host without
+# cargo dies with "cargo: command not found" (error 127). git's own Makefile
+# documents NO_RUST for exactly this ("Rust is still an optional feature...
+# With Git 3.0 though, Rust will always be enabled"), and it drops the rust lib
+# from GITLIBS. Applied only when cargo is genuinely absent.
 MAKE_FLAGS=()
 if ! command -v msgfmt > /dev/null 2>&1; then
   MAKE_FLAGS+=(NO_GETTEXT=YesPlease)
   log "build: msgfmt not found, building with NO_GETTEXT (English only)"
+fi
+if ! command -v cargo > /dev/null 2>&1; then
+  MAKE_FLAGS+=(NO_RUST=YesPlease)
+  log "build: cargo not found, building with NO_RUST"
+fi
+#
+# git derives CURL_LDFLAGS from `curl-config --libs`, so without curl-config on
+# PATH the http helpers link with undefined _curl_* symbols and the link fails
+# even though configure found libcurl. When a MacPorts/opt prefix provides curl
+# but curl-config is not reachable, pass the flags explicitly.
+if [ -z "${CURL_LDFLAGS:-}" ] && ! command -v curl-config > /dev/null 2>&1; then
+  if [ -d "$PORT_PREFIX/lib" ]; then
+    MAKE_FLAGS+=(CURL_LDFLAGS="-L$PORT_PREFIX/lib -lcurl")
+    log "build: curl-config not found, setting CURL_LDFLAGS from $PORT_PREFIX"
+  fi
 fi
 
 if ! (cd "$SRC_DIR" && make -j"$JOBS" "${MAKE_FLAGS[@]+"${MAKE_FLAGS[@]}"}") > "$WORK_DIR/make.log" 2>&1; then
