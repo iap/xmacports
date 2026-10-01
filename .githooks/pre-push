@@ -23,21 +23,30 @@ remote="$1"
 # `git push git@github.com:iap/xmacports.git my-topic`). Resolve the URL back
 # to its configured remote name so the policy below still applies — otherwise
 # the guard would be trivially bypassed by naming the mirror's URL directly.
+# Resolve the push target to a configured remote name. `git push` accepts a remote
+# NAME, a URL, or a local path, and the guard can only judge the push if it knows
+# which remote it is. Match on shape AND on actual url comparison, so a
+# scp-style url, an https url, and a plain filesystem path all resolve; comparing
+# both the fetch and the push url covers `git remote set-url --push`.
 case "$remote" in
-  *://* | *@*:*)
+  *://* | *@*:* | */*)
     _resolved=""
     for r in $(git remote); do
-      _url=$(git remote get-url "$r" 2> /dev/null || true)
-      [ "$_url" = "$remote" ] && {
+      _fetch=$(git remote get-url "$r" 2> /dev/null || true)
+      _push=$(git remote get-url --push "$r" 2> /dev/null || true)
+      if [ "$_fetch" = "$remote" ] || [ "$_push" = "$remote" ]; then
         _resolved="$r"
         break
-      }
+      fi
     done
     if [ -n "$_resolved" ]; then
       remote="$_resolved"
     else
-      # Unknown URL with no matching remote: treat as a non-authoritative
-      # push and let the rest of the policy decide (don't silently exit 0).
+      # An unrecognised target (a URL or path belonging to no configured
+      # remote) is NOT the authoritative remote. Leave the raw value in
+      # place: the guard treats "not equal to the authoritative remote" as
+      # non-authoritative, and the mirror guard below refuses topic branches
+      # to it. Do not silently exit 0 here.
       :
     fi
     ;;
