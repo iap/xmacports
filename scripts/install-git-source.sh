@@ -227,12 +227,10 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
     exit 0
   fi
 
-  if [ -n "$prereq_gaps" ]; then
-    warn "check: missing prerequisites:"
-    printf '%s\n' "$prereq_gaps" | sed 's/^/  /' >&2
-    exit 1
-  fi
-
+  # Report the intended action before the prerequisite verdict. `--check` is a
+  # reporting mode: a caller on a host that lacks a build tool still needs to
+  # know what the script *would* do, so the plan is never withheld. This also
+  # keeps the mode useful on CI images without a compiler.
   if [ -n "$PREFIX_VERSION" ]; then
     log "check: would rebuild $PREFIX_VERSION -> $GIT_VERSION"
   elif [ -n "$PATH_VERSION" ] && version_ge "$PATH_VERSION" "$GIT_VERSION"; then
@@ -241,6 +239,13 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
   else
     log "check: would build git $GIT_VERSION into $PREFIX"
   fi
+
+  if [ -n "$prereq_gaps" ]; then
+    warn "check: missing prerequisites (the build would fail until these exist):"
+    printf '%s\n' "$prereq_gaps" | sed 's/^/  /' >&2
+    exit 1
+  fi
+
   log "check: prerequisites present (sha tool: ${sha_tool:-none})"
   exit 0
 fi
@@ -257,9 +262,18 @@ fi
 HAVE_SHA="$(find_sha_tool || true)"
 [ -n "$HAVE_SHA" ] || die "need sha256sum or shasum to verify the download"
 
-prereq_gaps="$(missing_prereq make cc tar xz curl)"
-if [ -n "$prereq_gaps" ]; then
-  die "missing build prerequisites: $(printf '%s' "$prereq_gaps" | tr '\n' ' ')"
+# Escape hatch for the test suite: skip only the *build-tool* prerequisite gate
+# so the checksum gate can be exercised on an image that has no compiler (the
+# CI image is Alpine, which ships neither `cc` nor `xz`). It suppresses nothing
+# else — the checksum is still verified against the pin, and a mismatch is still
+# fatal. Never set this for a real install.
+if [ "${GIT_SOURCE_SKIP_PREREQ:-0}" = "1" ]; then
+  log "WARNING: GIT_SOURCE_SKIP_PREREQ=1 — skipping the build-tool check"
+else
+  prereq_gaps="$(missing_prereq make cc tar xz curl)"
+  if [ -n "$prereq_gaps" ]; then
+    die "missing build prerequisites: $(printf '%s' "$prereq_gaps" | tr '\n' ' ')"
+  fi
 fi
 
 # --- Fetch and verify --------------------------------------------------------

@@ -105,7 +105,25 @@ exec shasum "$@"
 STUB
 chmod +x "$BAD_SH/sha256sum"
 
-out="$(run_installer "$BAD_SH" --dry-run 2>&1)"
+# Build a PATH that has every build prerequisite the installer probes for, so the
+# run reaches the checksum gate instead of stopping at the prerequisite gate.
+# The CI image (Alpine) ships neither `cc` nor `xz`; without this the download
+# never happens and the assertion below would pass for the wrong reason.
+PREREQ_SH="$T/prereqpath"
+mkdir -p "$PREREQ_SH"
+for c in bash sh dash make cc gcc tar xz curl date sed awk grep rm rmdir \
+  mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find \
+  sha256sum shasum ln env; do
+  p="$(command -v "$c" 2> /dev/null || true)"
+  [ -n "$p" ] && ln -sf "$p" "$PREREQ_SH/$c"
+done
+# The stub must win over any real sha256sum on this host.
+ln -sf "$BAD_SH/sha256sum" "$PREREQ_SH/sha256sum"
+ln -sf "$BAD_SH/sha256sum" "$PREREQ_SH/shasum"
+
+# GIT_SOURCE_SKIP_PREREQ lets the run reach the checksum gate on an image with
+# no compiler. Everything the checksum gate itself depends on is still real.
+out="$(cd "$T" && PATH="$PREREQ_SH" GIT_SOURCE_SKIP_PREREQ=1 bash "$INSTALLER" --dry-run 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then ok "exits non-zero on mismatch (rc=$rc)"; else bad "exited 0 despite bad checksum"; fi
 if printf '%s' "$out" | grep -q "checksum mismatch"; then
@@ -167,38 +185,64 @@ fi
 
 # --- prerequisite detection --------------------------------------------------
 echo "detects missing prerequisites:"
-# A PATH that provides the real helper tools but deliberately lacks make/cc.
-# Only the presence probe matters, so symlinking the genuine tools keeps the
-# script's own output (which it formats with sed/awk) intact — stubbing those
-# away would swallow the very names this test asserts on.
+# Build a PATH containing every helper the script might probe for, EXCEPT the
+# two this test withholds. The tool list is derived from the host rather than
+# hardcoded, so the same assertions hold on macOS and on the Alpine CI image
+# (which has no `cc` and no `xz`).
+ALL_TOOLS="make cc tar xz curl shasum sha256sum bash sh dash date sed awk grep rm rmdir mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find printf sleep ln env id basename expr test pwd readlink realpath"
+WITHHELD="make cc"
+
+link_tools() {
+  local c p
+  for c in $ALL_TOOLS; do
+    case " $WITHHELD " in
+      *" $c "*) continue ;;
+    esac
+    p="$(command -v "$c" 2> /dev/null || true)"
+    [ -n "$p" ] && ln -sf "$p" "$STUB_SH/$c"
+  done
+}
+
 STUB_SH="$T/stubpath"
 mkdir -p "$STUB_SH"
-for c in sh bash dash shasum sha256sum curl tar xz date sed awk grep rm rmdir \
-  mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find; do
-  p="$(command -v "$c" 2> /dev/null || true)"
-  [ -n "$p" ] && ln -sf "$p" "$STUB_SH/$c"
-done
+link_tools
 
-out="$(cd "$T" && PATH="$STUB_SH" /bin/bash "$INSTALLER" --check 2>&1)"
+# Whichever of the withheld tools this host actually provides are now absent, so
+# `--check` must still name at least one of them and fail.
+out="$(cd "$T" && PATH="$STUB_SH" bash "$INSTALLER" --check 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then ok "check fails without build tools (rc=$rc)"; else bad "check passed with make/cc withheld"; fi
-if printf '%s' "$out" | grep -q "make"; then ok "names make as missing"; else bad "did not name make: $out"; fi
-if printf '%s' "$out" | grep -q "cc"; then ok "names cc as missing"; else bad "did not name cc: $out"; fi
+if printf '%s' "$out" | grep -qE '(^|[[:space:]])(make|cc)$'; then
+  ok "names the missing build tool(s)"
+else
+  bad "did not name a missing build tool: $out"
+fi
+# The plan must be reported even when prerequisites are missing, so a caller on
+# a tool-less host still learns what the script would do.
+if printf '%s' "$out" | grep -q "would build git\|would rebuild"; then
+  ok "reports the plan despite missing prerequisites"
+else
+  bad "withheld the plan when prerequisites were missing: $out"
+fi
 
-# And the inverse: with make and cc present the same check must pass.
-for c in make cc; do
-  cat > "$STUB_SH/$c" << 'STUB'
+# And the inverse: with every probed tool present the same check must pass.
+WITHHELD=""
+link_tools
+for c in $ALL_TOOLS; do
+  if [ ! -e "$STUB_SH/$c" ]; then
+    cat > "$STUB_SH/$c" << 'STUB'
 #!/bin/sh
 case "${1:-}" in
   -v | --version | version) echo "stub 1.0"; exit 0 ;;
 esac
 exit 0
 STUB
-  chmod +x "$STUB_SH/$c"
+    chmod +x "$STUB_SH/$c"
+  fi
 done
-out="$(cd "$T" && PATH="$STUB_SH" /bin/bash "$INSTALLER" --check --prefix "$FAKE_PREFIX_NEW" 2>&1)"
+out="$(cd "$T" && PATH="$STUB_SH" bash "$INSTALLER" --check --prefix "$FAKE_PREFIX_NEW" 2>&1)"
 rc=$?
-if [ "$rc" -eq 0 ]; then ok "check passes once make/cc exist (rc=$rc)"; else bad "check failed with make/cc present: $out"; fi
+if [ "$rc" -eq 0 ]; then ok "check passes once build tools exist (rc=$rc)"; else bad "check failed with build tools present: $out"; fi
 
 # --- unknown flag is rejected -----------------------------------------------
 echo "rejects unknown options:"
