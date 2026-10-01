@@ -1,0 +1,230 @@
+#!/bin/sh
+# Default-branch and force-push guard.
+#
+# Invoked as a SEPARATE PROCESS by .githooks/pre-push, never sourced:
+#
+#     guard-default-branch <push-lines-file> <remote-name-or-url>
+#
+# It is a separate process on purpose. An earlier revision was sourced, and every
+# `exit` in it terminated the whole hook - including the mirror guard that runs
+# after it, which silently stopped enforcing. Calling it as a command makes that
+# class of bug impossible: exit 1 here fails only this program.
+#
+# Contract: <push-lines-file> holds git's pre-push stdin, one
+# "<local-ref> <local-oid> <remote-ref> <remote-oid>" record per line, already
+# buffered by the hook because two policies need to read the same records.
+#
+# Exit 0 = allow, 1 = refuse. Prints the reason to stderr when it refuses.
+
+lines=$1
+remote=$2
+
+[ -n "$lines" ] && [ -r "$lines" ] || exit 0
+
+# --------------------------------------------------------------------------
+# Resolve the default branch and the authoritative remote.
+#
+# Order matters. A local `main` ref proves nothing: a contributor may hold only a
+# topic branch locally, and a clone can have both `main` and `master` while the
+# remote's real default is one of them. The remote's own HEAD is the only
+# authoritative signal, so try it first and fall back only when it is absent.
+# --------------------------------------------------------------------------
+# The remote the current branch tracks is preferred below, so a mirror's HEAD
+# can never decide what the default branch is.
+_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null | sed "s|^[^/]*/||").remote" 2> /dev/null || true)
+[ -n "$_auth_hint" ] || _auth_hint=origin
+_dfb=""
+# Prefer the authoritative remote's HEAD, then any other remote, rather than
+# whichever `git remote` lists first: alphabetically a mirror can sort before
+# origin, and a mirror must not define the default branch.
+for _r in "$_auth_hint" $(git remote 2> /dev/null); do
+	[ -n "$_r" ] || continue
+	if _dfb=$(git symbolic-ref --quiet --short "refs/remotes/$_r/HEAD" 2> /dev/null); then
+		_dfb=${_dfb##*/}
+		break
+	fi
+	_dfb=""
+done
+if [ -z "$_dfb" ]; then
+	for _b in main master trunk; do
+		if git show-ref --verify --quiet "refs/heads/$_b"; then
+			_dfb="$_b"
+			break
+		fi
+	done
+fi
+[ -n "$_dfb" ] || exit 0
+
+# The authoritative remote is the one the default branch tracks. With a single
+# remote there is no ambiguity, so that remote is authoritative by definition.
+_auth=$(git config "branch.$_dfb.remote" 2>/dev/null || true)
+if [ -z "$_auth" ]; then
+	if [ "$(git remote | grep -c .)" = "1" ]; then
+		_auth=$(git remote)
+	else
+		_auth=""
+	fi
+fi
+# When the authoritative remote cannot be determined, do NOT skip the rule: that
+# silently left a multi-remote clone with no tracking config completely unprotected.
+# Instead treat every push target as non-authoritative, which is the safe direction -
+# a legitimate push to the authoritative remote is still allowed below via the
+# single-remote and origin-HEAD paths, and anything genuinely ambiguous is refused
+# loudly rather than waved through.
+# _auth_authentic=1 means the authoritative remote is known and the
+# default-branch rules apply only to it. When it is 0 the topology is ambiguous,
+# so the rules apply to EVERY target: skipping them would leave a multi-remote
+# clone with no tracking config completely unprotected, which is the opposite of
+# what a guard is for.
+if [ -z "$_auth" ]; then
+	_auth_known=0
+	echo "WARNING: cannot determine which remote is authoritative." >&2
+	echo "         Applying the default-branch rules to every target." >&2
+	echo "         Record it with: git push -u <remote> <branch>" >&2
+else
+	_auth_known=1
+fi
+
+# Resolve the push target to a remote name, so `git push <target> main` is
+# judged by the same policy as `git push origin main`. `git push` accepts a
+# name, a URL, or a local path; all three must resolve, or a path push would
+# leave the target unrecognised and the rule silently skipped.
+_push_remote=$remote
+case "$remote" in
+*://* | *@*:* | */*)
+	# Compare the PUSH url as well as the fetch url: with
+	# `git remote set-url --push` the two differ, and matching only the
+	# fetch url would let a push naming the push url slip past the policy.
+	for _r in $(git remote); do
+		_fetch=$(git remote get-url "$_r" 2> /dev/null || true)
+		_push=$(git remote get-url --push "$_r" 2> /dev/null || true)
+		if [ "$_fetch" = "$remote" ] || [ "$_push" = "$remote" ]; then
+			_push_remote=$_r
+			break
+		fi
+	done
+	;;
+esac
+
+# Authoritative when the remote is known and matches; when it is unknown, every
+# target counts as authoritative so the rules actually run.
+# A target is authoritative when it is the known authoritative remote. When the
+# authoritative remote is UNDETERMINED, no target can be shown to be authoritative,
+# so the default-branch rules apply to every target EXCEPT a remote that the
+# default branch demonstrably does not track - which is how a mirror is recognised.
+# If the target could not be resolved to a configured remote (a bare path, a
+# file:// url, a host we have no remote for), it is not a remote we can vouch
+# for. Keep the rules applied so a direct push that way is still examined.
+_push_remote_is_named=0
+case "$_push_remote" in
+	*/* | *://* | *@*:*) ;;
+	*) _push_remote_is_named=1 ;;
+esac
+
+# Default to enforcing. A target is exempt only when we can positively identify it
+# as the authoritative remote, or as a named mirror. Anything we cannot identify -
+# an unmatched url, a file:// path, a host with no configured remote - keeps the
+# rules ON, so an unrecognised target can never be a way around them.
+# Is this push target one the default-branch rules must govern?
+#
+# Positive matches only. The rules apply when the target IS the authoritative
+# remote, or when the target cannot be identified at all - an unmatched url, a
+# filesystem path, a host with no configured remote. Failing to identify a target
+# must never be a way around the rules.
+#
+# The only exemption is a NAMED remote that is not the authoritative one: that is
+# a mirror, and re-syncing a mirror with a force push is normal.
+_is_mirror=0
+if [ "$_push_remote_is_named" = "1" ]; then
+	for _r in $(git remote 2> /dev/null); do
+		if [ "$_push_remote" = "$_r" ]; then
+			if [ "$_auth_known" = "1" ]; then
+				[ "$_r" != "$_auth" ] && _is_mirror=1
+			else
+				[ "$_r" != "$_auth_hint" ] && _is_mirror=1
+			fi
+			break
+		fi
+	done
+fi
+
+if [ "$_is_mirror" = "1" ]; then
+	_is_authoritative=0
+else
+	_is_authoritative=1
+fi
+
+# The null object name is 40 zeros on SHA-1 and 64 on SHA-256; accept any run.
+_is_null_oid() {
+	case "$1" in
+	'') return 0 ;;
+	*[!0]*) return 1 ;;
+	*) return 0 ;;
+	esac
+}
+
+# A record is "<local-ref> <local-oid> <remote-ref> <remote-oid>". Anything that
+# is not exactly four fields cannot be judged, so skip it: a short line yields a
+# plausible-looking oid that fails the ancestry test and reports a false rewrite.
+while read -r _lr _lo _rr _ro _extra; do
+	[ -n "$_lr" ] && [ -n "$_lo" ] && [ -n "$_rr" ] && [ -n "$_ro" ] || continue
+	[ -z "$_extra" ] || continue
+
+	# ---------------------------------------------------------------------
+	# 1. Never create, update, or delete the default branch by direct push.
+	#    Only on the authoritative remote: syncing the default branch out to a
+	#    mirror is a normal, intentional operation that the mirror policy allows.
+	# ---------------------------------------------------------------------
+	if [ "$_is_authoritative" = "1" ] && [ "$_rr" = "refs/heads/$_dfb" ]; then
+		if _is_null_oid "$_ro"; then
+			echo "ERROR: refusing to create the default branch '$_dfb' on '$_push_remote'." >&2
+			echo "       It is created by the platform or by a merge request, never by" >&2
+			echo "       a direct push. Push a topic branch and open a merge request." >&2
+			exit 1
+		fi
+		if _is_null_oid "$_lo"; then
+			echo "ERROR: refusing to delete the default branch '$_dfb' on '$_push_remote'." >&2
+			echo "       Every merge request targets it. Deleting it would strand open" >&2
+			echo "       requests and any local clone still tracking it." >&2
+			exit 1
+		fi
+		if [ "$_lo" != "$_ro" ]; then
+			echo "ERROR: refusing to update the default branch '$_dfb' directly." >&2
+			echo "       A direct push bypasses review, CI, and the merge commit, so" >&2
+			echo "       history stops being auditable." >&2
+			echo "       Use:  git switch -c <topic>   then push that and open an MR." >&2
+			echo "       Override (rare, must be stated in the MR): git push --no-verify" >&2
+			exit 1
+		fi
+		continue
+	fi
+
+	# ---------------------------------------------------------------------
+	# 2. Never rewrite published history on the authoritative remote. A
+	#    non-fast-forward update invalidates every signature already in the
+	#    replaced range. Mirrors are exempt: re-syncing one is a normal force
+	#    push, and the authoritative copy is protected by the rule above.
+	# ---------------------------------------------------------------------
+	if [ "$_is_authoritative" = "1" ]; then
+		_is_null_oid "$_ro" && continue # new ref: nothing published to rewrite
+		_is_null_oid "$_lo" && continue # deletion: not a rewrite
+		[ "$_lo" = "$_ro" ] && continue # no-op
+
+		if ! git merge-base --is-ancestor "$_ro" "$_lo" 2>/dev/null; then
+			case "$_rr" in
+			refs/heads/*) _br=${_rr#refs/heads/} ;;
+			refs/tags/*) _br="tag ${_rr#refs/tags/}" ;;
+			*) _br=$_rr ;;
+			esac
+			echo "ERROR: refusing a non-fast-forward update to '$_br' on '$_push_remote'." >&2
+			echo "       The remote already has $_ro, which is not an ancestor of" >&2
+			echo "       $_lo, so this rewrites published history and invalidates" >&2
+			echo "       every signature in the replaced range." >&2
+			echo "       On a published branch, merge instead:  git merge origin/$_br" >&2
+			echo "       Override (rare, needs authorization):  git push --force-with-lease" >&2
+			exit 1
+		fi
+	fi
+done <"$lines"
+
+exit 0
