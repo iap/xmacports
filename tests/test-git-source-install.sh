@@ -111,7 +111,7 @@ chmod +x "$BAD_SH/sha256sum"
 # never happens and the assertion below would pass for the wrong reason.
 PREREQ_SH="$T/prereqpath"
 mkdir -p "$PREREQ_SH"
-for c in bash sh dash make cc gcc tar xz curl date sed awk grep rm rmdir \
+for c in bash sh dash make cc gcc perl tar xz curl date sed awk grep rm rmdir \
   mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find \
   sha256sum shasum ln env; do
   p="$(command -v "$c" 2> /dev/null || true)"
@@ -210,7 +210,7 @@ echo "detects missing prerequisites:"
 # two this test withholds. The tool list is derived from the host rather than
 # hardcoded, so the same assertions hold on macOS and on the Alpine CI image
 # (which has no `cc` and no `xz`).
-ALL_TOOLS="make cc tar xz curl shasum sha256sum bash sh dash date sed awk grep rm rmdir mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find printf sleep ln env id basename expr test pwd readlink realpath"
+ALL_TOOLS="make cc perl tar xz curl shasum sha256sum bash sh dash date sed awk grep rm rmdir mkdir mktemp uname sysctl dirname cat tr head tail wc chmod cp mv ls find printf sleep ln env id basename expr test pwd readlink realpath"
 WITHHELD="make cc"
 
 link_tools() {
