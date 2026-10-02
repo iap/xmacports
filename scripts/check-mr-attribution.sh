@@ -70,9 +70,13 @@ fi
 # Both temp files come from mktemp. Deriving the JSON path as "$TMP.json" made it
 # predictable (CWE-377): in a shared TMPDIR another user could pre-create it as a
 # symlink and have curl write through it.
+# The trap covers err too. It is created after the trap is installed, so without
+# naming it here the early-exit paths (jq missing, for instance) returned 2 and
+# left a file behind in TMPDIR.
 TMP="$(mktemp "${TMPDIR:-/tmp}/mrdesc.XXXXXX")" || exit 2
 JSON="$(mktemp "${TMPDIR:-/tmp}/mrdesc-json.XXXXXX")" || exit 2
-trap 'rm -f "$TMP" "$JSON"' EXIT INT TERM
+err="$(mktemp "${TMPDIR:-/tmp}/mrdesc-err.XXXXXX")" || exit 2
+trap 'rm -f "$TMP" "$JSON" "$err"' EXIT INT TERM
 
 url="${API}/projects/${PROJECT}/merge_requests/${MR_IID}"
 
@@ -87,8 +91,6 @@ url="${API}/projects/${PROJECT}/merge_requests/${MR_IID}"
 # curl's stderr is captured rather than discarded: when both attempts fail the
 # job would otherwise report only "could not fetch", hiding whether the cause was
 # a 404, a 401 or a DNS failure.
-err="$(mktemp "${TMPDIR:-/tmp}/mrdesc-err.XXXXXX")" || exit 2
-
 fetched=""
 if curl -fsS -H "PRIVATE-TOKEN: ${TOKEN}" -H "Authorization: Bearer ${TOKEN}" \
   "$url" -o "$JSON" 2> "$err"; then

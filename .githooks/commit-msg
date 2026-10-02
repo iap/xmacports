@@ -31,15 +31,21 @@ fi
 
 TOP="$(git rev-parse --show-toplevel 2> /dev/null || true)"
 
-# Fail loudly if the repo has the script but it is missing/broken, rather than
-# letting the commit through unchecked.
-if [ -n "$TOP" ] && [ ! -f "$TOP/scripts/check-attribution.sh" ]; then
+if [ -z "$TOP" ]; then
+  # Fail closed. Skipping quietly here is how a false footer would reach history
+  # with the hook reporting success: outside a checkout (a bare repo, a worktree
+  # edge, an unusual CI invocation) --show-toplevel returns nothing and the check
+  # would silently not run.
+  echo "ERROR: commit-msg hook could not resolve the repository root." >&2
+  echo "The attribution check did NOT run. Refusing to commit unchecked." >&2
+  exit 1
+fi
+
+if [ ! -f "$TOP/scripts/check-attribution.sh" ]; then
   echo "ERROR: scripts/check-attribution.sh is missing; cannot verify attribution." >&2
   exit 1
 fi
 
-if [ -n "$TOP" ]; then
-  sh "$TOP/scripts/check-attribution.sh" --message-file "$MSG_FILE"
-fi
+sh "$TOP/scripts/check-attribution.sh" --message-file "$MSG_FILE"
 
 exit 0

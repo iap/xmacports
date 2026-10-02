@@ -197,6 +197,23 @@ else
   ok "SKIP_ATTRIBUTION_CHECK=0 does not opt out"
 fi
 
+# --- hook fails closed when the repo root cannot be resolved --------------
+# CodeRabbit flagged the TEST for running the hook from outside the checkout, but
+# the defect is in the hook: it resolved the repo root and then ran nothing when
+# that was empty, so a real footer passed with exit 0. The test above now cds
+# into the checkout; this asserts the hook itself no longer no-ops.
+# A subshell cd, not `env -C`: that option needs macOS 13+ and this box is 12.7,
+# where `env -C` fails and its own exit status masquerades as the hook's.
+(
+  cd "$TMP" && sh "$HOOK" "$TMP/claude-footer.md"
+) > /dev/null 2>&1
+rc=$?
+if [ "$rc" -ne 1 ]; then
+  no "hook refuses when the repo root cannot be resolved (rc=$rc, want 1)"
+else
+  ok "hook refuses when the repo root cannot be resolved"
+fi
+
 # --- usage errors are distinct from rejection ----------------------------
 expect_rc 2 "bad usage exits 2 (not 1)" sh "$CHECK"
 expect_rc 2 "missing file exits 2 (not 1)" \
