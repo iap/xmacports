@@ -115,6 +115,16 @@ run_secrets_init_guard_tests() {
   fi
 }
 
+run_attribution_gate_tests() {
+  echo "Running attribution-gate tests..."
+  if [[ -f "$SCRIPT_DIR/test-attribution-gate.sh" ]]; then
+    bash "$SCRIPT_DIR/test-attribution-gate.sh"
+  else
+    echo "❌ test-attribution-gate.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -216,7 +226,14 @@ main() {
       guard_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0)); then
+      echo "8. Attribution-Gate Tests"
+      echo
+
+      run_attribution_gate_tests
+      attr_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi

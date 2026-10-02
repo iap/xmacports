@@ -1,0 +1,45 @@
+#!/bin/sh
+# commit-msg hook: reject false third-party attribution in the commit message.
+#
+# This runs in the `commit-msg` hook rather than `pre-commit` deliberately:
+# git writes the pending message and passes its path as $1, so what is checked is
+# always the message about to be committed. The pre-commit hook is the wrong
+# place - it runs BEFORE git writes .git/COMMIT_EDITMSG, so reading that file
+# there yields the PREVIOUS attempt's message (stale) or, in a linked worktree,
+# nothing at all because .git is a file and the literal path does not exist.
+# Both failure modes were built and caught before this landed.
+#
+# The rule this enforces (AGENTS.md, "Commit Discipline"): attribution trailers
+# only when explicitly requested. A trailer naming a tool that did not write the
+# change misattributes authorship in permanent public history. This is a gate
+# rather than a reminder because prose warnings failed to prevent it three
+# times - hermes-agent#70306, builder#17, xmacports!37.
+#
+# Escape hatch: --no-verify, or SKIP_ATTRIBUTION_CHECK=1. Both must be stated in
+# the MR, not used quietly.
+
+set -e
+
+MSG_FILE="${1:-}"
+
+if [ -z "$MSG_FILE" ] || [ ! -r "$MSG_FILE" ]; then
+  echo "ERROR: commit-msg hook could not read the message file ('${MSG_FILE}')." >&2
+  echo "Refusing to skip the attribution check - a gate that silently no-ops" >&2
+  echo "is worse than no gate at all." >&2
+  exit 1
+fi
+
+TOP="$(git rev-parse --show-toplevel 2> /dev/null || true)"
+
+# Fail loudly if the repo has the script but it is missing/broken, rather than
+# letting the commit through unchecked.
+if [ -n "$TOP" ] && [ ! -f "$TOP/scripts/check-attribution.sh" ]; then
+  echo "ERROR: scripts/check-attribution.sh is missing; cannot verify attribution." >&2
+  exit 1
+fi
+
+if [ -n "$TOP" ]; then
+  sh "$TOP/scripts/check-attribution.sh" --message-file "$MSG_FILE"
+fi
+
+exit 0
