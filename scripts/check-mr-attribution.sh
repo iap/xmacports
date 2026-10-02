@@ -46,7 +46,12 @@ if [ "${SKIP_MR_ATTRIBUTION_CHECK:-0}" != "0" ]; then
   exit 0
 fi
 
-API="${CI_API_V4_URL:-${GITLAB_API_URL:-https://gitlab.com/api/v4}}"
+# An explicit GITLAB_API_URL override must WIN over the ambient CI_API_V4_URL.
+# GitLab always sets CI_API_V4_URL inside a pipeline, so preferring it made this
+# script ignore the test's stub server and query the real API instead - which
+# turns every "clean description passes" case into a fetch failure. Checking the
+# explicit override first is what lets the suite point the script at a stub.
+API="${GITLAB_API_URL:-${CI_API_V4_URL:-https://gitlab.com/api/v4}}"
 API="${API%/}"
 
 TOKEN="${GITLAB_API_TOKEN:-${CI_JOB_TOKEN:-}}"

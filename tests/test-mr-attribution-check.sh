@@ -107,6 +107,26 @@ stop_server() {
   return 0
 }
 
+# run <want-rc> <label> — runs the gate against the stub and asserts the EXACT
+# exit code.
+#
+# Asserting an exact code, not merely "non-zero", is the point. The gate uses
+# exit 1 for "trailer found" and exit 2 for "could not verify"; a test that only
+# checked non-zero let a fetch failure masquerade as a successful rejection,
+# which is how four cases passed locally and failed in CI. Both codes must be
+# distinguished, and both must be asserted.
+run() {
+  local want="$1" label="$2"
+  local got=0
+  GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
+    sh "$SCRIPT" 1 7 > /dev/null 2>&1 || got=$?
+  if [ "$got" -eq "$want" ]; then
+    ok "$label (rc=$got)"
+  else
+    no "$label (rc=$got, want $want)"
+  fi
+}
+
 echo "Running MR-attribution (forge-side) tests..."
 setup
 trap teardown EXIT
@@ -136,11 +156,12 @@ fi
 # --- unreachable API must NOT pass ---------------------------------------
 # This is the critical safety property: if the description cannot be read, the
 # gate must report failure rather than silently allowing the merge.
-if GITLAB_API_URL="http://127.0.0.1:1/api/v4" GITLAB_API_TOKEN=x \
-  sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-  no "unreachable API fails closed (does not report success)"
+GITLAB_API_URL="http://127.0.0.1:1/api/v4" GITLAB_API_TOKEN=x \
+  sh "$SCRIPT" 1 7 > /dev/null 2>&1
+if [ $? -eq 2 ]; then
+  ok "unreachable API fails closed with rc=2 (cannot-verify, not rejection)"
 else
-  ok "unreachable API fails closed (does not report success)"
+  no "unreachable API fails closed with rc=2"
 fi
 
 # --- stub server: clean description passes -------------------------------
@@ -149,12 +170,8 @@ import json, sys
 json.dump({"iid": 7, "description": "fix(x): y\n\nExplains the change.\n"}, open(sys.argv[1], "w"))
 PY
 if start_server "$TMP/clean.json"; then
-  if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-    sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-    ok "clean MR description passes"
-  else
-    no "clean MR description passes"
-  fi
+  run 0 "clean MR description passes"
+
   stop_server
 else
   no "stub server started"
@@ -167,12 +184,7 @@ desc = "fix(x): y\n\nBody.\n\n🤖 Generated with [Claude Code](https://claude.c
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
 if start_server "$TMP/bad.json"; then
-  if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-    sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-    no "MR with the Claude footer is REJECTED"
-  else
-    ok "MR with the Claude footer is REJECTED"
-  fi
+  run 1 "MR with the Claude footer is REJECTED (rc=1, not a fetch error)"
 
   # A Co-authored-by trailer naming a person must also be rejected: that is the
   # variant that leaked a real email into public history.
@@ -183,12 +195,8 @@ desc = "fix(x): y\n\nCo-authored-by: Real Person <person@example.com>\n"
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/coauth.json"; then
-    if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-      sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-      no "MR with a Co-authored-by trailer is REJECTED"
-    else
-      ok "MR with a Co-authored-by trailer is REJECTED"
-    fi
+    run 1 "MR with a Co-authored-by trailer is REJECTED (rc=1)"
+
     stop_server
   fi
 
@@ -200,12 +208,8 @@ desc = 'docs: explain the rule\n\nWe reject "Generated with ..." footers.\n'
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/prose.json"; then
-    if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-      sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-      ok "prose quoting the pattern still passes (no over-blocking)"
-    else
-      no "prose quoting the pattern still passes (no over-blocking)"
-    fi
+    run 0 "prose quoting the pattern still passes (no over-blocking)"
+
     stop_server
   fi
 
@@ -216,12 +220,8 @@ desc = "fix(x): y\n\n$(touch /tmp/hermes-verify-pwned) `id` ; rm -rf /\n"
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/inject.json"; then
-    if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-      sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-      ok "shell metacharacters in a description are inert"
-    else
-      no "shell metacharacters in a description are inert"
-    fi
+    run 0 "shell metacharacters in a description are inert"
+
     if [ -e /tmp/hermes-verify-pwned ]; then
       no "no command execution from description content"
       rm -f /tmp/hermes-verify-pwned
@@ -237,12 +237,10 @@ import json, sys
 json.dump({"iid": 7}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/nodesc.json"; then
-    if GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
-      sh "$SCRIPT" 1 7 > /dev/null 2>&1; then
-      ok "missing description field handled without crashing"
-    else
-      no "missing description field handled without crashing"
-    fi
+    # A response with no description field must be treated as an empty
+    # description and pass - it is not an error, and it must not crash jq.
+    run 0 "missing description field handled without crashing"
+
     stop_server
   fi
 fi
