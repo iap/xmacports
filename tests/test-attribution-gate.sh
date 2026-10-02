@@ -149,6 +149,30 @@ printf 'fix(x): y\n\nhttps://claude.com/claude-code\n' > "$TMP/barelink.md"
 expect_rc 1 "still rejects a bare claude.com link line (regression)" \
   sh "$CHECK" --message-file "$TMP/barelink.md"
 
+# A directory passes the `-r` test but cannot be read as a file. Before this was
+# checked, `cat` failed, the temp file stayed empty, grep matched nothing and the
+# gate exited 0 - a fail-open on the most likely user mistake. Regression for the
+# fail-open class this gate exists to prevent.
+mkdir -p "$TMP/adir"
+expect_rc 2 "rejects a directory (fail-closed, not a silent pass)" \
+  sh "$CHECK" --message-file "$TMP/adir"
+
+# The opt-out must be exactly "1". Testing "!= 0" let any incidental value
+# disable a blocking gate.
+expect_rc 1 "SKIP_ATTRIBUTION_CHECK=2 does NOT bypass" \
+  env SKIP_ATTRIBUTION_CHECK=2 sh "$CHECK" --message-file "$TMP/claude-footer.md"
+expect_rc 0 "SKIP_ATTRIBUTION_CHECK=1 bypasses" \
+  env SKIP_ATTRIBUTION_CHECK=1 sh "$CHECK" --message-file "$TMP/claude-footer.md"
+
+# Markdown quoting markers must not be mistaken for footer decoration, or
+# documentation quoting the convention gets blocked.
+printf 'docs: rule\n\n> Generated with ChatGPT\n' > "$TMP/bq.md"
+expect_rc 0 "accepts a blockquoted example (regression)" \
+  sh "$CHECK" --message-file "$TMP/bq.md"
+printf 'docs: rule\n\n- Generated with ChatGPT\n' > "$TMP/li.md"
+expect_rc 0 "accepts a list-bulleted example (regression)" \
+  sh "$CHECK" --message-file "$TMP/li.md"
+
 : > "$TMP/empty.md"
 expect_rc 0 "accepts an empty message" \
   sh "$CHECK" --message-file "$TMP/empty.md"
@@ -192,6 +216,11 @@ else
 fi
 
 # --- the hook rejects a real trailer file (it is what git invokes) -------
+# The hook resolves the repo root from `git rev-parse --show-toplevel`, so these
+# direct invocations must run from inside the checkout. Run from elsewhere TOP is
+# empty, the hook skips the checker and returns 0 — the rejection case would fail
+# and the clean case would pass without checking anything.
+cd "$ROOT" || exit 1
 if sh "$HOOK" "$TMP/claude-footer.md" > /dev/null 2>&1; then
   no "hook rejects a trailer via \$1"
 else
@@ -217,6 +246,10 @@ if command -v git > /dev/null 2>&1; then
   git -C "$REPO" config core.hooksPath .githooks
   git -C "$REPO" config user.name t
   git -C "$REPO" config user.email t@example.com
+  # Isolate from the host's signing config: if commit.gpgsign is inherited and no
+  # key is available, the clean commits fail for a reason unrelated to the hook,
+  # and the rejection cases would look like they were caused by the gate.
+  git -C "$REPO" config commit.gpgsign false
 
   # hook_receives_fresh_message_not_stale_file: a bad message followed by a
   # clean one must PASS. If the hook read a stale .git/COMMIT_EDITMSG, this

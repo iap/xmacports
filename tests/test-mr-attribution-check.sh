@@ -214,17 +214,20 @@ PY
   fi
 
   # A shell-injection payload in the description must be treated as inert text.
-  python3 - "$TMP/inject.json" << 'PY'
+  # It targets a canary inside this run's own $TMP rather than a fixed
+  # /tmp/hermes-verify-pwned, which leaks between runs and can already exist - in
+  # which case the assertion fails for the wrong reason.
+  python3 - "$TMP/inject.json" "$TMP/canary" << 'PY'
 import json, sys
-desc = "fix(x): y\n\n$(touch /tmp/hermes-verify-pwned) `id` ; rm -rf /\n"
+desc = "fix(x): y\n\n$(touch " + sys.argv[2] + ") `id` ; rm -rf /\n"
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/inject.json"; then
     run 0 "shell metacharacters in a description are inert"
 
-    if [ -e /tmp/hermes-verify-pwned ]; then
+    if [ -e "$TMP/canary" ]; then
       no "no command execution from description content"
-      rm -f /tmp/hermes-verify-pwned
+      rm -f "$TMP/canary"
     else
       ok "no command execution from description content"
     fi

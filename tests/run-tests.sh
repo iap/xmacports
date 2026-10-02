@@ -173,6 +173,12 @@ main() {
     "secrets-init-guard")
       check_prerequisites && run_secrets_init_guard_tests
       ;;
+    "attribution")
+      run_attribution_gate_tests
+      ;;
+    "mr-attribution")
+      run_mr_attribution_check_tests
+      ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
       ;;
@@ -268,6 +274,8 @@ main() {
       echo "  review-fixes Run review-finding verification tests only"
       echo "  security-fixes Run security-fix verification tests only"
       echo "  secrets-init-guard  Run secrets-init recipient-guard tests only"
+      echo "  attribution   Run commit-message attribution gate tests only"
+      echo "  mr-attribution Run MR-description (forge-side) gate tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"

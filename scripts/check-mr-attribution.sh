@@ -41,8 +41,14 @@ if [ ! -r "$CHECK" ]; then
   exit 2
 fi
 
-if [ "${SKIP_MR_ATTRIBUTION_CHECK:-0}" != "0" ]; then
-  echo "MR attribution check skipped (SKIP_MR_ATTRIBUTION_CHECK set)" >&2
+# Only the exact value 1 opts out; an incidental value must not disable the
+# gate. CodeRabbit flags this as CWE-693 and suggests restricting it further via
+# CODEOWNERS on the CI file. That is a reasonable follow-up, but the variable is
+# not attacker-controlled: setting it requires an edit to a tracked file or a
+# pipeline variable, both of which are reviewable. The exact-match check closes
+# the accidental-value hole, which is the part that could bite silently.
+if [ "${SKIP_MR_ATTRIBUTION_CHECK:-0}" = "1" ]; then
+  echo "MR attribution check skipped (SKIP_MR_ATTRIBUTION_CHECK=1)" >&2
   exit 0
 fi
 
@@ -61,36 +67,51 @@ if [ -z "$TOKEN" ]; then
   exit 2
 fi
 
+# Both temp files come from mktemp. Deriving the JSON path as "$TMP.json" made it
+# predictable (CWE-377): in a shared TMPDIR another user could pre-create it as a
+# symlink and have curl write through it.
 TMP="$(mktemp "${TMPDIR:-/tmp}/mrdesc.XXXXXX")" || exit 2
-trap 'rm -f "$TMP" "$TMP.json"' EXIT INT TERM
+JSON="$(mktemp "${TMPDIR:-/tmp}/mrdesc-json.XXXXXX")" || exit 2
+trap 'rm -f "$TMP" "$JSON"' EXIT INT TERM
 
 url="${API}/projects/${PROJECT}/merge_requests/${MR_IID}"
 
-# Send both header forms. A PAT is accepted as PRIVATE-TOKEN; an OAuth token
-# (what `glab auth login` stores for gitlab.com) is only accepted as a Bearer.
-# Sending an unused header is harmless, so this avoids a 401 that depends on
-# which kind of token the environment holds.
+# Both header forms: a PAT is accepted as PRIVATE-TOKEN, an OAuth token (what
+# `glab auth login` stores) only as Bearer. An unused header is harmless, so this
+# avoids a 401 that would otherwise depend on which token kind is held.
 #
 # Fetch to a file; never interpolate the description into the shell. A
 # description is attacker-controlled text, and `eval`/backtick expansion on it
 # would turn a text field into code execution.
+#
+# curl's stderr is captured rather than discarded: when both attempts fail the
+# job would otherwise report only "could not fetch", hiding whether the cause was
+# a 404, a 401 or a DNS failure.
+err="$(mktemp "${TMPDIR:-/tmp}/mrdesc-err.XXXXXX")" || exit 2
+
 fetched=""
 if curl -fsS -H "PRIVATE-TOKEN: ${TOKEN}" -H "Authorization: Bearer ${TOKEN}" \
-  "$url" -o "$TMP.json" 2> /dev/null; then
+  "$url" -o "$JSON" 2> "$err"; then
   fetched=yes
 else
-  # Retry without auth: public projects allow an anonymous read. CI_JOB_TOKEN
-  # is scoped to the pipeline and cannot always read the MR endpoint.
-  if curl -fsS "$url" -o "$TMP.json" 2> /dev/null; then
+  # Retry without auth: public projects allow an anonymous read. CI_JOB_TOKEN is
+  # scoped to the pipeline and cannot always read the MR endpoint.
+  if curl -fsS "$url" -o "$JSON" 2> "$err"; then
     fetched=anonymous
   fi
 fi
 
 if [ -z "$fetched" ]; then
   echo "ERROR: could not fetch MR !${MR_IID} from ${url}" >&2
+  if [ -s "$err" ]; then
+    echo "curl reported:" >&2
+    sed 's/^/  /' "$err" >&2
+  fi
   echo "Treating an unverifiable description as a FAILURE, not a pass." >&2
+  rm -f "$err"
   exit 2
 fi
+rm -f "$err"
 
 if ! command -v jq > /dev/null 2>&1; then
   echo "ERROR: jq is required to parse the API response" >&2
@@ -98,7 +119,7 @@ if ! command -v jq > /dev/null 2>&1; then
 fi
 
 # -r writes the raw string; redirection to a file keeps it out of the shell.
-if ! jq -er '.description // ""' "$TMP.json" > "$TMP" 2> /dev/null; then
+if ! jq -er '.description // ""' "$JSON" > "$TMP" 2> /dev/null; then
   echo "ERROR: API response for MR !${MR_IID} has no usable description field" >&2
   exit 2
 fi

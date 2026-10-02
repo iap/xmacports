@@ -46,8 +46,11 @@ case "${1:-}" in
     ;;
 esac
 
-if [ "${SKIP_ATTRIBUTION_CHECK:-0}" != "0" ]; then
-  echo "attribution check skipped (SKIP_ATTRIBUTION_CHECK set)" >&2
+# Only the exact value 1 opts out. Testing "!= 0" let any incidental value (2,
+# true, an empty-but-set var) disable the gate, so a typo silently turned a
+# blocking check into a no-op.
+if [ "${SKIP_ATTRIBUTION_CHECK:-0}" = "1" ]; then
+  echo "attribution check skipped (SKIP_ATTRIBUTION_CHECK=1)" >&2
   exit 0
 fi
 
@@ -62,18 +65,37 @@ fi
 # whole line and prose is not. Without the anchor the gate blocks honest
 # documentation that merely quotes the convention - a commit body explaining
 # that this footer is rejected was itself rejected, which is the over-blocking
-# this anchor exists to prevent. An optional leading emoji is allowed, since
-# that is how the footer is written.
+# this anchor exists to prevent.
+#
+# The optional prefix covers footer decoration only - an emoji such as the one
+# Claude Code writes. It deliberately excludes markdown structure characters
+# (blockquotes, list bullets, emphasis, code fences, headings), so a documented
+# example like "> Generated with ChatGPT" reads as the quotation it is instead
+# of being mistaken for a real footer.
+# Known limitation: a fenced code block whose content line is EXACTLY the footer
+# is still rejected, because a single-line regex cannot know it is inside a
+# fence. Document an example with trailing text or an indent instead. This is a
+# deliberate trade: unblocking it needs fence-state tracking, and the cost of a
+# false positive (one extra line of prose) is far below the cost of a missed
+# footer.
+#
 # Case-insensitive: casing varies freely and does not change the attribution.
-pattern='^[[:space:]]*([^[:alnum:]"'\'']*[[:space:]]*)?(Generated[[:space:]]+with[[:space:]]+\[?(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex)\]?|https?://claude\.com/claude-code)|^[[:space:]]*(Co-authored-by|Signed-off-by):'
+pattern='^[[:space:]]*([^[:alnum:]"'\''>|*+#`_~+-][[:space:]]*)?(Generated[[:space:]]+with[[:space:]]+\[?(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex)\]?|https?://claude\.com/claude-code)|^[[:space:]]*(Co-authored-by|Signed-off-by):'
 
 _tmp=$(mktemp "${TMPDIR:-/tmp}/attrcheck.XXXXXX") || exit 2
 trap 'rm -f "$_tmp"' EXIT INT TERM
 
 if [ "$src" = stdin ]; then
-  cat > "$_tmp"
+  cat > "$_tmp" || exit 2
 else
-  cat "$src" > "$_tmp"
+  # `cat` can still fail after -r passes: a directory is readable, but reading it
+  # as a file errors. Without this check the temp file stays empty, grep finds
+  # nothing, and the gate exits 0 - a fail-open on the one input most likely to
+  # be a mistake.
+  cat "$src" > "$_tmp" || {
+    echo "ERROR: could not read message file: $src" >&2
+    exit 2
+  }
 fi
 
 hits=$(grep -Ein "$pattern" "$_tmp")
