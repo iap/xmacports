@@ -184,7 +184,7 @@ desc = "fix(x): y\n\nBody.\n\n🤖 Generated with [Claude Code](https://claude.c
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
 if start_server "$TMP/bad.json"; then
-  run 1 "MR with the Claude footer is REJECTED (rc=1, not a fetch error)"
+  run 1 "MR with the Claude footer is REJECTED, not a fetch error"
 
   # A Co-authored-by trailer naming a person must also be rejected: that is the
   # variant that leaked a real email into public history.
@@ -195,7 +195,7 @@ desc = "fix(x): y\n\nCo-authored-by: Real Person <person@example.com>\n"
 json.dump({"iid": 7, "description": desc}, open(sys.argv[1], "w"))
 PY
   if start_server "$TMP/coauth.json"; then
-    run 1 "MR with a Co-authored-by trailer is REJECTED (rc=1)"
+    run 1 "MR with a Co-authored-by trailer is REJECTED"
 
     stop_server
   fi
