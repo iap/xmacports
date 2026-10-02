@@ -146,6 +146,55 @@ git commit -q --allow-empty -m direct
 git push origin main > /dev/null 2>&1
 check "direct push to the default branch is blocked" 1 $?
 
+# The guard prefers the remote the CURRENT branch tracks, read from that
+# branch's own git key. A branch name containing "/" used to be truncated to its
+# last segment first, so on branch feat/x it consulted branch.x.remote instead of
+# branch.feat/x.remote, found nothing, and fell back to origin. With origin not
+# the authoritative remote, the authoritative remote was then classified a
+# mirror, and mirrors are exempt from the default-branch rule - so a push to the
+# default branch was allowed. On the unfixed guard this case exits 0.
+slashed_guard() {
+  local d="$T/slash"
+  mkdir -p "$d"
+  git init -q --bare "$d/upstream.git"
+  git init -q --bare "$d/mirror.git"
+  git init -q "$d/w"
+  (
+    cd "$d/w" || exit 1
+    git config user.email t@example.com
+    git config user.name T
+    git config commit.gpgsign false
+    git remote add upstream "$d/upstream.git"
+    git remote add mirror "$d/mirror.git"
+    echo a > f
+    git add f
+    git commit -qm one
+    git branch -M main
+    git push -q upstream main
+    git push -q mirror main
+    git --git-dir="$d/upstream.git" symbolic-ref HEAD refs/heads/main
+    git remote set-head upstream -a > /dev/null 2>&1
+    git checkout -qB feat/x
+    git config branch.feat/x.remote upstream
+    # Authority must be undetermined for the mirror exemption to be reachable.
+    git config --unset branch.main.remote 2> /dev/null || true
+    git checkout -q main
+    git commit -q --allow-empty -m diverge
+    git checkout -q feat/x
+  )
+  printf 'refs/heads/feat/x %s refs/heads/main %s\n' \
+    "$(cd "$d/w" && git rev-parse refs/heads/main)" \
+    "$(git --git-dir="$d/upstream.git" rev-parse refs/heads/main)" > "$d/lines"
+  (
+    cd "$d/w" || exit 1
+    sh "$GUARD" "$d/lines" upstream > "$d/out" 2>&1
+  )
+}
+
+slashed_guard
+check "default branch push from a slashed branch name is blocked" 1 $?
+rm -rf "$T/slash"
+
 git push origin :main > /dev/null 2>&1
 check "deleting the default branch is blocked" 1 $?
 

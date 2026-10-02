@@ -31,7 +31,7 @@ remote=$2
 # --------------------------------------------------------------------------
 # The remote the current branch tracks is preferred below, so a mirror's HEAD
 # can never decide what the default branch is.
-_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null | sed "s|^[^/]*/||").remote" 2> /dev/null || true)
+_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null).remote" 2> /dev/null || true)
 [ -n "$_auth_hint" ] || _auth_hint=origin
 _dfb=""
 # Prefer the authoritative remote's HEAD, then any other remote, rather than
@@ -71,16 +71,20 @@ fi
 # a legitimate push to the authoritative remote is still allowed below via the
 # single-remote and origin-HEAD paths, and anything genuinely ambiguous is refused
 # loudly rather than waved through.
-# _auth_authentic=1 means the authoritative remote is known and the
-# default-branch rules apply only to it. When it is 0 the topology is ambiguous,
-# so the rules apply to EVERY target: skipping them would leave a multi-remote
-# clone with no tracking config completely unprotected, which is the opposite of
-# what a guard is for.
+# _auth_known=1 means the authoritative remote is known and the default-branch
+# rules apply only to it. When it is 0 the topology is ambiguous, so the rules
+# apply to every target EXCEPT a named remote that is not $_auth_hint: with no
+# authoritative remote, that remote cannot be distinguished from a mirror, and
+# mirrors are exempt because re-syncing one is a normal force push.
+# _auth_hint is read from the CURRENT branch's own git key, so a branch whose
+# name contains "/" is still found under its full name (branch.feat/x.remote).
 if [ -z "$_auth" ]; then
 	_auth_known=0
 	echo "WARNING: cannot determine which remote is authoritative." >&2
-	echo "         Applying the default-branch rules to every target." >&2
-	echo "         Record it with: git push -u <remote> <branch>" >&2
+		echo "         Applying the default-branch rules to every target except a" >&2
+		echo "         named remote other than '$_auth_hint', which is treated as" >&2
+		echo "         a mirror. Record the real one with:" >&2
+		echo "         git push -u <remote> <branch>" >&2
 else
 	_auth_known=1
 fi
