@@ -19,6 +19,7 @@ workflow:
 stages:
   - sast
   - test
+  - attribution
   - label
 
 variables:
@@ -80,6 +81,36 @@ test-zsh:
     - mv /tmp/sops /usr/local/bin/sops
   script:
     - make test-zsh
+
+# Reject false third-party attribution in the MR DESCRIPTION.
+#
+# The commit-msg hook cannot cover this: an MR description is submitted to the
+# forge and never passes through local git hooks. That gap is how a false
+# "Generated with Claude Code" footer reached MR !37, and it is why three
+# prose warnings failed to stop it. This job closes the gap from the server
+# side - it runs on GitLab's runners for every MR, so it does not care who
+# pushed or what hooks are installed locally.
+#
+# Not allow_failure: a red job here is the point. It blocks the merge via the
+# project's "pipelines must succeed" setting, which is the free-tier equivalent
+# of a GitLab Premium external status check.
+attribution-check:
+  stage: attribution
+  before_script:
+    - apk add --no-cache bash curl jq
+  script:
+    - |
+      if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
+        echo "no MR context (CI_MERGE_REQUEST_IID unset) - nothing to check"
+        exit 0
+      fi
+      # CI_MERGE_REQUEST_TARGET_PROJECT_ID, not CI_PROJECT_ID: in a fork MR the
+      # pipeline runs in the fork, so CI_PROJECT_ID is the fork while
+      # CI_MERGE_REQUEST_IID is scoped to the target project. Pairing them would
+      # query the wrong project and fail closed on every fork MR.
+      sh scripts/check-mr-attribution.sh "${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-$CI_PROJECT_ID}" "${CI_MERGE_REQUEST_IID}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
 # Auto-label MRs based on pipeline result
 # Requires GITLAB_API_TOKEN CI/CD variable with api scope

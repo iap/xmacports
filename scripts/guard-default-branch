@@ -31,7 +31,7 @@ remote=$2
 # --------------------------------------------------------------------------
 # The remote the current branch tracks is preferred below, so a mirror's HEAD
 # can never decide what the default branch is.
-_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null).remote" 2> /dev/null || true)
+_auth_hint=$(git config "branch.$(git symbolic-ref --quiet --short HEAD 2> /dev/null | sed "s|^[^/]*/||").remote" 2> /dev/null || true)
 [ -n "$_auth_hint" ] || _auth_hint=origin
 _dfb=""
 # Prefer the authoritative remote's HEAD, then any other remote, rather than
@@ -67,24 +67,21 @@ if [ -z "$_auth" ]; then
 fi
 # When the authoritative remote cannot be determined, do NOT skip the rule: that
 # silently left a multi-remote clone with no tracking config completely unprotected.
-# Instead treat every push target as non-authoritative, which is the safe direction -
-# a legitimate push to the authoritative remote is still allowed below via the
-# single-remote and origin-HEAD paths, and anything genuinely ambiguous is refused
-# loudly rather than waved through.
-# _auth_known=1 means the authoritative remote is known and the default-branch
-# rules apply only to it. When it is 0 the topology is ambiguous, so the rules
-# apply to every target EXCEPT a named remote that is not $_auth_hint: with no
-# authoritative remote, that remote cannot be distinguished from a mirror, and
-# mirrors are exempt because re-syncing one is a normal force push.
-# _auth_hint is read from the CURRENT branch's own git key, so a branch whose
-# name contains "/" is still found under its full name (branch.feat/x.remote).
+# Instead keep the rules applied to every target that is not positively known to be
+# a mirror (see the mirror test below), and say so loudly rather than waving it
+# through.
+#
+# _auth_known=1 means the authoritative remote is known, so the rules apply to it
+# alone. When it is 0 the topology is ambiguous and no remote can be shown to be
+# authoritative - which is not the same as knowing a remote is a mirror.
 if [ -z "$_auth" ]; then
 	_auth_known=0
 	echo "WARNING: cannot determine which remote is authoritative." >&2
-		echo "         Applying the default-branch rules to every target except a" >&2
-		echo "         named remote other than '$_auth_hint', which is treated as" >&2
-		echo "         a mirror. Record the real one with:" >&2
-		echo "         git push -u <remote> <branch>" >&2
+	echo "         Applying the default-branch rules to every target that is not" >&2
+	echo "         marked as a mirror. Record the authoritative one with:" >&2
+	echo "           git push -u <remote> <branch>" >&2
+	echo "         Mark a mirror explicitly with:" >&2
+	echo "           git config remote.<name>.mirror true" >&2
 else
 	_auth_known=1
 fi
@@ -125,27 +122,36 @@ case "$_push_remote" in
 	*) _push_remote_is_named=1 ;;
 esac
 
-# Default to enforcing. A target is exempt only when we can positively identify it
-# as the authoritative remote, or as a named mirror. Anything we cannot identify -
-# an unmatched url, a file:// path, a host with no configured remote - keeps the
-# rules ON, so an unrecognised target can never be a way around them.
-# Is this push target one the default-branch rules must govern?
+# Is the push target a mirror?
 #
-# Positive matches only. The rules apply when the target IS the authoritative
-# remote, or when the target cannot be identified at all - an unmatched url, a
-# filesystem path, a host with no configured remote. Failing to identify a target
-# must never be a way around the rules.
+# Two different questions must not share one answer. "Which remote is
+# authoritative" (the remote the default branch tracks) is what the rules protect.
+# "Is this remote a mirror" is what earns an exemption. Only the first may be
+# inferred, from the default branch's own tracking config.
 #
-# The only exemption is a NAMED remote that is not the authoritative one: that is
-# a mirror, and re-syncing a mirror with a force push is normal.
+# Inferring the second from the CURRENT branch's tracking remote is what this
+# replaces. That value answers "where does this topic branch publish", which is
+# unrelated to "is this remote a copy" - and on a clone whose default branch
+# tracks nothing it let any remote that merely was not the current branch's
+# target be treated as a mirror, so a direct push to the default branch was
+# waved through. A branch whose tracking remote happens to be the mirror made
+# the real upstream look like the mirror; a slashless branch reached it too.
+#
+# So a mirror is now stated, not guessed:
+#     git config remote.<name>.mirror true
+# An explicit false or any other value is not a mirror.
+#
+# When authority IS known, a named remote that is not it is still exempt: that is
+# the ordinary mirror setup, established by the default branch's own config, and
+# requiring a second flag for it would be busywork.
 _is_mirror=0
 if [ "$_push_remote_is_named" = "1" ]; then
 	for _r in $(git remote 2> /dev/null); do
 		if [ "$_push_remote" = "$_r" ]; then
 			if [ "$_auth_known" = "1" ]; then
 				[ "$_r" != "$_auth" ] && _is_mirror=1
-			else
-				[ "$_r" != "$_auth_hint" ] && _is_mirror=1
+			elif [ "$(git config --bool "remote.$_r.mirror" 2> /dev/null)" = "true" ]; then
+				_is_mirror=1
 			fi
 			break
 		fi

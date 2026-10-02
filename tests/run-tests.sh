@@ -115,6 +115,26 @@ run_secrets_init_guard_tests() {
   fi
 }
 
+run_attribution_gate_tests() {
+  echo "Running attribution-gate tests..."
+  if [[ -f "$SCRIPT_DIR/test-attribution-gate.sh" ]]; then
+    bash "$SCRIPT_DIR/test-attribution-gate.sh"
+  else
+    echo "❌ test-attribution-gate.sh not found"
+    return 1
+  fi
+}
+
+run_mr_attribution_check_tests() {
+  echo "Running MR-attribution (forge-side) tests..."
+  if [[ -f "$SCRIPT_DIR/test-mr-attribution-check.sh" ]]; then
+    bash "$SCRIPT_DIR/test-mr-attribution-check.sh"
+  else
+    echo "❌ test-mr-attribution-check.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -152,6 +172,12 @@ main() {
       ;;
     "secrets-init-guard")
       check_prerequisites && run_secrets_init_guard_tests
+      ;;
+    "attribution")
+      run_attribution_gate_tests
+      ;;
+    "mr-attribution")
+      run_mr_attribution_check_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -216,7 +242,21 @@ main() {
       guard_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0)); then
+      echo "8. Attribution-Gate Tests"
+      echo
+
+      run_attribution_gate_tests
+      attr_status=$?
+      echo
+
+      echo "9. MR-Attribution (Forge-Side) Tests"
+      echo
+
+      run_mr_attribution_check_tests
+      mr_attr_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0 || mr_attr_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
@@ -234,6 +274,8 @@ main() {
       echo "  review-fixes Run review-finding verification tests only"
       echo "  security-fixes Run security-fix verification tests only"
       echo "  secrets-init-guard  Run secrets-init recipient-guard tests only"
+      echo "  attribution   Run commit-message attribution gate tests only"
+      echo "  mr-attribution Run MR-description (forge-side) gate tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"

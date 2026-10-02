@@ -116,10 +116,6 @@ echo "Pre-push hook — unresolvable topology:"
 git push other topic/z > /dev/null 2>&1
 check "no false block when no default branch tracks a remote" 0 $?
 
-echo
-echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
-[ "$fail" -eq 0 ]
-
 # --- Default-branch guard -----------------------------------------------------
 # These only pass when scripts/guard-default-branch is present AND enforcing.
 
@@ -241,3 +237,117 @@ check "topic branch to mirror is blocked" 1 $?
 
 git push "$T/guard-mirror.git" topic/ok > /dev/null 2>&1
 check "topic branch to mirror by path is blocked" 1 $?
+
+# --- Ambiguous authority: a mirror must be declared, not inferred ------------
+# When the default branch tracks no remote, the guard cannot know which remote is
+# authoritative, so it may not exempt any remote on a guess. It used to treat
+# "not the current branch's tracking remote" as "is a mirror", which is a
+# different question: that value records where a topic branch publishes. So a
+# clone whose default branch tracked nothing could be pushed to directly, by
+# naming any remote other than the current branch's own - the mirror exemption
+# answered a question nobody asked.
+#
+# Each case below drives the guard directly, because the point is the guard's
+# decision, not git's ability to push.
+ambiguous_guard() { # tracking-remote; prints the exit code for a push to origin
+  local d="$T/amb"
+  mkdir -p "$d"
+  git init -q --bare "$d/upstream.git"
+  git init -q --bare "$d/mirror.git"
+  git init -q "$d/w"
+  (
+    cd "$d/w" || exit 1
+    git config user.email t@example.com
+    git config user.name test
+    git config commit.gpgsign false
+    git remote add origin "$d/upstream.git"
+    git remote add mirror "$d/mirror.git"
+    echo a > f
+    git add f
+    git commit -qm one
+    git branch -M main
+    git push -q origin main
+    git push -q mirror main
+    # Both remotes know the default branch, so resolution cannot be blamed on
+    # an unresolvable HEAD.
+    git --git-dir="$d/upstream.git" symbolic-ref HEAD refs/heads/main
+    git --git-dir="$d/mirror.git" symbolic-ref HEAD refs/heads/main
+    git remote set-head origin -a > /dev/null 2>&1
+    git checkout -qB "$1"
+    # The topic branch tracks $1 while the DEFAULT branch tracks nothing: the
+    # ambiguity this exploits is exactly that unset config.
+    git config "branch.$1.remote" "$1"
+    git config --unset branch.main.remote 2> /dev/null || true
+    git checkout -q main
+    git commit -q --allow-empty -m diverge
+    git checkout -q "$1"
+  )
+  printf 'refs/heads/%s %s refs/heads/main %s\n' \
+    "$1" \
+    "$(cd "$d/w" && git rev-parse refs/heads/main)" \
+    "$(git --git-dir="$d/upstream.git" rev-parse refs/heads/main)" > "$d/lines"
+  # Run inside the clone: the guard resolves branch config from the cwd.
+  (cd "$d/w" && sh "$GUARD" "$d/lines" origin > /dev/null 2>&1)
+}
+
+echo
+echo "Pre-push hook — ambiguous authority (no default-branch tracking):"
+ambiguous_guard foo
+check "default branch push is blocked when a slashless branch tracks the mirror" 1 $?
+rm -rf "$T/amb"
+
+ambiguous_guard "feat/x"
+check "default branch push is blocked when a slashed branch tracks the mirror" 1 $?
+rm -rf "$T/amb"
+
+# The exemption is still available, but only when stated.
+ambiguous_guard foo
+(
+  cd "$T/amb/w" || exit 1
+  git config remote.mirror.mirror true
+)
+(
+  cd "$T/amb/w" && sh "$GUARD" "$T/amb/lines" mirror > /dev/null 2>&1
+)
+check "a remote declared a mirror is exempt even when authority is unknown" 0 $?
+rm -rf "$T/amb"
+
+# Declaring the wrong remote must not exempt the authoritative one.
+ambiguous_guard foo
+(
+  cd "$T/amb/w" || exit 1
+  git config remote.mirror.mirror true
+)
+(
+  cd "$T/amb/w" && sh "$GUARD" "$T/amb/lines" origin > /dev/null 2>&1
+)
+check "declaring one remote a mirror does not exempt another" 1 $?
+rm -rf "$T/amb"
+
+# `git config --bool` normalises yes/on/1 to true, so the documented values all
+# work. An unparseable value makes git exit non-zero with the error on stderr,
+# which is discarded here, leaving nothing to compare against "true" - so it
+# fails closed rather than exempting anything. Both properties are worth
+# pinning, because the second is the one a reader would assume works.
+mirror_flag_verdict() { # value; prints the guard's exit code for a push to mirror
+  ambiguous_guard foo
+  (
+    cd "$T/amb/w" || exit 1
+    [ -n "$1" ] && git config remote.mirror.mirror "$1"
+  )
+  (
+    cd "$T/amb/w" && sh "$GUARD" "$T/amb/lines" mirror > /dev/null 2>&1
+  )
+}
+
+mirror_flag_verdict yes
+check "'yes' is accepted as a mirror" 0 $?
+rm -rf "$T/amb"
+
+mirror_flag_verdict garbage
+check "an unparseable mirror value is not treated as a mirror" 1 $?
+rm -rf "$T/amb"
+
+echo
+echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
+[ "$fail" -eq 0 ]
