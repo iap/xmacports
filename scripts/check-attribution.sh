@@ -80,7 +80,7 @@ fi
 # footer.
 #
 # Case-insensitive: casing varies freely and does not change the attribution.
-pattern='^[[:space:]]*([^[:alnum:]"'\''>|*+#`_~+-][[:space:]]*)?(Generated[[:space:]]+with[[:space:]]+\[?(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex)\]?|https?://claude\.com/claude-code)|^[[:space:]]*(Co-authored-by|Signed-off-by):'
+pattern='^[[:space:]]*([^[:alnum:]"'\''>|*+#`_~+-][[:space:]]*)?(Generated[[:space:]]+with[[:space:]]+(\[[^]]+\]|(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex))|https?://claude\.com/claude-code)|^[[:space:]]*(Co-authored-by|Signed-off-by):'
 
 _tmp=$(mktemp "${TMPDIR:-/tmp}/attrcheck.XXXXXX") || exit 2
 trap 'rm -f "$_tmp"' EXIT INT TERM

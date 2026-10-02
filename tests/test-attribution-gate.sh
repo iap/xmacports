@@ -79,6 +79,24 @@ printf 'x\n\ngenerated with [claude code](https://claude.com/claude-code)\n' > "
 expect_rc 1 "rejects lowercase variant (case-insensitive)" \
   sh "$CHECK" --message-file "$TMP/lower.md"
 
+# --- any tool name, not a hardcoded list -------------------------------
+# The pattern used to enumerate known tools only, so a footer naming anything
+# else - "Generated with [Another Tool]" - passed with rc=0. CodeRabbit raised
+# this and the earlier reply wrongly claimed it fixed; it was not.
+printf 'x\n\nGenerated with [Another Tool](https://example.com/t)\n' > "$TMP/othertool.md"
+expect_rc 1 "rejects an unlisted tool name in brackets" \
+  sh "$CHECK" --message-file "$TMP/othertool.md"
+
+printf 'x\n\n🤖 Generated with [Zed McAgentface](https://example.com/z)\n' > "$TMP/zed.md"
+expect_rc 1 "rejects an unlisted tool name behind an emoji" \
+  sh "$CHECK" --message-file "$TMP/zed.md"
+
+# The generic bracket rule must not swallow ordinary prose that happens to start
+# the line with the same words.
+printf 'x\n\nGenerated with care and attention.\n' > "$TMP/care.md"
+expect_rc 0 "allows prose 'Generated with care'" \
+  sh "$CHECK" --message-file "$TMP/care.md"
+
 printf 'x\n\nGenerated with Cursor\n' > "$TMP/cursor.md"
 expect_rc 1 "rejects other assistant generators" \
   sh "$CHECK" --message-file "$TMP/cursor.md"
