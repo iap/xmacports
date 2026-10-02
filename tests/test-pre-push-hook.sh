@@ -275,6 +275,31 @@ ambiguous_guard foo
 check "declaring one remote a mirror does not exempt another" 1 $?
 rm -rf "$T/amb"
 
+# `git config --bool` normalises yes/on/1 to true, so the documented values all
+# work. An unparseable value makes git exit non-zero with the error on stderr,
+# which is discarded here, leaving nothing to compare against "true" - so it
+# fails closed rather than exempting anything. Both properties are worth
+# pinning, because the second is the one a reader would assume works.
+mirror_flag_verdict() { # value; prints the guard's exit code for a push to mirror
+  ambiguous_guard foo
+  (
+    cd "$T/amb/w" || exit 1
+    [ -n "$1" ] && git config remote.mirror.mirror "$1"
+  )
+  (
+    cd "$T/amb/w" && sh "$GUARD" "$T/amb/lines" mirror > /dev/null 2>&1
+  )
+}
+
+mirror_flag_verdict yes
+check "'yes' is accepted as a mirror" 0 $?
+rm -rf "$T/amb"
+
+mirror_flag_verdict garbage
+check "an unparseable mirror value is not treated as a mirror" 1 $?
+rm -rf "$T/amb"
+
+>>>>>>> Stashed changes
 echo
 echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
 [ "$fail" -eq 0 ]
