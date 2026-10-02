@@ -299,7 +299,6 @@ mirror_flag_verdict garbage
 check "an unparseable mirror value is not treated as a mirror" 1 $?
 rm -rf "$T/amb"
 
->>>>>>> Stashed changes
 echo
 echo "Total: $((pass + fail))  Passed: $pass  Failed: $fail"
 [ "$fail" -eq 0 ]
