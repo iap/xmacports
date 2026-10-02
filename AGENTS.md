@@ -163,10 +163,13 @@ Run `make verify` after any mise/MacPorts changes.
   not verified (e.g. "tests pass") — verify, then report.
 - No tool-attribution footers in PR/MR bodies either ("Generated with …",
   "Co-authored-by: …"). A footer naming a tool that did not write the change
-  misattributes authorship in permanent public history. `scripts/check-attribution.sh`
-  enforces this from the `commit-msg` hook; run it on a body file before opening
-  an MR. Override only when a truthful credit was actually requested, using
-  `SKIP_ATTRIBUTION_CHECK=1` or `--no-verify`, and say so in the MR.
+  misattributes authorship in permanent public history. Two gates enforce this:
+  `scripts/check-attribution.sh` runs from the `commit-msg` hook for commit
+  messages, and `scripts/check-mr-attribution.sh` runs as the `attribution-check`
+  CI job for MR descriptions — the server-side job is the one that cannot be
+  skipped locally, and it blocks the merge. Override only when a truthful credit
+  was actually requested, using `SKIP_ATTRIBUTION_CHECK=1` or `--no-verify`, and
+  say so in the MR.
 - Sign commits (`commit.gpgsign true`) and author with the GPG key's uid email.
 - Keep messages minimal and reviewable; align docs, tests, and code in the same change set
   when they are part of the same logical fix.

@@ -57,10 +57,15 @@ fi
 #  - any "Generated with <assistant>" naming a known tool
 #  - Co-authored-by / Signed-off-by trailers (AGENTS.md requires an explicit
 #    request before either)
+#
+# Every pattern is anchored to the START of a line, because a trailer is a
+# whole line and prose is not. Without the anchor the gate blocks honest
+# documentation that merely quotes the convention - a commit body explaining
+# that this footer is rejected was itself rejected, which is the over-blocking
+# this anchor exists to prevent. An optional leading emoji is allowed, since
+# that is how the footer is written.
 # Case-insensitive: casing varies freely and does not change the attribution.
-# No ^ anchor on the first two, so the footer is caught anywhere it appears;
-# the trailers are anchored because they are only trailers at line start.
-pattern='Generated[[:space:]]+with[[:space:]]+\[?(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex)\]?|claude\.com/claude-code|^[[:space:]]*(Co-authored-by|Signed-off-by):'
+pattern='^[[:space:]]*([^[:alnum:]"'\'']*[[:space:]]*)?(Generated[[:space:]]+with[[:space:]]+\[?(Claude Code|Cursor|Copilot|ChatGPT|Gemini|Aider|Codex)\]?|https?://claude\.com/claude-code)|^[[:space:]]*(Co-authored-by|Signed-off-by):'
 
 _tmp=$(mktemp "${TMPDIR:-/tmp}/attrcheck.XXXXXX") || exit 2
 trap 'rm -f "$_tmp"' EXIT INT TERM

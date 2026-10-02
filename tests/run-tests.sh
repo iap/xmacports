@@ -125,6 +125,16 @@ run_attribution_gate_tests() {
   fi
 }
 
+run_mr_attribution_check_tests() {
+  echo "Running MR-attribution (forge-side) tests..."
+  if [[ -f "$SCRIPT_DIR/test-mr-attribution-check.sh" ]]; then
+    bash "$SCRIPT_DIR/test-mr-attribution-check.sh"
+  else
+    echo "❌ test-mr-attribution-check.sh not found"
+    return 1
+  fi
+}
+
 # test-bootstrap.sh IS the bootstrap idempotency suite; `config` and `bootstrap`
 # are two names for the same checks. Kept as an alias so `run-tests.sh bootstrap`
 # stays valid, but the `all` path invokes it once via run_config_tests.
@@ -233,7 +243,14 @@ main() {
       attr_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0)); then
+      echo "9. MR-Attribution (Forge-Side) Tests"
+      echo
+
+      run_mr_attribution_check_tests
+      mr_attr_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0 || mr_attr_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi

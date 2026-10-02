@@ -83,8 +83,12 @@ printf 'x\n\nGenerated with Cursor\n' > "$TMP/cursor.md"
 expect_rc 1 "rejects other assistant generators" \
   sh "$CHECK" --message-file "$TMP/cursor.md"
 
+# A bare claude.com URL mid-sentence is ordinary prose (a link someone is
+# discussing) and must pass. Only a line that IS the link is a footer - see the
+# barelink regression below. This case asserted the opposite before the pattern
+# was anchored, which is exactly the over-blocking the anchor fixed.
 printf 'x\n\nSee https://claude.com/claude-code for details\n' > "$TMP/host.md"
-expect_rc 1 "rejects bare claude.com host" \
+expect_rc 0 "accepts a claude.com URL mid-sentence" \
   sh "$CHECK" --message-file "$TMP/host.md"
 
 # --- trailers ------------------------------------------------------------
@@ -112,6 +116,38 @@ expect_rc 0 "accepts prose mentioning generated code" \
 printf 'fix(x): y\n\nSee the documentation for co-authoring policy.\n' > "$TMP/prose2.md"
 expect_rc 0 "accepts prose mentioning co-authoring" \
   sh "$CHECK" --message-file "$TMP/prose2.md"
+
+# A commit body that QUOTES the vendor name in prose must pass. This case was
+# found in real use: the commit explaining that the footer is rejected was itself
+# rejected, because the pattern was unanchored and matched the quoted text
+# mid-sentence. A gate that blocks honest documentation gets routed around.
+cat > "$TMP/prose3.md" << 'EOF'
+ci(attribution): check MR descriptions
+
+The commit-msg hook cannot see an MR description. That gap is how a false
+"Generated with Claude Code" footer reached MR !37, and it is why prose
+warnings failed to stop it.
+EOF
+expect_rc 0 "accepts prose QUOTING the vendor name (regression)" \
+  sh "$CHECK" --message-file "$TMP/prose3.md"
+
+printf 'docs: note the rule\n\nWe reject lines that read Generated with Claude Code verbatim.\n' > "$TMP/prose4.md"
+expect_rc 0 "accepts mid-sentence vendor mention (regression)" \
+  sh "$CHECK" --message-file "$TMP/prose4.md"
+
+# ...but a real footer on its own line must still be rejected, with or without
+# the emoji, and a bare link line is a footer too.
+printf 'fix(x): y\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n' > "$TMP/emoji.md"
+expect_rc 1 "still rejects the real footer with emoji (regression)" \
+  sh "$CHECK" --message-file "$TMP/emoji.md"
+
+printf 'fix(x): y\n\nGenerated with [Claude Code](https://claude.com/claude-code)\n' > "$TMP/noemoji.md"
+expect_rc 1 "still rejects a bare footer line, no emoji (regression)" \
+  sh "$CHECK" --message-file "$TMP/noemoji.md"
+
+printf 'fix(x): y\n\nhttps://claude.com/claude-code\n' > "$TMP/barelink.md"
+expect_rc 1 "still rejects a bare claude.com link line (regression)" \
+  sh "$CHECK" --message-file "$TMP/barelink.md"
 
 : > "$TMP/empty.md"
 expect_rc 0 "accepts an empty message" \
