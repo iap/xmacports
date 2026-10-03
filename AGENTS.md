@@ -156,15 +156,23 @@ Run `make verify` after any mise/MacPorts changes.
 - One logical change per commit. Do not bundle unrelated fixes into a single commit.
 - Subject: short and direct. The `type(scope):` prefix plus the subject carries the label;
   do not pad the subject with filler.
-- Body: state what changed and why. No email addresses, no attribution trailers
-  (`Co-authored-by:`, `Signed-off-by:`) unless the credited party explicitly
-  asked for one, and no mechanic narration
+- Body: state what changed and why. No email addresses in prose, no
+  `Signed-off-by:` trailer, and no mechanic narration
   (do not describe GPG/SSH internals or signing mechanics). Do not claim outcomes you have
   not verified (e.g. "tests pass") — verify, then report.
-- No tool-attribution footers in PR/MR bodies either ("Generated with …",
-  "Co-authored-by: …"). A footer naming a tool that did not write the change
-  misattributes authorship in permanent public history. Two gates enforce this:
-  `scripts/check-attribution.sh` runs from the `commit-msg` hook for commit
+- A `Co-authored-by:` trailer is allowed on commit bodies and on PR/MR
+  descriptions and comments **when it credits a real contributor whose address
+  is creditable** — it appears in this repo's git identity, in `.attribution-allow`,
+  or in the `ATTRIBUTION_ALLOWLIST` environment variable. This is real
+  co-authorship, not a tool footer, and it must not be blocked. To credit a
+  contributor whose address is not yet listed, add it to `.attribution-allow` and
+  review that change like any other attribution-policy change.
+- Never use generator footers ("Generated with …", the Claude Code
+  claude.com/claude-code link) or `Signed-off-by:` — in commit bodies, PR/MR
+  descriptions, or comments. A footer naming a tool that did not write the change
+  misattributes authorship in permanent public history, and `Signed-off-by:`
+  asserts authorship under terms this repository does not use. Two gates enforce
+  this: `scripts/check-attribution.sh` runs from the `commit-msg` hook for commit
   messages, and `scripts/check-mr-attribution.sh` runs as the `attribution-check`
   CI job for MR descriptions — the server-side job is the one that cannot be
   skipped locally, and it blocks the merge. Override only when a truthful credit
