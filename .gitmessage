@@ -1,8 +1,8 @@
-# Environment: macOS
+# os: macOS
 # Subject: <type>(<scope>): <short summary>   (<=50 chars, imperative)
 #
 # Body (optional): what & why, wrapped at 72. Delete if the subject says it all.
 # ----------------------------------------------------------------------------
 # Agent-assisted commits only - uncomment the line below to co-credit.
-# "Agent" is a sample name - replace it with the agent's real identity:
-# Co-authored-by: Agent <6572003+iap@users.noreply.github.com>
+# Replace "Hermes" with the agent that actually produced the change:
+# Co-authored-by: Hermes <6572003+iap@users.noreply.github.com>
