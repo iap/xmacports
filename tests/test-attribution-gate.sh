@@ -17,6 +17,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$ROOT/scripts/check-attribution.sh"
+ALLOW="$ROOT/scripts/attribution-allow.sh"
 HOOK="$ROOT/.githooks/commit-msg"
 
 pass=0
@@ -121,6 +122,89 @@ expect_rc 1 "rejects indented Co-authored-by trailer" \
 printf 'x\n\nSigned-off-by: Someone <s@example.com>\n' > "$TMP/signoff.md"
 expect_rc 1 "rejects Signed-off-by trailer" \
   sh "$CHECK" --message-file "$TMP/signoff.md"
+
+# --- creditable self-credit ----------------------------------------------
+# The gate cannot tell that "Hermes" is this repo's owner rather than a real
+# GitHub organization, so identity is decided on the ADDRESS. Only an address
+# the repository may credit passes. These run against the real checkout, so the
+# tracked .attribution-allow below is what the checker actually reads.
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\n' \
+  > "$TMP/self-allowlisted.md"
+expect_rc 0 "accepts a self-credit listed in .attribution-allow" \
+  sh "$CHECK" --message-file "$TMP/self-allowlisted.md"
+
+printf 'x\n\nCo-authored-by: Hermes <IAP@Users.NoReply.GitHub.com>\n' \
+  > "$TMP/self-case.md"
+expect_rc 0 "accepts a self-credit differing only in case" \
+  sh "$CHECK" --message-file "$TMP/self-case.md"
+
+# One permitted trailer must not launder another alongside it.
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\nCo-authored-by: Stranger <s@example.com>\n' \
+  > "$TMP/mixed.md"
+expect_rc 1 "rejects a bad trailer even beside a permitted one" \
+  sh "$CHECK" --message-file "$TMP/mixed.md"
+
+printf 'x\n\nCo-authored-by: Hermes\n' > "$TMP/noaddr.md"
+expect_rc 1 "rejects a Co-authored-by with no address" \
+  sh "$CHECK" --message-file "$TMP/noaddr.md"
+
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com.evil.tld>\n' \
+  > "$TMP/lookalike.md"
+expect_rc 1 "rejects a lookalike domain" \
+  sh "$CHECK" --message-file "$TMP/lookalike.md"
+
+# Signed-off-by stays forbidden even for a creditable address: it is a legal
+# sign-off, not an authorship credit, and this repo does not use it.
+printf 'x\n\nSigned-off-by: Hermes <iap@users.noreply.github.com>\n' \
+  > "$TMP/signoff-self.md"
+expect_rc 1 "rejects Signed-off-by even for a creditable address" \
+  sh "$CHECK" --message-file "$TMP/signoff-self.md"
+
+printf 'x\n\nCo-authored-by: Tester <agent@xmacports.invalid>\n' > "$TMP/override.md"
+expect_rc 0 "ATTRIBUTION_ALLOWLIST permits an unlisted address" \
+  env ATTRIBUTION_ALLOWLIST='agent@xmacports.invalid' \
+  sh "$CHECK" --message-file "$TMP/override.md"
+
+# --- the MR target branch is the authority --------------------------------
+# In MR CI the checkout IS the branch under review, so a file-sourced allowlist
+# would let an MR widen the policy and spend the credit in the same MR.
+if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
+  printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\n' \
+    > "$TMP/mr.md"
+  expect_rc 2 "refuses when the MR target branch cannot be resolved" \
+    env CI_MERGE_REQUEST_IID=42 \
+    CI_MERGE_REQUEST_TARGET_BRANCH_NAME='refs/heads/no-such-branch' \
+    sh "$CHECK" --message-file "$TMP/mr.md"
+fi
+
+# --- .attribution-allow is present AND tracked ---------------------------
+# Tracked on purpose: it is the auditable record of who may be credited, so an
+# untracked copy is invisible to CI and to every other clone - which is how a
+# self-credit passes the local hook and fails the MR job.
+if [ -f "$ROOT/.attribution-allow" ]; then
+  ok ".attribution-allow is present in the repo"
+else
+  no ".attribution-allow is present in the repo"
+fi
+
+if git -C "$ROOT" ls-files --error-unmatch .attribution-allow > /dev/null 2>&1; then
+  ok ".attribution-allow is tracked by git"
+else
+  no ".attribution-allow is tracked by git"
+fi
+
+if [ -r "$ROOT/.attribution-allow" ]; then
+  while IFS= read -r entry || [ -n "$entry" ]; do
+    entry="${entry%%#*}"
+    [ -n "${entry//[[:space:]]/}" ] || continue
+    printf 'x\n\nCo-authored-by: Tester <%s>\n' "$entry" > "$TMP/each.md"
+    expect_rc 0 "every .attribution-allow entry is creditable" \
+      sh "$CHECK" --message-file "$TMP/each.md"
+  done < "$ROOT/.attribution-allow"
+  ok ".attribution-allow is readable"
+else
+  no ".attribution-allow is readable"
+fi
 
 # --- clean bodies must pass (no over-blocking) ---------------------------
 printf 'fix(guard): require a declared mirror\n\nWhat changed and why.\n' > "$TMP/clean.md"
@@ -276,6 +360,7 @@ if command -v git > /dev/null 2>&1; then
   git init -q "$REPO"
   mkdir -p "$REPO/scripts" "$REPO/.githooks"
   cp "$CHECK" "$REPO/scripts/check-attribution.sh"
+  cp "$ALLOW" "$REPO/scripts/attribution-allow.sh"
   cp "$HOOK" "$REPO/.githooks/commit-msg"
   chmod +x "$REPO/scripts/check-attribution.sh" "$REPO/.githooks/commit-msg"
   git -C "$REPO" config core.hooksPath .githooks
