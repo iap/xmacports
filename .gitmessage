@@ -1,4 +1,4 @@
-# os: macOS
+# os: <this host's OS, no version>
 # Subject: <type>(<scope>): <short summary>   (<=50 chars, imperative)
 #
 # Body (optional): what & why, wrapped at 72. Delete if the subject says it all.
