@@ -1,0 +1,28 @@
+# Addresses this repository may credit in a Co-authored-by trailer.
+#
+# The attribution gate (scripts/check-attribution.sh) rejects a Co-authored-by
+# trailer unless the address it names appears in this file, matches the repo's
+# configured git identity, or is passed via ATTRIBUTION_ALLOWLIST. Generator
+# footers and Signed-off-by remain forbidden unconditionally.
+#
+# Why an allowlist at all: crediting the owner of this repository is not
+# misattribution, but a gate cannot know that from the trailer's display name.
+# "Hermes" is a real GitHub organization, so a name-keyed rule would look
+# correct while crediting a stranger. The address is the identity anchor.
+#
+# This file is the auditable record, so it is TRACKED. An untracked copy is
+# invisible to CI and to every other clone, which makes the same self-credit
+# pass the local commit-msg hook and fail the MR job. tests/test-attribution-gate.sh
+# asserts both presence and trackedness.
+#
+# In a merge request the gate reads this file from the TARGET branch, not from
+# the branch under review, so an MR cannot widen the allowlist and spend the
+# credit in the same MR. An entry added by an MR takes effect on the next merge.
+#
+# One address per line. Blank lines and #-comments are ignored. Changing this
+# file is an attribution-policy change: review it like one.
+
+# The GitHub noreply address the .gitmessage template offers. GitHub also accepts
+# an ID-keyed spelling (6572003+iap@) which survives a username rename and is the
+# more durable form; it is deliberately absent, so this repo credits the bare name.
+iap@users.noreply.github.com

@@ -1,7 +1,10 @@
-# Environment: macOS
 # Subject: <type>(<scope>): <short summary>   (<=50 chars, imperative)
+# OS: <this host's OS, no version>
 #
 # Body (optional): what & why, wrapped at 72. Delete if the subject says it all.
 # ----------------------------------------------------------------------------
-# Agent-assisted commits only - uncomment the line below to co-credit:
-# Co-authored-by: Agent <6572003+iap@users.noreply.github.com>
+# Agent-assisted commits only - uncomment to co-credit a REAL CONTRIBUTOR whose
+# address is creditable (your git identity, an .attribution-allow entry, or
+# ATTRIBUTION_ALLOWLIST). Never credit a tool or agent: generator footers and
+# non-creditable addresses are rejected by the attribution gate.
+# Co-authored-by: Hermes <iap@users.noreply.github.com>

@@ -97,7 +97,7 @@ done < <(_find_config_files)
 echo
 
 echo "Config file permissions (expect 644):"
-for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .gitmessage MANUAL.md README.md "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
+for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .gitmessage AGENTS.md CONTRIBUTING.md README.md "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
   case "$f" in
     "$DOTFILES_ROOT"/*) f="${f#"$DOTFILES_ROOT"/}" ;;
   esac
