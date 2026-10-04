@@ -19,7 +19,9 @@ workflow:
 stages:
   - sast
   - test
+  - signature
   - attribution
+  - gates
   - label
 
 variables:
@@ -109,6 +111,77 @@ attribution-check:
       # CI_MERGE_REQUEST_IID is scoped to the target project. Pairing them would
       # query the wrong project and fail closed on every fork MR.
       sh scripts/check-mr-attribution.sh "${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-$CI_PROJECT_ID}" "${CI_MERGE_REQUEST_IID}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Every commit in an MR must carry a good GPG signature.
+#
+# This is a mechanical floor, not a stand-in for review: a signed commit nobody
+# read is still an unreviewed commit. Before this job, commit.gpgsign was a
+# local preference, push rules (reject_unsigned_commits) are not available on
+# this project's GitLab plan, and no other job verified signatures - so an
+# unsigned commit could reach main through a green pipeline.
+#
+# gnupg is installed so %G? can evaluate a signature at all. Without the binary
+# git reports E (cannot be checked), which check-signatures.sh rejects by
+# design. The runner still holds no copy of the signing key, so signed commits
+# report U (good signature, unknown validity) and are accepted; requiring G needs
+# a keyring and therefore stays a local check. See CONTRIBUTING.md,
+# "Signature verification".
+#
+# Fails closed when the base SHA is absent: this job's rules only run it in
+# merge_request_event, where CI_MERGE_REQUEST_DIFF_BASE_SHA is documented as
+# present, so its absence is an anomaly and not a case to pass quietly.
+#
+# Not allow_failure: the project's "pipelines must succeed" setting blocks the
+# merge, which is the free-tier equivalent of an external status check.
+signature-check:
+  stage: signature
+  before_script:
+    - apk add --no-cache bash git gnupg
+  script:
+    - |
+      if [ -z "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
+        echo "ERROR: merge_request_event pipeline with no CI_MERGE_REQUEST_DIFF_BASE_SHA." >&2
+        echo "No base means no range, and an empty range reads as 'nothing unsigned'." >&2
+        exit 1
+      fi
+      sh scripts/check-signatures.sh "$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$CI_COMMIT_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# The merge trigger: an MR merges when its review conversation is resolved, not
+# when CI turns green. GitLab enforces that with
+# only_allow_merge_if_all_discussions_are_resolved; this job proves the setting is
+# still armed, and reports the open threads while there are any.
+#
+# Why read the setting back instead of trusting it: forge settings live outside
+# every clone and decay silently, so "discussions must be resolved" is only true
+# while somebody checks. Left green, a toggled setting is indistinguishable from
+# a satisfied one until an unresolved MR merges.
+#
+# Two properties keep this job honest. It asserts the POLICY (settings, force-push
+# protection) and reports the CONVERSATION, because the transient half is the
+# forge's job to evaluate at merge time: threads get resolved after this pipeline
+# ran, and resolving a thread does not trigger a new pipeline, so failing the
+# build on them would latch red with no automatic way back. The forge setting
+# blocks the merge button on the live state; this job makes the disarmament
+# visible.
+#
+# It never reads the approvals endpoint. Zero approvals are required on this
+# project, so GitLab answers approved:true for an MR nobody reviewed - honoring
+# that would report a review that never happened.
+#
+# GITLAB_API_TOKEN needs api scope: the anonymous responses omit the merge
+# settings entirely, so a tokenless read would have to assume they hold.
+merge-gates:
+  stage: gates
+  before_script:
+    - apk add --no-cache bash curl jq
+  script:
+    - |
+      sh scripts/check-merge-gates.sh \
+        "${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-$CI_PROJECT_ID}" "${CI_MERGE_REQUEST_IID}"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 

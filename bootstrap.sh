@@ -244,5 +244,5 @@ if [[ ! -f "$HOME/.profile.local" ]]; then
   echo "Create ~/.profile.local for per-host environment overrides (see templates/profile-local.example)"
 fi
 if [[ ! -f "$HOME/.ssh/config.local" ]]; then
-  echo "Create ~/.ssh/config.local for machine-local SSH overrides (see MANUAL.md)"
+  echo "Create ~/.ssh/config.local for machine-local SSH overrides (see examples/ssh-config-example)"
 fi
