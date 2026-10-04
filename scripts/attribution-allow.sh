@@ -42,24 +42,38 @@ _attr_read_tracked() {
   _attr_scratch=$1
   _attr_ref="${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-}"
   if [ -n "${CI_MERGE_REQUEST_IID:-}" ] && [ -n "$_attr_ref" ]; then
+    # A GitLab MR runner checks out ONE ref: the source branch. The bare target
+    # name does not resolve there, so try the remote-tracking form the shallow
+    # clone does have before giving up. Without this the gate exits 2 on every
+    # MR pipeline and the attribution job can never pass.
+    _attr_resolved=""
+    for _attr_try in "$_attr_ref" \
+      "refs/remotes/origin/$_attr_ref" \
+      "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}"; do
+      [ -n "$_attr_try" ] || continue
+      if git rev-parse --verify --quiet "${_attr_try}^{commit}" > /dev/null 2>&1; then
+        _attr_resolved=$_attr_try
+        break
+      fi
+    done
     # Resolve the ref BEFORE testing the path. A typo, or a ref the runner never
     # fetched, is indistinguishable from "the file is absent" and would silently
     # downgrade the policy to an empty file-sourced list with nothing in the log
     # to explain it.
-    if ! git rev-parse --verify --quiet "${_attr_ref}^{commit}" > /dev/null 2>&1; then
+    if [ -z "$_attr_resolved" ]; then
       echo "ERROR: cannot resolve the MR target branch '${_attr_ref}'." >&2
       echo "The attribution allowlist would be read as empty; refusing." >&2
       return 2
     fi
-    if git cat-file -e "${_attr_ref}:.attribution-allow" 2> /dev/null; then
-      if ! git show "${_attr_ref}:.attribution-allow" > "$_attr_scratch" 2> /dev/null; then
-        echo "ERROR: cannot read .attribution-allow from ${_attr_ref}" >&2
+    if git cat-file -e "${_attr_resolved}:.attribution-allow" 2> /dev/null; then
+      if ! git show "${_attr_resolved}:.attribution-allow" > "$_attr_scratch" 2> /dev/null; then
+        echo "ERROR: cannot read .attribution-allow from ${_attr_resolved}" >&2
         return 2
       fi
-      _ATTR_ALLOW_SOURCE="${_attr_ref}:.attribution-allow"
+      _ATTR_ALLOW_SOURCE="${_attr_resolved}:.attribution-allow"
     else
       : > "$_attr_scratch" || return 2
-      _ATTR_ALLOW_SOURCE="${_attr_ref}:.attribution-allow (absent: no file-sourced credits)"
+      _ATTR_ALLOW_SOURCE="${_attr_resolved}:.attribution-allow (absent: no file-sourced credits)"
     fi
     return 0
   fi

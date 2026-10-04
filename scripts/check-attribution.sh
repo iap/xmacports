@@ -127,6 +127,41 @@ fi
 
 _attr_build "$_scratch" || exit 2
 
+# _attr_trailer_address <trailer value>
+# Print the single address a Co-authored-by value carries, or fail if it does
+# not carry exactly one.
+#
+# A trailer is one party. Taking the LAST <...> instead would let an unlisted
+# address ride along behind a creditable one:
+#   Co-authored-by: Evil <stranger@example.com> <iap@users.noreply.github.com>
+# names only the second, so the unlisted party was credited under a name the
+# allowlist never approved.
+#
+# So the value must be a display name followed by exactly ONE bracketed address
+# at the end. A second pair, trailing text after the bracket, a nested bracket,
+# or a single unmatched bracket is malformed and rejected rather than guessed at.
+#
+# No brackets at all is legitimate ("Co-authored-by: Hermes"); the value is still
+# judged, never treated as an empty address that trivially matches.
+_attr_trailer_address() {
+  # Two exhaustive shapes, and [^<>]* in both is what makes them exhaustive:
+  # anything containing a bracket matches neither. A display name then exactly
+  # one bracketed address at the end; or no bracket at all, so the value itself
+  # is the address. Everything else prints nothing and is rejected.
+  #
+  # Two separate -n scripts, not one chain: chaining lets an earlier s/p print
+  # and then feeds its own output to the next expression, which printed the
+  # address twice.
+  _attr_trimmed=$(printf '%s' "$1" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+  _attr_addr=$(printf '%s' "$_attr_trimmed" |
+    sed -n 's/^[^<>]*<\([^<>]*\)>$/\1/p')
+  if [ -z "$_attr_addr" ]; then
+    _attr_addr=$(printf '%s' "$_attr_trimmed" | sed -n 's/^\([^<>]*\)$/\1/p')
+  fi
+  [ -n "$_attr_addr" ] || return 1
+  printf '%s' "$_attr_addr"
+}
+
 # reject <reason> <why+remedy> <offending lines>
 # The reason and remedy are arguments, not one shared blurb: the three rejection
 # paths have genuinely different remedies, and a single canned message told a
@@ -181,13 +216,10 @@ if coauth=$(grep -Ein "$pattern_coauth" "$_tmp"); then
   bad=""
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    body=${line#*:}
-    # The address is the <...> form when present; otherwise the remainder is the
-    # whole value, so a bare "Co-authored-by: Hermes" still gets judged rather
-    # than passing for an empty (creditable-by-omission) address.
-    address=$(printf '%s' "$body" | sed -n 's/.*<\([^<>]*\)>.*/\1/p')
-    [ -n "$address" ] || address=$body
-    if ! _attr_is_allowed "$address"; then
+    if address=$(_attr_trailer_address "${line#*:}"); then
+      _attr_is_allowed "$address" || bad="$bad$line
+"
+    else
       bad="$bad$line
 "
     fi
