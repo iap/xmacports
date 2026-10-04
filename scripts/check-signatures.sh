@@ -23,11 +23,16 @@
 #   R  good signature made by a revoked key      reject
 #   E  cannot be checked                         reject
 #
-# U is the normal result in CI: the runner has no copy of the signing key, so
-# it can confirm a signature is good but cannot reach a trust anchor. Accepting
-# U is what makes the check possible without distributing keys to CI. Requiring
-# G - which does verify trust - stays a local check, because that is where the
-# keyring is.
+# U is the normal result in CI: the runner imports the signing key's PUBLIC
+# half from keys/iap-signing-key.asc, so it can confirm a signature is good but
+# cannot reach a trust anchor. Accepting U is what makes the check possible
+# without distributing private keys to CI. Requiring G - which does verify trust
+# - stays a local check, because that is where the trust anchor is.
+#
+# Without that import the runner reports E for EVERY commit, correctly signed or
+# not, and this gate rejects all of them. The job therefore imports the key; do
+# not "fix" an all-E run by accepting E here, which would pass any commit the
+# runner cannot check at all.
 #
 # E is rejected on purpose: "could not be checked" must never read as "pass".
 # The CI job installs gnupg so this status means a genuine anomaly rather than
