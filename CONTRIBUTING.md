@@ -249,6 +249,10 @@ integrity by the branch commits rather than the merge commit GitLab adds.
 5. Answer every review thread, then resolve it (see "Merge gates" below)
 6. Sync with `origin/main`, then merge
 
+Nothing here waits on anyone else. No approval is required (see "Merge gates"),
+so an MR is ready when the pipeline is green and the conversation is resolved —
+the author's call, not a queue.
+
 Syncing a branch that has fallen behind keeps the merge small and surfaces
 conflicts early. The method depends on whether the branch is published:
 
@@ -307,10 +311,15 @@ threads, or when it cannot tell — exit `0` clean, `1` gate violated, `2` could
 not verify. `2` is a failure on purpose: an unverified gate is not a passing
 gate. Override with `SKIP_MERGE_GATES_CHECK=1`, and say so in the MR.
 
-**Why `approved: true` means nothing here.** This project requires zero
-approvals, so GitLab reports `approved: true` on an MR nobody reviewed — the
-check is vacuously satisfied. Read conversation state instead; the gate
-deliberately ignores the approvals endpoint for that reason.
+**No approval is required, and none is possible.** This is a single-author
+repository: every MR here is authored by the maintainer, so there is nobody to
+approve it. The merge happens when the author asks for it. GitLab reports
+`approved: true` on an MR nobody reviewed, because zero approvals are required —
+the field is vacuously satisfied and carries no information. `merge-gates`
+therefore ignores the approvals endpoint entirely and reads conversation state
+instead. Do not read `approved: true` as evidence that anyone reviewed anything,
+and do not configure an approval rule to "fix" it: on a one-author project a
+required approval deadlocks every MR.
 
 **A resolved thread is not a satisfied reviewer.** The author can resolve their
 own thread, so this gate proves the conversation finished, not that it ended
@@ -327,17 +336,20 @@ resolving one does not trigger a new pipeline, so a red job would latch with no
 automatic way back. The forge setting evaluates the live state when the merge
 button is pressed; the job makes a silent disarmament visible.
 
-**When a second reviewer exists.** Require an approving review from a
-collaborator, or from an app named in `.review-allow` that is installed on the
-project and submits a real review submission — a CI status or a comment is not an
-approval. The author's own approval does not count then and may not satisfy the
-rule. `.review-allow` is the tracked, auditable record of which apps may
-approve; changing it is a review-policy change, so review it like one. An empty
-file is fail-closed and means no app may approve.
+**If a second reviewer ever exists — not the case today.** No approval is
+required now, and this paragraph describes a policy that does not apply. If a
+collaborator is ever added, require an approving review from them, or from an
+app named in `.review-allow` that is installed on the project and submits a real
+review submission — a CI status or a comment is not an approval. The author's own
+approval does not count then and may not satisfy the rule. `.review-allow` is the
+tracked, auditable record of which apps may approve; changing it is a
+review-policy change, so review it like one. An empty file is fail-closed and
+means no app may approve.
 
-Whether an app *can* approve is a property of the forge, not of this file:
-GitLab approvals are cast by users holding permission, so a bot account may be
-unable to approve at all. Verify it on a throwaway MR before relying on it.
+If that day comes, whether an app *can* approve is a property of the forge, not
+of this file: GitLab approvals are cast by users holding permission, so a bot
+account may be unable to approve at all. Verify on a throwaway MR before relying
+on it.
 
 An author may always close their own MR, and no review is required to do so.
 Closing is never gated, and it is also the escape hatch when a gate and your
