@@ -17,6 +17,7 @@ set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="$ROOT/scripts/check-attribution.sh"
+ALLOW="$ROOT/scripts/attribution-allow.sh"
 HOOK="$ROOT/.githooks/commit-msg"
 
 pass=0
@@ -55,6 +56,14 @@ expect_rc() {
     no "$label (rc=$got, want $want)"
   fi
 }
+
+# These assertions describe the WORKTREE policy: what the tracked
+# .attribution-allow in this checkout permits. Inside an MR pipeline the same
+# variables are exported, and the gate would instead read the TARGET branch's
+# allowlist - so before this MR merges, the self-credit cases below would fail
+# against a file that is not on main yet. Clear them once, for the whole suite;
+# the target-branch path is covered separately by its own committed fixture.
+unset CI_MERGE_REQUEST_IID CI_MERGE_REQUEST_TARGET_BRANCH_NAME CI_MERGE_REQUEST_DIFF_BASE_SHA
 
 echo "Running attribution-gate tests..."
 setup
@@ -121,6 +130,174 @@ expect_rc 1 "rejects indented Co-authored-by trailer" \
 printf 'x\n\nSigned-off-by: Someone <s@example.com>\n' > "$TMP/signoff.md"
 expect_rc 1 "rejects Signed-off-by trailer" \
   sh "$CHECK" --message-file "$TMP/signoff.md"
+
+# --- creditable self-credit ----------------------------------------------
+# The gate cannot tell that "Hermes" is this repo's owner rather than a real
+# GitHub organization, so identity is decided on the ADDRESS. Only an address
+# the repository may credit passes. These run against the real checkout, so the
+# tracked .attribution-allow below is what the checker actually reads.
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\n' \
+  > "$TMP/self-allowlisted.md"
+expect_rc 0 "accepts a self-credit listed in .attribution-allow" \
+  sh "$CHECK" --message-file "$TMP/self-allowlisted.md"
+
+printf 'x\n\nCo-authored-by: Hermes <IAP@Users.NoReply.GitHub.com>\n' \
+  > "$TMP/self-case.md"
+expect_rc 0 "accepts a self-credit differing only in case" \
+  sh "$CHECK" --message-file "$TMP/self-case.md"
+
+# One permitted trailer must not launder another alongside it.
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\nCo-authored-by: Stranger <s@example.com>\n' \
+  > "$TMP/mixed.md"
+expect_rc 1 "rejects a bad trailer even beside a permitted one" \
+  sh "$CHECK" --message-file "$TMP/mixed.md"
+
+# One trailer is ONE party. Extracting the last <...> instead of the only one
+# let an unlisted address ride along behind a creditable one, so the allowlist
+# approved a line it had never seen.
+printf 'x\n\nCo-authored-by: Evil <stranger@example.com> <iap@users.noreply.github.com>\n' \
+  > "$TMP/smuggle-a.md"
+expect_rc 1 "rejects an unlisted address smuggled after a listed one" \
+  sh "$CHECK" --message-file "$TMP/smuggle-a.md"
+
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com> <stranger@example.com>\n' \
+  > "$TMP/smuggle-b.md"
+expect_rc 1 "rejects an unlisted address before a listed one" \
+  sh "$CHECK" --message-file "$TMP/smuggle-b.md"
+
+printf 'x\n\nCo-authored-by: Evil <stranger@example.com> Hermes\n' \
+  > "$TMP/smuggle-c.md"
+expect_rc 1 "rejects trailing text after the address" \
+  sh "$CHECK" --message-file "$TMP/smuggle-c.md"
+
+printf 'x\n\nCo-authored-by: Evil <stranger@example.com\n' \
+  > "$TMP/smuggle-d.md"
+expect_rc 1 "rejects an unmatched bracket" \
+  sh "$CHECK" --message-file "$TMP/smuggle-d.md"
+
+printf 'x\n\nCo-authored-by: Evil <<stranger@example.com>>\n' \
+  > "$TMP/smuggle-e.md"
+expect_rc 1 "rejects nested brackets" \
+  sh "$CHECK" --message-file "$TMP/smuggle-e.md"
+
+printf 'x\n\nCo-authored-by: Hermes\n' > "$TMP/noaddr.md"
+expect_rc 1 "rejects a Co-authored-by with no address" \
+  sh "$CHECK" --message-file "$TMP/noaddr.md"
+
+printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com.evil.tld>\n' \
+  > "$TMP/lookalike.md"
+expect_rc 1 "rejects a lookalike domain" \
+  sh "$CHECK" --message-file "$TMP/lookalike.md"
+
+# Signed-off-by stays forbidden even for a creditable address: it is a legal
+# sign-off, not an authorship credit, and this repo does not use it.
+printf 'x\n\nSigned-off-by: Hermes <iap@users.noreply.github.com>\n' \
+  > "$TMP/signoff-self.md"
+expect_rc 1 "rejects Signed-off-by even for a creditable address" \
+  sh "$CHECK" --message-file "$TMP/signoff-self.md"
+
+printf 'x\n\nCo-authored-by: Tester <agent@xmacports.invalid>\n' > "$TMP/override.md"
+expect_rc 0 "ATTRIBUTION_ALLOWLIST permits an unlisted address" \
+  env ATTRIBUTION_ALLOWLIST='agent@xmacports.invalid' \
+  sh "$CHECK" --message-file "$TMP/override.md"
+
+# --- the MR target branch is the authority --------------------------------
+# In MR CI the checkout IS the branch under review, so a file-sourced allowlist
+# would let an MR widen the policy and spend the credit in the same MR.
+if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
+  printf 'x\n\nCo-authored-by: Hermes <iap@users.noreply.github.com>\n' \
+    > "$TMP/mr.md"
+  expect_rc 2 "refuses when the MR target branch cannot be resolved" \
+    env CI_MERGE_REQUEST_IID=42 \
+    CI_MERGE_REQUEST_TARGET_BRANCH_NAME='refs/heads/no-such-branch' \
+    sh "$CHECK" --message-file "$TMP/mr.md"
+fi
+
+# The layout a GitLab MR runner actually produces: ONE ref checked out (the
+# source branch), with the target available only as refs/remotes/origin/<name>.
+# Resolving the bare target name there fails, which made the gate exit 2 on
+# every MR pipeline. Reproduce that layout in a throwaway clone.
+if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
+  MREPO="$TMP/mrrepo"
+  git clone -q --no-hardlinks --depth 1 "file://$ROOT" "$MREPO" > /dev/null 2>&1
+  if [ -d "$MREPO/.git" ]; then
+    base=$(git -C "$MREPO" rev-parse HEAD)
+    # Two commits on the MR's source branch: the first establishes a target-side
+    # allowlist, the second WIDENS it. origin/main is pinned to the first, so
+    # reading origin/main and reading the MR branch give different answers -
+    # which is what makes these two assertions meaningful.
+    printf 'mr-allowlisted@example.invalid\n' > "$MREPO/.attribution-allow"
+    git -C "$MREPO" add -A > /dev/null 2>&1
+    git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
+      commit -qm "target branch carries the allowlist" > /dev/null 2>&1
+    target=$(git -C "$MREPO" rev-parse HEAD)
+    printf 'mr-widened@example.invalid\n' >> "$MREPO/.attribution-allow"
+    git -C "$MREPO" add -A > /dev/null 2>&1
+    git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
+      commit -qm "mr widens the allowlist" > /dev/null 2>&1
+    # Now point origin/main at the narrower commit: it stands in for the target
+    # branch, which the MR cannot change.
+    git -C "$MREPO" update-ref "refs/remotes/origin/main" "$target"
+    # Use the WORKING TREE's scripts, not the committed ones: the clone's HEAD
+    # is whatever was last committed, so cloning alone would silently test a
+    # previous version of the gate.
+    cp "$CHECK" "$ALLOW" "$MREPO/scripts/"
+    # A third value in the worktree that the MR job must NOT read.
+    printf 'worktree-allowlisted@example.invalid\n' > "$MREPO/.attribution-allow.worktree"
+    printf 'x\n\nCo-authored-by: T <mr-allowlisted@example.invalid>\n' > "$TMP/mr-ok.md"
+    printf 'x\n\nCo-authored-by: M <mr-widened@example.invalid>\n' > "$TMP/mr-no.md"
+    printf 'x\n\nCo-authored-by: W <worktree-allowlisted@example.invalid>\n' > "$TMP/mr-wt.md"
+
+    if git -C "$MREPO" rev-parse --verify --quiet 'refs/heads/main' > /dev/null 2>&1; then
+      echo "note clone has a local main; skipping the shallow-layout case"
+    else
+      expect_rc 0 "resolves the MR target via refs/remotes/origin/<name>" \
+        env CI_MERGE_REQUEST_IID=42 \
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+        sh "$MREPO" "$TMP/mr-ok.md"
+      expect_rc 1 "does not trust the MR branch's own allowlist entry" \
+        env CI_MERGE_REQUEST_IID=42 \
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+        sh "$MREPO" "$TMP/mr-no.md"
+      expect_rc 1 "does not read an allowlist sitting in the worktree" \
+        env CI_MERGE_REQUEST_IID=42 \
+        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+        sh "$MREPO" "$TMP/mr-wt.md"
+    fi
+  fi
+fi
+
+# --- .attribution-allow is present AND tracked ---------------------------
+# Tracked on purpose: it is the auditable record of who may be credited, so an
+# untracked copy is invisible to CI and to every other clone - which is how a
+# self-credit passes the local hook and fails the MR job.
+if [ -f "$ROOT/.attribution-allow" ]; then
+  ok ".attribution-allow is present in the repo"
+else
+  no ".attribution-allow is present in the repo"
+fi
+
+if git -C "$ROOT" ls-files --error-unmatch .attribution-allow > /dev/null 2>&1; then
+  ok ".attribution-allow is tracked by git"
+else
+  no ".attribution-allow is tracked by git"
+fi
+
+if [ -r "$ROOT/.attribution-allow" ]; then
+  while IFS= read -r entry || [ -n "$entry" ]; do
+    entry="${entry%%#*}"
+    [ -n "${entry//[[:space:]]/}" ] || continue
+    printf 'x\n\nCo-authored-by: Tester <%s>\n' "$entry" > "$TMP/each.md"
+    expect_rc 0 "every .attribution-allow entry is creditable" \
+      sh "$CHECK" --message-file "$TMP/each.md"
+  done < "$ROOT/.attribution-allow"
+  ok ".attribution-allow is readable"
+else
+  no ".attribution-allow is readable"
+fi
 
 # --- clean bodies must pass (no over-blocking) ---------------------------
 printf 'fix(guard): require a declared mirror\n\nWhat changed and why.\n' > "$TMP/clean.md"
@@ -276,6 +453,7 @@ if command -v git > /dev/null 2>&1; then
   git init -q "$REPO"
   mkdir -p "$REPO/scripts" "$REPO/.githooks"
   cp "$CHECK" "$REPO/scripts/check-attribution.sh"
+  cp "$ALLOW" "$REPO/scripts/attribution-allow.sh"
   cp "$HOOK" "$REPO/.githooks/commit-msg"
   chmod +x "$REPO/scripts/check-attribution.sh" "$REPO/.githooks/commit-msg"
   git -C "$REPO" config core.hooksPath .githooks

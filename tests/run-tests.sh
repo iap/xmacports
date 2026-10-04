@@ -142,6 +142,43 @@ run_bootstrap_idempotency_tests() {
   run_config_tests
 }
 
+# Integrity of the named approver record. The merge trigger is the resolved
+# conversation, which only the forge can see; this suite cannot verify a merge -
+# only that the record naming WHO may approve is present, tracked, and not
+# silently widened.
+run_review_allow_tests() {
+  echo "Running review-allowlist tests..."
+  if [[ -f "$SCRIPT_DIR/test-review-allow.sh" ]]; then
+    bash "$SCRIPT_DIR/test-review-allow.sh"
+  else
+    echo "❌ test-review-allow.sh not found"
+    return 1
+  fi
+}
+
+# The signature gate that stands in for a reviewer on a single-maintainer repo.
+# Signed-commit cases skip themselves when gpg cannot produce a throwaway key,
+# since the CI test runner does not install gnupg.
+run_signature_check_tests() {
+  echo "Running signature-check tests..."
+  if [[ -f "$SCRIPT_DIR/test-signature-check.sh" ]]; then
+    bash "$SCRIPT_DIR/test-signature-check.sh"
+  else
+    echo "❌ test-signature-check.sh not found"
+    return 1
+  fi
+}
+
+run_merge_gates_tests() {
+  echo "Running merge-gates tests..."
+  if [[ -f "$SCRIPT_DIR/test-merge-gates.sh" ]]; then
+    bash "$SCRIPT_DIR/test-merge-gates.sh"
+  else
+    echo "❌ test-merge-gates.sh not found"
+    return 1
+  fi
+}
+
 run_compliance_tests() {
   echo "Running compliance checks..."
   check_prerequisites && run_config_tests && bash "$DOTFILES_ROOT/scripts/compliance-check.sh"
@@ -178,6 +215,15 @@ main() {
       ;;
     "mr-attribution")
       run_mr_attribution_check_tests
+      ;;
+    "review-allow")
+      run_review_allow_tests
+      ;;
+    "signature")
+      run_signature_check_tests
+      ;;
+    "merge-gates")
+      run_merge_gates_tests
       ;;
     "bootstrap")
       check_prerequisites && run_bootstrap_idempotency_tests
@@ -256,7 +302,28 @@ main() {
       mr_attr_status=$?
       echo
 
-      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0 || mr_attr_status != 0)); then
+      echo "10. Review-Allowlist Tests"
+      echo
+
+      run_review_allow_tests
+      review_allow_status=$?
+      echo
+
+      echo "11. Signature-Check Tests"
+      echo
+
+      run_signature_check_tests
+      signature_status=$?
+      echo
+
+      echo "12. Merge-Gates Tests"
+      echo
+
+      run_merge_gates_tests
+      merge_gates_status=$?
+      echo
+
+      if ((cfg_status != 0 || fn_status != 0 || sec_status != 0 || hook_status != 0 || review_status != 0 || secfix_status != 0 || guard_status != 0 || attr_status != 0 || mr_attr_status != 0 || review_allow_status != 0 || signature_status != 0 || merge_gates_status != 0)); then
         echo "❌ Test suite completed with failures"
         exit 1
       fi
@@ -276,6 +343,9 @@ main() {
       echo "  secrets-init-guard  Run secrets-init recipient-guard tests only"
       echo "  attribution   Run commit-message attribution gate tests only"
       echo "  mr-attribution Run MR-description (forge-side) gate tests only"
+      echo "  review-allow   Run named-approver allowlist tests only"
+      echo "  signature      Run commit signature-gate tests only"
+      echo "  merge-gates  Run merge-gate and conversation-resolution tests only"
       echo "  bootstrap   Run bootstrap idempotency tests only"
       echo "  compliance  Run configuration plus compliance checks"
       echo "  help        Show this help message"

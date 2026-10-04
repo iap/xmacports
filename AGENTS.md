@@ -1,296 +1,114 @@
 # AGENTS.md
 
-## Role
+Critical operating rules for agentic edits in this repository.
 
-This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git, SSH, GPG, editor config, and small helper scripts. Keep it file-based. Do not turn it into a package-manager or provisioning system. Keep private secrets out of git. Keep the repo small, clear, and reviewable.
-
-> [!IMPORTANT]
-> Mask credentials, secrets, and API keys in conversation: never echo raw values, show provider prefix + `****` + last 4 (e.g. `ghp_****...****rMJ`). Reference secrets by name from the encrypted store, never store pasted keys in plaintext. Keep this rule mirrored in persistent memory and update both when it changes.
+**`CONTRIBUTING.md` is the single source of truth** for architecture, git
+workflow, secrets, hooks, CI, and troubleshooting. This file holds only the
+rules whose violation breaks something. If the two disagree, `CONTRIBUTING.md`
+is correct — fix this file in the same change set.
 
 ## Precedence
 
 1. Follow higher-priority user or system instructions first.
 2. Treat this file as the repo-wide default policy.
-3. Prefer more specific repo docs or task plans only when they do not conflict here.
+3. Prefer more specific repo docs only when they do not conflict here.
 
-## Environment Scope
-
-- Naming: the forge repo is called `xmacports`; the canonical checkout path is
-  `~/.dotfiles` (overridable via `DOTFILES_ROOT`). Never rename either to
-  match the other, and never hardcode `~/xmacports` — resolve paths through
-  `DOTFILES_ROOT` instead.
-- The agent working in an environment adjusts the project for that environment only.
-- This checkout runs on macOS; fixes driven by other environments (e.g. Windows,
-  WSL, other machines' layouts) are handled by the agents working there.
-- Keep shared files cross-platform-safe: do not break other hosts, but do not
-  preempt or port their fixes — let the running environment's needs drive
-  changes here.
-
-## Core Rules
-
-- Keep startup minimal and idempotent.
-- Shared config should load once, then be reused by bash and zsh.
-- Detect optional tools; do not install them.
-- Back up existing user files before replacing them.
-- Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
-- Keep changes small and reviewable.
-- See `Mise Configuration` and `No Package Manager Automation` below for the
-  tooling and dependency rules.
-
-## Repo Layout
-
-- `bootstrap.sh` links tracked files into `$HOME` and applies permissions.
-- `.profile` is the shared POSIX base for login shells.
-- `.bash_profile`, `.bashrc`, `.zprofile`, and `.zshrc` are shell entrypoints.
-- `.zshrc.d/` holds zsh-specific prompt/helpers.
-- `.config/env.d/` holds shared environment loaders.
-- `shared/` holds cross-shell functions, aliases, prompt, and secrets.
-- `bin/` holds small executables expected on `PATH`.
-- `scripts/` holds maintenance and verification helpers.
-- `tests/` holds syntax and behavior checks.
-- `templates/` and `examples/` hold user-editable starting points.
-
-## Cross-Platform Guidance
-
-- Prefer POSIX shell patterns where possible.
-- Use OS-specific branches only when behavior truly differs.
-- Keep macOS and Linux paths explicit.
-- Avoid GNU-only assumptions when a BSD-compatible fallback exists.
-- Do not hardcode package-manager workflows or install commands into normal startup.
-- `mise` shims take precedence over system package managers in PATH.
-- Use `mise exec` or `mise run` to invoke project tools; do not hardcode mise paths.
-- Global runtimes (Python via uv, Node via pnpm) managed by `mise use --global`.
-
-## No Package Manager Automation
-
-- Never make bootstrap or startup scripts install software.
-- It is fine to print manual install guidance when a tool is missing.
-- Keep docs honest about prerequisites.
-- If a required tool is absent, fail clearly and early.
-- `mise` is the **only** allowed tool manager for developer runtimes and shims.
-- MacPorts is restricted to system packages (git, gpg, coreutils).
-- All other dependencies fetched via `curl`/`wget` with SHA256 verification.
-
-## Mise Configuration
-
-Pin all versions in `.mise.toml` and CI workflows.
-
-### Project Tools (`.mise.toml`)
-- `shellcheck` — linting
-- `shfmt` — formatting
-- `age` / `age-keygen` — secret key generation
-- `sops` — secret encryption
-
-### Global Runtimes (via `mise use --global`)
-- `python` — via `uv` (preferred over system python3)
-- `node` — via `pnpm` (preferred over system node)
-
-### PATH Order (in `shared/platform.sh`)
-1. mise global shims (`~/.local/share/mise/shims`)
-2. User `~/bin`, then `~/.local/bin`
-3. Foundry (if installed)
-4. MacPorts (`/opt/local/bin`, `/opt/local/sbin`)
-5. System paths (`/usr/local/bin`, `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`, Nix profiles when present)
-
-### Verification
-Run `make verify` after any mise/MacPorts changes.
-
-## Secret Management
-
-- Secrets are managed with SOPS + age, not plaintext files.
-- The encrypted store is `secrets/secrets.enc.yaml`; the decrypted working copy is gitignored.
-- The private age key lives at `~/.config/sops/age/keys.txt` and must never be committed.
-- Access secrets on demand with `secret()`, `with_secret()`, `secret_list()`, `secrets_edit()`, `secrets_encrypt()`, `secrets_decrypt()`.
-- Never export secrets at shell startup; keep secret loading lazy and scoped.
-- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files contain SOPS ciphertext markers (fail-closed, no decryption key needed).
-
-## Git Configuration
-
-- Git reads config in this order: system → global (`~/.gitconfig`) → local (`.git/config`).
-- **Local overrides global** for the same key. In this repo, `.git/config` is the authoritative source for `user.email` and `user.name`.
-- The tracked `.gitconfig` should not duplicate repo-local identity if `.git/config` already sets it; keep global config for shared defaults and signing settings only.
-- **Recommendation**: set signing preferences globally or in tracked `.gitconfig`, but set identity (`user.email`, `user.name`) in `.git/config` to avoid accidentally applying one identity to every repo on this machine.
-
-## Git Commit Signing
-
-- Prefer **signed commits** so history is verifiable and shows "Verified" on GitHub/GitLab.
-- The signing preference lives in gitconfig — set per-repo (local) or globally:
-  - local: `git config --local commit.gpgsign true`
-  - global: `git config --global commit.gpgsign true`
-  - also enable `tag.gpgsign true` if tags should be signed.
-- The signing backend and key are configured with `gpg.format` and `user.signingkey`
-  (again, either `--local` or `--global`).
-- Author commits with the email that matches the GPG key's uid,
-  not the forge's private noreply address. A valid signature shows
-  "Unverified" on GitHub/GitLab only when the **public key is not
-  uploaded** to the account — upload it (Settings → SSH and GPG keys) to
-  get the green "Verified" check. The commit email need not be a forge-owned
-  domain as long as the signing key is registered.
-- Some users prefer **SSH signing** over GPG: set `gpg.format = ssh`,
-  point `user.signingkey` at the SSH public key path, and register the key on
-  GitHub/GitLab. SSH signing reuses keys devs already have and avoids the GPG
-  agent/pinentry setup. Verify it locally with `gpg.ssh.allowedSignersFile`
-  pointed at an allowed-signers file that maps the committer email to the SSH
-  public key; without it, `git log --show-signature` cannot check the signature.
-- **If the environment has no working GPG, use SSH signing or ask the user.**
-  Do not leave commits unsigned: sign with an SSH key (`gpg.format = ssh`,
-  `user.signingkey` set to the SSH public key path, with that key registered as a
-  signing key on GitHub/GitLab), or ask the user which signing method to use
-  before committing. Do not silently switch signing methods on a repository whose
-  history is GPG-signed.
-- Verify before pushing: `git log --show-signature -1` or `git verify-commit HEAD`.
-- Do not rewrite or force-push already-published signed history unless coordinated;
-  re-signing rewrites commit hashes and diverges from every clone/remote.
-- **Prefer internal (private, machine-local) config over tracked public config.** Identity
-  and per-machine settings — git `user.name` / `user.email` / `user.signingkey`, GPG pinentry
-  choices, shell `.local` overlays (`.bashrc.local`, `.zshrc.local`, `.profile.local`) — belong
-  in private files that are NOT committed to the public repo (e.g. `.gitconfig.local`, included
-  last by the tracked `.gitconfig`; see `examples/gitconfig-local-example`). Keep the tracked
-  files free of personal identity. Publish such settings to the public repo only when the user
-  explicitly asks.
-
-## Commit Discipline
-
-- Prefix every commit with a scoped type: `type(scope):` (e.g. `fix(secrets):`,
-  `ci:`, `docs(secrets):`). The prefix is the label — keep it specific to the change.
-- One logical change per commit. Do not bundle unrelated fixes into a single commit.
-- Subject: short and direct. The `type(scope):` prefix plus the subject carries the label;
-  do not pad the subject with filler.
-- Body: state what changed and why. No email addresses, no attribution trailers
-  (`Co-authored-by:`, `Signed-off-by:`) unless the credited party explicitly
-  asked for one, and no mechanic narration
-  (do not describe GPG/SSH internals or signing mechanics). Do not claim outcomes you have
-  not verified (e.g. "tests pass") — verify, then report.
-- No tool-attribution footers in PR/MR bodies either ("Generated with …",
-  "Co-authored-by: …"). A footer naming a tool that did not write the change
-  misattributes authorship in permanent public history. Two gates enforce this:
-  `scripts/check-attribution.sh` runs from the `commit-msg` hook for commit
-  messages, and `scripts/check-mr-attribution.sh` runs as the `attribution-check`
-  CI job for MR descriptions — the server-side job is the one that cannot be
-  skipped locally, and it blocks the merge. Override only when a truthful credit
-  was actually requested, using `SKIP_ATTRIBUTION_CHECK=1` or `--no-verify`, and
-  say so in the MR.
-- Sign commits (`commit.gpgsign true`) and author with the GPG key's uid email.
-- Keep messages minimal and reviewable; align docs, tests, and code in the same change set
-  when they are part of the same logical fix.
-
-## Branch Naming
-
-Use kebab-case with a scope prefix (`<scope>/<short-name>`). Branch names
-never use the `type(scope):` form — that shape is reserved for commit subjects.
-
-```
-fix/audit-2026-09
-feat/secrets-sync
-docs/readme-branch-naming
-```
-
-Examples:
-- `feat/secrets-sync`: add multi-machine sync
-- `fix/ci-label-jobs`: migrate from Drone to GitLab CI
-- `docs/readme-branch-naming`: document the branch naming convention
-
-## Branch-Based Workflow
-
-Never push directly to `main`. Always use topic branches:
-
-1. Create a topic branch from `origin/main`
-2. Make focused, single-purpose commits
-3. Push the topic branch
-4. Open an MR
-5. Let CI run
-6. Sync the branch with `origin/main` (recommended — see below)
-7. Merge — GitLab creates a merge commit
-
-This applies to ALL changes — code, docs, CI, everything.
-
-**Never push to the default branch.** Not fast-forward, not force, not by any
-route. Every change reaches `main` through a merge request, so GitLab authors the
-merge and history stays auditable. The `pre-push` hook enforces this locally: on the
-**authoritative remote** it refuses a push that would create, update, or delete
-`main`, and refuses any non-fast-forward update to an already-published branch.
-
-Mirror remotes are deliberately exempt. Syncing the default branch out to a mirror
-is a normal, intentional operation, and the hook's mirror policy governs what may go
-there. A push to a target that is not a configured remote is not judged by the
-default-branch rule either — it cannot reach this project's `main` at all.
-
-A bypass (`--no-verify`) exists for the rare legitimate case and must be stated in
-the MR, not used quietly.
-
-**Merge commits, not fast-forward.** The project merges with the *merge commit*
-method, so the source branch is never rewritten: its signed commits land on
-`main` unchanged. GitLab cannot sign, so the merge commit it creates is unsigned
-— expected, and the reason to judge history integrity by the branch commits.
-Merging a branch that is behind the target still works (nothing is rebased), but
-syncing first keeps the merge small and surfaces conflicts early:
-
-- While the branch is still private, `git rebase origin/main` re-creates each
-  commit and `commit.gpgsign` re-signs it.
-- Once it is published, do not rewrite it (see Git Commit Signing) — merge the
-  target in (`git merge origin/main`) instead, then push.
-- Confirm before merging: `git log --format='%h %G?' origin/main..HEAD` should
-  show `G` for every commit, so nothing unsigned reaches `main` apart from the
-  merge commit GitLab adds.
-
-**This section is the single source of truth for the merge policy.** `CONTRIBUTING.md`
-and `MANUAL.md` deliberately point here instead of restating the rules: when the
-three disagreed, the two restatements were both wrong, and one of them told the
-reader to rebase and force-push a signed published branch.
-
-## Document Callouts
-
-Use GitHub/GitLab alert syntax when writing documentation.
-Alerts also render in MR/issue bodies and commit comments. Never use them in
-commit messages — messages travel as plain text (git log, terminals, emails),
-where the syntax shows up as literal clutter. Keep commits to plain prose.
-
-```markdown
-> [!NOTE]
-> Supplemental information that's not critical to follow.
-
-> [!TIP]
-> Helpful suggestion for a better workflow or outcome.
+## Secrets
 
 > [!IMPORTANT]
-> Critical information the reader must follow to avoid breakage.
+> Mask credentials, secrets, and API keys in conversation: never echo raw
+> values. Show provider prefix + `****` + last 4 (e.g. `ghp_****...****rMJ`).
+> Reference secrets by name from the encrypted store, never store pasted keys in
+> plaintext, and never commit an age key.
 
-> [!WARNING]
-> Potential risk — data loss, security issue, or irreversible action.
+Access secrets lazily with `secret()`, `with_secret()`, and `secret_list()`. Do
+not export secrets at shell startup and do not decrypt the store to read a value
+into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
 
-> [!CAUTION]
-> Stronger than WARNING — destructive or dangerous if ignored.
+## Git safety
+
+> [!IMPORTANT]
+> Never push to the default branch. Not fast-forward, not force, not by any
+> route. Every change reaches `main` through a merge request, so the forge
+> authors the merge and history stays auditable.
+
+- Sign commits (`commit.gpgsign true`) and author with the signing key's uid
+  email, not a forge noreply address.
+- Do not rewrite or force-push already-published signed history without
+  coordinating — re-signing changes commit hashes and diverges from every clone.
+- Once a branch is pushed it is published. Rebase only before first push; after
+  that, `git merge origin/main`.
+- A green pipeline is the floor, not the trigger. An MR merges only after the
+  review conversation is resolved — every thread answered and closed.
+- Never read `approved: true` as a review: zero approvals are required here, so
+  GitLab reports that for an MR nobody reviewed. Resolved threads are the
+  record; an approval is not.
+- Every commit **submitted in the merge request** must be signed; `signature-check`
+  blocks the merge otherwise. The merge commit GitLab itself authors is unsigned by
+  necessity and is not covered; see the merge policy in CONTRIBUTING.md.
+- An author may always close their own MR; no review is needed to close one.
+- `--no-verify` bypasses the hooks. State it in the MR; never use it quietly.
+
+Before any merge, confirm nothing unsigned is queued:
+
+```bash
+git log --format='%h %G?' origin/main..HEAD    # every line must show G
 ```
 
-| Type | Use When |
-|------|----------|
-| `[!NOTE]` | Context, background, or "good to know" info |
-| `[!TIP]` | Best practice, shortcut, or recommendation |
-| `[!IMPORTANT]` | Must-follow instruction — skipping it causes failure |
-| `[!WARNING]` | Risk of data loss, security exposure, or breakage |
-| `[!CAUTION]` | Destructive/irreversible action (force-push, delete, etc.) |
+## Commit messages
 
-## Cursor Plans
+- Prefix with a scoped type: `type(scope):` — `fix(secrets):`, `ci:`,
+  `docs(secrets):`. One logical change per commit.
+- Subject: short, direct, imperative.
+- Body: what changed and why. No email addresses in prose, no `Signed-off-by:`,
+  no narration of signing mechanics. Do not claim outcomes you have not verified
+  — verify, then report.
+- No tool-attribution footers (`Generated with …`, the Claude Code link). A
+  footer naming a tool that did not write the change misattributes authorship in
+  permanent public history.
+- A `Co-authored-by:` trailer **is** allowed when it names a real contributor
+  whose address is creditable — present in git identity, `.attribution-allow`,
+  or `ATTRIBUTION_ALLOWLIST`. Do not block it. The gate judges the address, not
+  the display name.
 
-- Use `.cursor/plans/` only for temporary plan drafts.
-- Keep plan files out of git if the directory is ignored.
-- One plan per task or feature.
-- Include target files, edit order, and verification commands.
-- Do not place runtime code or bootstrap logic there.
-- Promote durable guidance into `AGENTS.md`, `README.md`, or `MANUAL.md`.
+Never use alerts (`> [!NOTE]`) in commit messages — they travel as plain text,
+where the syntax is literal clutter.
 
-## Verification
+## Tooling
 
-- Run shell syntax checks after startup-file edits.
-- Run targeted tests for environment loading, prompt helpers, and bootstrap behavior.
-- Re-check docs when file names, paths, or startup order change.
-- Verify permissions-sensitive files after bootstrap changes.
+- `mise` is the **only** tool manager for developer runtimes and shims. MacPorts
+  is restricted to system packages (`git`, `gpg`, `coreutils`).
+- Never make bootstrap or startup scripts install software. Detect optional
+  tools, do not install them. Print manual guidance when one is missing, and fail
+  clearly and early when a required one is absent.
+- Introduce new dependencies only when strictly necessary.
 
-## Change Discipline
+## Shell and platform
+
+- Keep startup minimal and idempotent. Shared config loads once, then is reused
+  by bash and zsh.
+- Back up existing user files before replacing them.
+- Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
+- Prefer POSIX shell patterns; use OS-specific branches only where behavior
+  genuinely differs. Do not break other hosts, but do not port their fixes
+  either.
+- Resolve paths through `DOTFILES_ROOT`. Never hardcode `~/xmacports`. The forge
+  repo is `xmacports`; the checkout is `~/.dotfiles` — never rename either to
+  match the other.
+- Prefer internal, private, machine-local config over tracked public config:
+  identity, signing keys, and `.local` overlays stay untracked.
+
+## Change discipline
 
 - Prefer direct edits over broad refactors.
-- Keep docs, tests, and code in sync.
-- Introduce new dependencies only when they are strictly necessary.
-- Use explicit file ownership and clear naming over clever shell indirection.
-- Prefer platform- and cwd-aware paths; avoid assuming a fixed repo location.
-- Avoid hardcoded absolute paths unless they are truly system-specific and documented.
+- Keep docs, tests, and code in sync; update every document that mentions a
+  changed path in the same change set.
+- Run `make shellcheck`, `make fmt-check`, and `make test` after changes to
+  shell files or startup order, and `make verify` after bootstrap or permission
+  changes.
+
+## Branch naming
+
+Kebab-case with a scope prefix: `<scope>/<short-name>` — `fix/audit-2026-09`,
+`feat/secrets-sync`. Branch names never use the `type(scope):` form; that shape
+is reserved for commit subjects.

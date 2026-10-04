@@ -19,7 +19,9 @@ workflow:
 stages:
   - sast
   - test
+  - signature
   - attribution
+  - gates
   - label
 
 variables:
@@ -97,7 +99,14 @@ test-zsh:
 attribution-check:
   stage: attribution
   before_script:
-    - apk add --no-cache bash curl jq
+    # git is REQUIRED here, not incidental. check-mr-attribution.sh inherits
+    # CI_MERGE_REQUEST_TARGET_BRANCH_NAME from the job environment, which sends
+    # the gate down its target-branch path; resolving that path needs git. The
+    # runner's checkout is detached at refs/merge-requests/N/head, so neither
+    # 'main' nor refs/remotes/origin/main exists locally and the gate correctly
+    # refuses with exit 2 - "cannot resolve the MR target branch". Without git it
+    # cannot even run. Jobs that omit it fail on a clean description.
+    - apk add --no-cache bash git curl jq
   script:
     - |
       if [ -z "${CI_MERGE_REQUEST_IID:-}" ]; then
@@ -109,6 +118,107 @@ attribution-check:
       # CI_MERGE_REQUEST_IID is scoped to the target project. Pairing them would
       # query the wrong project and fail closed on every fork MR.
       sh scripts/check-mr-attribution.sh "${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-$CI_PROJECT_ID}" "${CI_MERGE_REQUEST_IID}"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# Every commit in an MR must carry a good GPG signature.
+#
+# This is a mechanical floor, not a stand-in for review: a signed commit nobody
+# read is still an unreviewed commit. Before this job, commit.gpgsign was a
+# local preference, push rules (reject_unsigned_commits) are not available on
+# this project's GitLab plan, and no other job verified signatures - so an
+# unsigned commit could reach main through a green pipeline.
+#
+# gnupg is installed so %G? can evaluate a signature at all, and the SIGNING
+# key's public half is imported from keys/iap-signing-key.asc. Both are needed:
+# without gnupg, and without the key, git reports E (cannot be checked) for every
+# commit, which check-signatures.sh rejects by design - so a job missing either
+# fails on correctly signed commits. With the key, a commit signed by it reports
+# U (good signature, unknown validity) and is accepted; requiring G needs a
+# trust anchor and therefore stays a local check. A commit signed by a different
+# key still reports E and fails, which is the property that makes this worth
+# running. See CONTRIBUTING.md, "Signature verification".
+#
+# Fails closed when the base SHA is absent: this job's rules only run it in
+# merge_request_event, where CI_MERGE_REQUEST_DIFF_BASE_SHA is documented as
+# present, so its absence is an anomaly and not a case to pass quietly.
+#
+# Not allow_failure: the project's "pipelines must succeed" setting blocks the
+# merge, which is the free-tier equivalent of an external status check.
+signature-check:
+  stage: signature
+  before_script:
+    - apk add --no-cache bash git gnupg
+    # Import the SIGNING key's public half, or %G? reports E for every commit.
+    # E means "cannot be checked", which check-signatures.sh rejects by design,
+    # so without this the job fails on correctly signed commits. Only the public
+    # key is needed and only to VERIFY; it is not a secret, and it is tracked so a
+    # change to it is reviewable. With it, a commit signed by any OTHER key also
+    # reports E and fails, which is what makes the check worth having.
+    #
+    # Read from the TARGET branch, never from the checkout: the working tree is
+    # the MR's own content, so an MR could ship its own key and then have this
+    # job validate its commits with it - the check would approve itself. Same
+    # reason the attribution allowlist is read from the target side. The key must
+    # already exist on the target branch, which is the property that makes it
+    # trustworthy; a NEW key cannot be introduced by the MR that needs it.
+    - |
+      set -eu
+      KEY_REF="refs/remotes/origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+      if ! git rev-parse --verify --quiet "${KEY_REF}^{commit}" > /dev/null; then
+        git fetch --no-tags --depth 1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+      fi
+      if ! git cat-file -e "${KEY_REF}:keys/iap-signing-key.asc" 2> /dev/null; then
+        echo "ERROR: no signing key at ${KEY_REF}:keys/iap-signing-key.asc" >&2
+        echo "Refusing to import one from the MR checkout: the MR chooses its own" >&2
+        echo "validator. Add the key to the target branch first." >&2
+        exit 1
+      fi
+      git show "${KEY_REF}:keys/iap-signing-key.asc" | gpg --batch --import
+      echo "Imported signing key from ${KEY_REF}"
+  script:
+    - |
+      if [ -z "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
+        echo "ERROR: merge_request_event pipeline with no CI_MERGE_REQUEST_DIFF_BASE_SHA." >&2
+        echo "No base means no range, and an empty range reads as 'nothing unsigned'." >&2
+        exit 1
+      fi
+      sh scripts/check-signatures.sh "$CI_MERGE_REQUEST_DIFF_BASE_SHA" "$CI_COMMIT_SHA"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+
+# The merge trigger: an MR merges when its review conversation is resolved, not
+# when CI turns green. GitLab enforces that with
+# only_allow_merge_if_all_discussions_are_resolved; this job proves the setting is
+# still armed, and reports the open threads while there are any.
+#
+# Why read the setting back instead of trusting it: forge settings live outside
+# every clone and decay silently, so "discussions must be resolved" is only true
+# while somebody checks. Left green, a toggled setting is indistinguishable from
+# a satisfied one until an unresolved MR merges.
+#
+# Two properties keep this job honest. It asserts the POLICY (settings, force-push
+# protection) and reports the CONVERSATION, because the transient half is the
+# forge's job to evaluate at merge time: threads get resolved after this pipeline
+# ran, and resolving a thread does not trigger a new pipeline, so failing the
+# build on them would latch red with no automatic way back. The forge setting
+# blocks the merge button on the live state; this job makes the disarmament
+# visible.
+#
+# It never reads the approvals endpoint. Zero approvals are required on this
+# project, so GitLab answers approved:true for an MR nobody reviewed - honoring
+# that would report a review that never happened.
+#
+# GITLAB_API_TOKEN needs api scope: the anonymous responses omit the merge
+# settings entirely, so a tokenless read would have to assume they hold.
+merge-gates:
+  stage: gates
+  before_script:
+    - apk add --no-cache bash curl jq
+  script:
+    - |
+      sh scripts/check-merge-gates.sh \
+        "${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-$CI_PROJECT_ID}" "${CI_MERGE_REQUEST_IID}"
   rules:
     - if: $CI_PIPELINE_SOURCE == "merge_request_event"
 
