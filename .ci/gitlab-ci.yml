@@ -155,7 +155,27 @@ signature-check:
     # key is needed and only to VERIFY; it is not a secret, and it is tracked so a
     # change to it is reviewable. With it, a commit signed by any OTHER key also
     # reports E and fails, which is what makes the check worth having.
-    - gpg --batch --import keys/iap-signing-key.asc
+    #
+    # Read from the TARGET branch, never from the checkout: the working tree is
+    # the MR's own content, so an MR could ship its own key and then have this
+    # job validate its commits with it - the check would approve itself. Same
+    # reason the attribution allowlist is read from the target side. The key must
+    # already exist on the target branch, which is the property that makes it
+    # trustworthy; a NEW key cannot be introduced by the MR that needs it.
+    - |
+      set -eu
+      KEY_REF="refs/remotes/origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+      if ! git rev-parse --verify --quiet "${KEY_REF}^{commit}" > /dev/null; then
+        git fetch --no-tags --depth 1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+      fi
+      if ! git cat-file -e "${KEY_REF}:keys/iap-signing-key.asc" 2> /dev/null; then
+        echo "ERROR: no signing key at ${KEY_REF}:keys/iap-signing-key.asc" >&2
+        echo "Refusing to import one from the MR checkout: the MR chooses its own" >&2
+        echo "validator. Add the key to the target branch first." >&2
+        exit 1
+      fi
+      git show "${KEY_REF}:keys/iap-signing-key.asc" | gpg --batch --import
+      echo "Imported signing key from ${KEY_REF}"
   script:
     - |
       if [ -z "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
