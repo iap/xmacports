@@ -43,7 +43,9 @@ into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
 - Never read `approved: true` as a review: zero approvals are required here, so
   GitLab reports that for an MR nobody reviewed. Resolved threads are the
   record; an approval is not.
-- Every commit must be signed; `signature-check` blocks the merge otherwise.
+- Every commit **submitted in the merge request** must be signed; `signature-check`
+  blocks the merge otherwise. The merge commit GitLab itself authors is unsigned by
+  necessity and is not covered; see the merge policy in CONTRIBUTING.md.
 - An author may always close their own MR; no review is needed to close one.
 - `--no-verify` bypasses the hooks. State it in the MR; never use it quietly.
 

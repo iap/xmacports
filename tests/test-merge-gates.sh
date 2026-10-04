@@ -74,6 +74,14 @@ def body(name):
 class Handler(http.server.BaseHTTPRequestHandler):
     def do_GET(self):
         path = urlparse(self.path).path
+        # Optional: reject any request carrying an auth header with 401, so a
+        # case can exercise the authenticated-fails / anonymous-succeeds path.
+        if os.path.exists(os.path.join(root, "auth401")) and (
+            self.headers.get("PRIVATE-TOKEN") or self.headers.get("Authorization")
+        ):
+            self.send_response(401)
+            self.end_headers()
+            return
         if path.endswith("/discussions"):
             payload = body("disc")
         elif re.search(r"/merge_requests/[^/]+$", path):
@@ -282,6 +290,31 @@ PY
   # A protected branch that cannot be read leaves published history unguarded.
   rm -f "$TMP/prot.json"
   run 2 "unreadable protected-branch settings are rc=2"
+  prime_clean
+
+  # --- a failed token must stay diagnosable --------------------------------
+  # Both fetch attempts used to redirect into the SAME $err, so when the
+  # authenticated request 401'd and the anonymous retry succeeded, the retry
+  # overwrote the evidence and fetch returned 0 with nothing printed. An invalid
+  # or expired CI_JOB_TOKEN then produced a clean-looking run and no clue why -
+  # which is the state a real pipeline was stuck in. The authenticated error is
+  # now kept and reported even when the anonymous read succeeds.
+  touch "$TMP/auth401"
+  # run() discards output, so invoke the gate directly to inspect stderr.
+  OUT=$(GITLAB_API_URL="http://127.0.0.1:${PORT}/api/v4" GITLAB_API_TOKEN=x \
+    sh "$SCRIPT" 1 7 2>&1) || true
+  case "$OUT" in
+    *401* | *"authenticated read"*) ok "a failed token attempt is still reported" ;;
+    *) no "a failed token attempt is still reported" ;;
+  esac
+  rm -f "$TMP/auth401"
+  prime_clean
+
+  # And the fail-closed path must survive that change: when BOTH attempts fail,
+  # fetch still has to return 2, or an unreadable gate would read as clean.
+  #
+  rm -f "$TMP/project.json"
+  run 2 "unreadable project with no anonymous fallback is rc=2 (fail-closed kept)"
   prime_clean
 
   # A violation must not be masked by an unverifiable check in the same run:

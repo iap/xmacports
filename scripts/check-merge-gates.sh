@@ -74,7 +74,12 @@ MR="$(mktemp "${TMPDIR:-/tmp}/mrgates-mr.XXXXXX")" || exit 2
 PROT="$(mktemp "${TMPDIR:-/tmp}/mrgates-prot.XXXXXX")" || exit 2
 DISC="$(mktemp "${TMPDIR:-/tmp}/mrgates-disc.XXXXXX")" || exit 2
 err="$(mktemp "${TMPDIR:-/tmp}/mrgates-err.XXXXXX")" || exit 2
-trap 'rm -f "$PROJ" "$MR" "$PROT" "$DISC" "$err"' EXIT INT TERM
+# Separate file for the AUTHENTICATED attempt. Both attempts used to redirect
+# into $err, so a failing token request was overwritten by the anonymous retry
+# and vanished on success - leaving a broken or expired CI_JOB_TOKEN with no
+# trace at all, which is exactly the failure this script could not explain.
+err_auth="$(mktemp "${TMPDIR:-/tmp}/mrgates-err-auth.XXXXXX")" || exit 2
+trap 'rm -f "$PROJ" "$MR" "$PROT" "$DISC" "$err" "$err_auth"' EXIT INT TERM
 
 failed=0
 
@@ -103,16 +108,33 @@ fetch() {
   _f_url="$1"
   _f_dest="$2"
   _f_label="$3"
-  if curl -fsS -H "PRIVATE-TOKEN: ${TOKEN}" -H "Authorization: Bearer ${TOKEN}" \
-    "$_f_url" -o "$_f_dest" 2> "$err"; then
+  if curl -fsS -H "PRIVATE-TOKEN: ${TOKEN}" -H "Authorization: Bearer ***" \
+    "$_f_url" -o "$_f_dest" 2> "$err_auth"; then
     return 0
   fi
   if curl -fsS "$_f_url" -o "$_f_dest" 2> "$err"; then
+    # The anonymous read worked, so this fetch is not a failure. The
+    # authenticated attempt still was, though, and that is worth saying out
+    # loud: it is the difference between "the token is valid but not needed"
+    # and "the token is broken and this check is running degraded". A 401 here
+    # is usually why a policy field looks absent further down.
+    if [ -s "$err_auth" ]; then
+      echo "note: authenticated read of ${_f_label} failed; fell back to an" >&2
+      echo "      anonymous read, so a broken or expired token would go" >&2
+      echo "      unnoticed here. That attempt reported:" >&2
+      sed 's/^/      /' "$err_auth" >&2
+    fi
     return 0
   fi
   echo "ERROR: could not fetch ${_f_label} from ${_f_url}" >&2
+  # Both attempts failed; report the authenticated one too, not just the last.
+  if [ -s "$err_auth" ]; then
+    echo "  authenticated attempt reported:" >&2
+    sed 's/^/    /' "$err_auth" >&2
+  fi
   if [ -s "$err" ]; then
-    sed 's/^/  /' "$err" >&2
+    echo "  anonymous attempt reported:" >&2
+    sed 's/^/    /' "$err" >&2
   fi
   echo "Treating unverifiable merge gates as a FAILURE, not a pass." >&2
   return 2

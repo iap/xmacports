@@ -65,6 +65,12 @@ shared/prompt.sh
 ~/.profile.local     (loaded exactly once per session)
 ```
 
+That order is the one a **login** shell follows. `~/.profile.local` is the sole
+exception: an interactive non-login bash sources it from `.bashrc`, after
+`platform.sh` has built `PATH`, so its additions take precedence in that one
+case. A single flat list cannot show both, which is why the next paragraph
+spells the difference out.
+
 `~/.profile.local` is loaded exactly once per shell session, guarded by
 `DOTFILES_PROFILE_LOCAL_LOADED`. `.profile` sources it, so a login shell loads
 it before `platform.sh` builds `PATH`. Under zsh, `.zshrc` sources `.profile` on
