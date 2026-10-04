@@ -220,6 +220,14 @@ fi
 if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
   MREPO="$TMP/mrrepo"
   git clone -q --no-hardlinks --depth 1 "file://$ROOT" "$MREPO" > /dev/null 2>&1
+  # Isolate from the host signing config, for the same reason as the fixture
+  # below: this clone inherits the tracked .gitconfig, which includes
+  # .gitconfig.local where `gpgsign = true` can be set. With no usable key in
+  # a non-interactive run the two fixture commits would fail with exit 128
+  # and write nothing, leaving refs/remotes/origin/main on a commit that never
+  # carried the allowlist. The gate would then fail closed for a reason that
+  # has nothing to do with the gate.
+  git -C "$MREPO" config commit.gpgsign false
   if [ -d "$MREPO/.git" ]; then
     base=$(git -C "$MREPO" rev-parse HEAD)
     # Two commits on the MR's source branch: the first establishes a target-side
@@ -229,12 +237,18 @@ if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
     printf 'mr-allowlisted@example.invalid\n' > "$MREPO/.attribution-allow"
     git -C "$MREPO" add -A > /dev/null 2>&1
     git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
-      commit -qm "target branch carries the allowlist" > /dev/null 2>&1
+      commit -qm "target branch carries the allowlist" > /dev/null 2>&1 || {
+      echo "ERROR: fixture commit failed (target)" >&2
+      exit 1
+    }
     target=$(git -C "$MREPO" rev-parse HEAD)
     printf 'mr-widened@example.invalid\n' >> "$MREPO/.attribution-allow"
     git -C "$MREPO" add -A > /dev/null 2>&1
     git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
-      commit -qm "mr widens the allowlist" > /dev/null 2>&1
+      commit -qm "mr widens the allowlist" > /dev/null 2>&1 || {
+      echo "ERROR: fixture commit failed (widen)" >&2
+      exit 1
+    }
     # Now point origin/main at the narrower commit: it stands in for the target
     # branch, which the MR cannot change.
     git -C "$MREPO" update-ref "refs/remotes/origin/main" "$target"
@@ -249,7 +263,10 @@ if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
     printf 'x\n\nCo-authored-by: W <worktree-allowlisted@example.invalid>\n' > "$TMP/mr-wt.md"
 
     if git -C "$MREPO" rev-parse --verify --quiet 'refs/heads/main' > /dev/null 2>&1; then
-      echo "note clone has a local main; skipping the shallow-layout case"
+      echo "ERROR: shallow clone unexpectedly has a local main." >&2
+      echo "  The fixture would no longer reproduce the MR-runner layout, so" >&2
+      echo "  the assertions below would pass without testing anything." >&2
+      exit 1
     else
       expect_rc 0 "resolves the MR target via refs/remotes/origin/<name>" \
         env CI_MERGE_REQUEST_IID=42 \
