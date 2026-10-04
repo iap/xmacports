@@ -1,17 +1,17 @@
 # AGENTS.md
 
-## Role
+Critical operating rules for agentic edits in this repository.
 
-This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git, SSH, GPG, editor config, and small helper scripts. Keep it file-based. Do not turn it into a package-manager or provisioning system. Keep private secrets out of git. Keep the repo small, clear, and reviewable.
-
-> [!IMPORTANT]
-> Mask credentials, secrets, and API keys in conversation: never echo raw values, show provider prefix + `****` + last 4 (e.g. `ghp_****...****rMJ`). Reference secrets by name from the encrypted store, never store pasted keys in plaintext. Keep this rule mirrored in persistent memory and update both when it changes.
+**`CONTRIBUTING.md` is the single source of truth** for architecture, git
+workflow, secrets, hooks, CI, and troubleshooting. This file holds only the
+rules whose violation breaks something. If the two disagree, `CONTRIBUTING.md`
+is correct — fix this file in the same change set.
 
 ## Precedence
 
 1. Follow higher-priority user or system instructions first.
 2. Treat this file as the repo-wide default policy.
-3. Prefer more specific repo docs or task plans only when they do not conflict here.
+3. Prefer more specific repo docs only when they do not conflict here.
 
 ## Environment Scope
 
@@ -75,8 +75,11 @@ This repo is a cross-platform dotfiles home. Use it to manage shell startup, Git
   requires sudo, and its support matrix does not cover every macOS release. When
   that happens, build git from the official tarball into a user-owned prefix with
   `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
-  - the version and its SHA256 are pinned at the top of the script, and the checksum
-    is corroborated against upstream's published manifest at build time
+  - the version and its SHA256 are pinned at the top of the script; that pin is the
+    trust anchor, and the checksum is verified against it
+  - upstream's published manifest is fetched as a cross-check when reachable, but its
+    PGP signature is **not** verified, so a match is corroboration and never independent
+    proof. An unreachable manifest is a warning; a disagreement is always fatal
   - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
     system and package-managed prefixes are refused outright
   - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
@@ -239,46 +242,102 @@ where the syntax shows up as literal clutter. Keep commits to plain prose.
 
 > [!TIP]
 > Helpful suggestion for a better workflow or outcome.
+## Secrets
 
 > [!IMPORTANT]
-> Critical information the reader must follow to avoid breakage.
+> Mask credentials, secrets, and API keys in conversation: never echo raw
+> values. Show provider prefix + `****` + last 4 (e.g. `ghp_****...****rMJ`).
+> Reference secrets by name from the encrypted store, never store pasted keys in
+> plaintext, and never commit an age key.
 
-> [!WARNING]
-> Potential risk — data loss, security issue, or irreversible action.
+Access secrets lazily with `secret()`, `with_secret()`, and `secret_list()`. Do
+not export secrets at shell startup and do not decrypt the store to read a value
+into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
 
-> [!CAUTION]
-> Stronger than WARNING — destructive or dangerous if ignored.
+## Git safety
+
+> [!IMPORTANT]
+> Never push to the default branch. Not fast-forward, not force, not by any
+> route. Every change reaches `main` through a merge request, so the forge
+> authors the merge and history stays auditable.
+
+- Sign commits (`commit.gpgsign true`) and author with the signing key's uid
+  email, not a forge noreply address.
+- Do not rewrite or force-push already-published signed history without
+  coordinating — re-signing changes commit hashes and diverges from every clone.
+- Once a branch is pushed it is published. Rebase only before first push; after
+  that, `git merge origin/main`.
+- A green pipeline is the floor, not the trigger. An MR merges only after the
+  review conversation is resolved — every thread answered and closed.
+- Never read `approved: true` as a review: zero approvals are required here, so
+  GitLab reports that for an MR nobody reviewed. Resolved threads are the
+  record; an approval is not.
+- Every commit **submitted in the merge request** must be signed; `signature-check`
+  blocks the merge otherwise. The merge commit GitLab itself authors is unsigned by
+  necessity and is not covered; see the merge policy in CONTRIBUTING.md.
+- An author may always close their own MR; no review is needed to close one.
+- `--no-verify` bypasses the hooks. State it in the MR; never use it quietly.
+
+Before any merge, confirm nothing unsigned is queued:
+
+```bash
+git log --format='%h %G?' origin/main..HEAD    # every line must show G
 ```
 
-| Type | Use When |
-|------|----------|
-| `[!NOTE]` | Context, background, or "good to know" info |
-| `[!TIP]` | Best practice, shortcut, or recommendation |
-| `[!IMPORTANT]` | Must-follow instruction — skipping it causes failure |
-| `[!WARNING]` | Risk of data loss, security exposure, or breakage |
-| `[!CAUTION]` | Destructive/irreversible action (force-push, delete, etc.) |
+## Commit messages
 
-## Cursor Plans
+- Prefix with a scoped type: `type(scope):` — `fix(secrets):`, `ci:`,
+  `docs(secrets):`. One logical change per commit.
+- Subject: short, direct, imperative.
+- Body: what changed and why. No email addresses in prose, no `Signed-off-by:`,
+  no narration of signing mechanics. Do not claim outcomes you have not verified
+  — verify, then report.
+- No tool-attribution footers (`Generated with …`, the Claude Code link). A
+  footer naming a tool that did not write the change misattributes authorship in
+  permanent public history.
+- A `Co-authored-by:` trailer **is** allowed when it names a real contributor
+  whose address is creditable — present in git identity, `.attribution-allow`,
+  or `ATTRIBUTION_ALLOWLIST`. Do not block it. The gate judges the address, not
+  the display name.
 
-- Use `.cursor/plans/` only for temporary plan drafts.
-- Keep plan files out of git if the directory is ignored.
-- One plan per task or feature.
-- Include target files, edit order, and verification commands.
-- Do not place runtime code or bootstrap logic there.
-- Promote durable guidance into `AGENTS.md`, `README.md`, or `MANUAL.md`.
+Never use alerts (`> [!NOTE]`) in commit messages — they travel as plain text,
+where the syntax is literal clutter.
 
-## Verification
+## Tooling
 
-- Run shell syntax checks after startup-file edits.
-- Run targeted tests for environment loading, prompt helpers, and bootstrap behavior.
-- Re-check docs when file names, paths, or startup order change.
-- Verify permissions-sensitive files after bootstrap changes.
+- `mise` is the **only** tool manager for developer runtimes and shims. MacPorts
+  is restricted to system packages (`git`, `gpg`, `coreutils`).
+- Never make bootstrap or startup scripts install software. Detect optional
+  tools, do not install them. Print manual guidance when one is missing, and fail
+  clearly and early when a required one is absent.
+- Introduce new dependencies only when strictly necessary.
 
-## Change Discipline
+## Shell and platform
+
+- Keep startup minimal and idempotent. Shared config loads once, then is reused
+  by bash and zsh.
+- Back up existing user files before replacing them.
+- Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
+- Prefer POSIX shell patterns; use OS-specific branches only where behavior
+  genuinely differs. Do not break other hosts, but do not port their fixes
+  either.
+- Resolve paths through `DOTFILES_ROOT`. Never hardcode `~/xmacports`. The forge
+  repo is `xmacports`; the checkout is `~/.dotfiles` — never rename either to
+  match the other.
+- Prefer internal, private, machine-local config over tracked public config:
+  identity, signing keys, and `.local` overlays stay untracked.
+
+## Change discipline
 
 - Prefer direct edits over broad refactors.
-- Keep docs, tests, and code in sync.
-- Introduce new dependencies only when they are strictly necessary.
-- Use explicit file ownership and clear naming over clever shell indirection.
-- Prefer platform- and cwd-aware paths; avoid assuming a fixed repo location.
-- Avoid hardcoded absolute paths unless they are truly system-specific and documented.
+- Keep docs, tests, and code in sync; update every document that mentions a
+  changed path in the same change set.
+- Run `make shellcheck`, `make fmt-check`, and `make test` after changes to
+  shell files or startup order, and `make verify` after bootstrap or permission
+  changes.
+
+## Branch naming
+
+Kebab-case with a scope prefix: `<scope>/<short-name>` — `fix/audit-2026-09`,
+`feat/secrets-sync`. Branch names never use the `type(scope):` form; that shape
+is reserved for commit subjects.

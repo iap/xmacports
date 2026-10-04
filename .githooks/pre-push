@@ -1,15 +1,16 @@
 #!/bin/sh
-# Pre-push hook: block topic-branch pushes to a mirror remote.
+# Pre-push hook: two policies, one pass over the push description.
 #
-# Derives everything from the CLONE's own git config — it hardcodes no host,
-# no remote name, and no topology. On a single-remote clone it exits
-# immediately, so it is a no-op for most contributors.
+#   1. default-branch / force-push guard  (scripts/guard-default-branch)
+#   2. mirror guard                       (this file, unchanged logic)
 #
-# Rationale: when a repo has a mirror remote alongside its authoritative one,
-# pushing a topic branch to the mirror is wrong (the mirror is not a review
-# target, and an automatic mirror may replicate the branch back anyway).
+# Both need git's pre-push stdin, but stdin is a stream and only one consumer can
+# read it, so it is buffered once into a file and each policy reads that file.
 #
-# Bypass, if ever needed: git push --no-verify
+# The default-branch guard runs as a SEPARATE PROCESS, not sourced. An earlier
+# revision sourced it, and because it ended with `exit 0` that exit terminated this
+# whole hook - the mirror guard below never ran, and tests/test-pre-push-hook.sh
+# caught it. Never source a policy that can exit; run it.
 
 set -e
 
@@ -22,26 +23,59 @@ remote="$1"
 # `git push git@github.com:iap/xmacports.git my-topic`). Resolve the URL back
 # to its configured remote name so the policy below still applies — otherwise
 # the guard would be trivially bypassed by naming the mirror's URL directly.
+# Resolve the push target to a configured remote name. `git push` accepts a remote
+# NAME, a URL, or a local path, and the guard can only judge the push if it knows
+# which remote it is. Match on shape AND on actual url comparison, so a
+# scp-style url, an https url, and a plain filesystem path all resolve; comparing
+# both the fetch and the push url covers `git remote set-url --push`.
 case "$remote" in
-  *://* | *@*:*)
+  *://* | *@*:* | */*)
     _resolved=""
     for r in $(git remote); do
-      _url=$(git remote get-url "$r" 2> /dev/null || true)
-      [ "$_url" = "$remote" ] && {
+      _fetch=$(git remote get-url "$r" 2> /dev/null || true)
+      _push=$(git remote get-url --push "$r" 2> /dev/null || true)
+      if [ "$_fetch" = "$remote" ] || [ "$_push" = "$remote" ]; then
         _resolved="$r"
         break
-      }
+      fi
     done
     if [ -n "$_resolved" ]; then
       remote="$_resolved"
     else
-      # Unknown URL with no matching remote: treat as a non-authoritative
-      # push and let the rest of the policy decide (don't silently exit 0).
+      # An unrecognised target (a URL or path belonging to no configured
+      # remote) is NOT the authoritative remote. Leave the raw value in
+      # place: the guard treats "not equal to the authoritative remote" as
+      # non-authoritative, and the mirror guard below refuses topic branches
+      # to it. Do not silently exit 0 here.
       :
     fi
     ;;
 esac
 
+# Buffer stdin ONCE. Fail CLOSED if that is not possible: if the buffer cannot be
+# created, neither policy can be evaluated, and allowing the push would make a
+# guard that cannot run look like a guard that passed.
+if ! _push_lines=$(mktemp "${TMPDIR:-/tmp}/pre-push.XXXXXX" 2> /dev/null); then
+  echo "ERROR: cannot buffer the pre-push description (mktemp failed)." >&2
+  echo "       Neither push policy could be evaluated, so the push is refused." >&2
+  echo "       Fix TMPDIR/free space, or override with: git push --no-verify" >&2
+  exit 1
+fi
+trap 'rm -f "$_push_lines"' EXIT INT TERM
+cat > "$_push_lines"
+
+# --- 1. default-branch and force-push guard ---------------------------------
+_guard="$(git rev-parse --show-toplevel 2> /dev/null)/scripts/guard-default-branch"
+if [ -x "$_guard" ]; then
+  "$_guard" "$_push_lines" "$remote" || exit 1
+elif [ -x "$(dirname "$0")/guard-default-branch" ]; then
+  "$(dirname "$0")/guard-default-branch" "$_push_lines" "$remote" || exit 1
+else
+  echo "WARNING: default-branch guard not found at $_guard" >&2
+  echo "         continuing without it - do not push to the default branch." >&2
+fi
+
+# --- 2. mirror guard --------------------------------------------------------
 # Single remote => no ambiguity possible.
 [ "$(git remote | grep -c .)" -gt 1 ] || exit 0
 
@@ -65,6 +99,8 @@ authoritative=$(git config "branch.$default_branch.remote" 2> /dev/null || true)
 
 # Non-authoritative remote: allow default-branch and tag syncing, block topic
 # branches. stdin lines are: <local ref> <local oid> <remote ref> <remote oid>
+# Read the BUFFER, not stdin: it was drained above, so a plain `while read` here
+# would see EOF and allow everything - which silently disabled this policy once.
 while read -r _localref _localoid remoteref _remoteoid; do
   [ -n "$remoteref" ] || continue
   # A delete ref has an all-zero LOCAL oid (the source ref is being removed);
@@ -89,6 +125,6 @@ while read -r _localref _localoid remoteref _remoteoid; do
   echo "       Use: git push $authoritative $branch" >&2
   echo "       Override (rare): git push --no-verify $remote $branch" >&2
   exit 1
-done
+done < "$_push_lines"
 
 exit 0

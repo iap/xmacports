@@ -1,0 +1,40 @@
+# Apps permitted to supply an approving review for a merge request.
+#
+# NOT the merge trigger. An MR merges when its review conversation is resolved -
+# every thread answered and closed - which the forge enforces via
+# only_allow_merge_if_all_discussions_are_resolved and `merge-gates` verifies.
+# See CONTRIBUTING.md, "Merge gates". This file is not read by that gate: nothing
+# here can decide whether a conversation is finished.
+#
+# What this records is the *stronger* requirement, for the day a second reviewer
+# exists: an approving review from a collaborator, or from an app named here that
+# is installed on this repository and submits a real review submission - not a CI
+# status, not a comment. Until then it stays empty, because a required approval
+# on a single-author repo deadlocks every MR (block self-approval and none can
+# merge; allow it and the only approver is the author).
+#
+# Note that whether an app CAN approve is a property of the forge, not of this
+# file: GitLab approvals are cast by users holding permission, so a bot account
+# may be unable to approve at all. Verify on a throwaway MR before relying on an
+# entry here.
+#
+# Why a named list instead of "any installed app": an app holding review rights
+# on this repository can approve anything unconditionally, so "any installed
+# app" reduces the requirement to a rubber stamp that any future integration can
+# satisfy. Naming the approver makes granting that power a deliberate,
+# reviewable edit rather than a side effect of installing something.
+#
+# This file is the auditable record of WHO may approve, so it is TRACKED. An
+# untracked copy is invisible to every other clone and to the maintainer's own
+# review of a change to this policy. Changing it is a review-policy change:
+# review it like one.
+#
+# One bot account per line, written as the account the review is submitted as
+# (for GitHub, the app's bot login, e.g. `some-app[bot]`; for GitLab, the bot
+# user). Blank lines and #-comments are ignored. Do not add a wildcard, a bare
+# organization name, or any entry that is not an account that can actually submit
+# a review here.
+#
+# EMPTY IS FAIL-CLOSED. With no entry below, no app may approve, and only a
+# collaborator can satisfy the requirement. tests/test-review-allow.sh asserts
+# that no entry is a glob, an email address, or contains internal whitespace.
