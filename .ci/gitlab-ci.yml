@@ -166,7 +166,13 @@ signature-check:
       set -eu
       KEY_REF="refs/remotes/origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
       if ! git rev-parse --verify --quiet "${KEY_REF}^{commit}" > /dev/null; then
-        git fetch --no-tags --depth 1 origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
+        # Full fetch on purpose: a depth-limited fetch records the fetched tip
+        # as a shallow root, so once the branch has synced with the target,
+        # that tip is also the base of the checked range and rev-list can no
+        # longer exclude the base's ancestry - the range floods (62 commits
+        # read where 3 belong). The repository is small; the full fetch is
+        # cheap.
+        git fetch --no-tags origin "${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
       fi
       if ! git cat-file -e "${KEY_REF}:keys/iap-signing-key.asc" 2> /dev/null; then
         echo "ERROR: no signing key at ${KEY_REF}:keys/iap-signing-key.asc" >&2
