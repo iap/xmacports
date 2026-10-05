@@ -380,6 +380,10 @@ fi
 mkdir -p "$stub_dir/gnu" "$stub_dir/bsd"
 
 # GNU coreutils sha256sum: takes no algorithm flag and rejects -a outright.
+# Each stub enforces the CLI contract the installer must observe - GNU sha256sum
+# rejects -a, BSD shasum requires -a 256 - but must also work on hosts that have
+# neither tool. Both fall back to openssl, because the CI image has only openssl,
+# which is why the first attempt failed there while passing locally.
 cat > "$stub_dir/gnu/sha256sum" << 'STUB'
 #!/usr/bin/env bash
 for a in "$@"; do
@@ -387,7 +391,13 @@ for a in "$@"; do
     -a|--algorithm) echo "sha256sum: invalid option -- '$a'" >&2; exit 1 ;;
   esac
 done
-exec /usr/bin/shasum -a 256 "$@"
+if command -v /usr/bin/shasum >/dev/null 2>&1; then
+  exec /usr/bin/shasum -a 256 "$@"
+elif command -v openssl >/dev/null 2>&1; then
+  openssl dgst -sha256 "$@"
+else
+  echo "no sha256 tool available" >&2; exit 1
+fi
 STUB
 
 # BSD shasum: requires -a 256 and fails without it.
@@ -396,24 +406,45 @@ cat > "$stub_dir/bsd/shasum" << 'STUB'
 found=0
 for a in "$@"; do [ "$a" = "256" ] && found=1; done
 [ "$found" = 1 ] || { echo "shasum: no -a given" >&2; exit 1; }
-exec /usr/bin/shasum "$@"
+if command -v /usr/bin/shasum >/dev/null 2>&1; then
+  exec /usr/bin/shasum "$@"
+elif command -v openssl >/dev/null 2>&1; then
+  openssl dgst -sha256 "$@"
+else
+  echo "no sha256 tool available" >&2; exit 1
+fi
 STUB
 chmod +x "$stub_dir/gnu/sha256sum" "$stub_dir/bsd/shasum"
 
 probe="$(mktemp "${TMPDIR:-/tmp}/dotfiles-shaprobe.XXXXXX")"
 printf 'probe content' > "$probe"
-want="$(/usr/bin/shasum -a 256 "$probe" | awk '{print $1}')"
+# The reference digest must be computable on whatever host runs this suite, so
+# use the same fallback the installer's own find_sha_tool would: sha256sum, then
+# shasum, then openssl. Do not hardcode /usr/bin/shasum - the CI image has neither
+# shasum nor sha256sum and only openssl, which is why the first attempt failed
+# there while passing locally.
+# sha256sum and shasum print "hash filename", openssl prints "(stdin)= hash", so
+# take the FIRST field in every case. Taking $NF instead returned the filename for
+# shasum and sha256sum, leaving want empty and both probe cases failing.
+want="$({ command -v sha256sum > /dev/null 2>&1 && sha256sum "$probe" || command -v shasum > /dev/null 2>&1 && shasum -a 256 "$probe" || openssl dgst -sha256 "$probe"; } | awk '{print $1}')"
+if [ -z "$want" ]; then
+  bad "no SHA256 tool on this host to compute the reference digest"
+else
+  ok "reference digest computed with $(command -v sha256sum > /dev/null 2>&1 && echo sha256sum || command -v shasum > /dev/null 2>&1 && echo shasum || echo openssl)"
+fi
 
 # GNU present: find_sha_tool must select sha256sum with NO algorithm flag.
+# The function is sourced from the installer verbatim; the probe file is passed as
+# an argument, never as $0, so the quoting cannot confuse the two.
 if got="$(PATH="$stub_dir/gnu:/usr/bin:/bin" /bin/sh -c '
   . '"$stub_dir"'/fn.sh
   cmd="$(find_sha_tool)"
   case "$cmd" in
-    sha256sum)    exec sha256sum "$0" ;;
-    "sha256sum "*) exec sha256sum "$0" ;;
+    sha256sum)    exec sha256sum "$1" ;;
+    "sha256sum "*) exec sha256sum "$1" ;;
     *) echo "selected: $cmd" >&2; exit 3 ;;
   esac
-' "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
+' _ "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
   ok "GNU sha256sum is called without -a and still digests correctly"
 else
   bad "GNU sha256sum path broken: $got (want $want)"
@@ -424,10 +455,10 @@ if got="$(PATH="$stub_dir/bsd:/usr/bin:/bin" /bin/sh -c '
   . '"$stub_dir"'/fn.sh
   cmd="$(find_sha_tool)"
   case "$cmd" in
-    *shasum*) exec $cmd "$0" ;;
+    *shasum*) exec $cmd "$1" ;;
     *) echo "selected: $cmd" >&2; exit 3 ;;
   esac
-' "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
+' _ "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
   ok "BSD shasum is called with -a 256 and digests correctly"
 else
   bad "BSD shasum path broken: $got (want $want)"
