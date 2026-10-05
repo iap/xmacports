@@ -183,6 +183,25 @@ signature-check:
     # it would accept any ssh key.
     - |
       set -eu
+      # The material below must come from the project that will receive the
+      # merge. The runner checks out the project the pipeline runs in, and the
+      # fetch below reads the target branch from that checkout's origin. For
+      # fork merge requests this holds here - the project runs their pipelines
+      # in the parent - but assert it rather than assume it, the same reason
+      # merge-gates reads the forge settings back instead of trusting them: if
+      # a pipeline ever runs in another project, the "target branch" on origin
+      # is a copy the merge request author can write, and this job would import
+      # key material chosen by the merge request author. Fail closed before
+      # anything is read.
+      TARGET_PROJECT_ID="${CI_MERGE_REQUEST_TARGET_PROJECT_ID:-}"
+      if [ -z "$TARGET_PROJECT_ID" ] || [ "${CI_PROJECT_ID:-}" != "$TARGET_PROJECT_ID" ]; then
+        echo "ERROR: this pipeline must run in the merge target to read key material." >&2
+        echo "Pipeline project: ${CI_PROJECT_ID:-<unset>}; merge target: ${TARGET_PROJECT_ID:-<unset>}." >&2
+        echo "The signing key and ssh signer list would otherwise be read from a copy" >&2
+        echo "the merge request author can write. Fork MRs must run their pipelines in" >&2
+        echo "the target project." >&2
+        exit 1
+      fi
       KEY_REF="refs/remotes/origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
       if ! git rev-parse --verify --quiet "${KEY_REF}^{commit}" > /dev/null; then
         # Full fetch on purpose: a depth-limited fetch records the fetched tip
