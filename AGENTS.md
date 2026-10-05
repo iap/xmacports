@@ -15,233 +15,11 @@ is correct — fix this file in the same change set.
 
 ## Environment Scope
 
-- Naming: the forge repo is called `xmacports`; the canonical checkout path is
-  `~/.dotfiles` (overridable via `DOTFILES_ROOT`). Never rename either to
-  match the other, and never hardcode `~/xmacports` — resolve paths through
-  `DOTFILES_ROOT` instead.
-- The agent working in an environment adjusts the project for that environment only.
-- This checkout runs on macOS; fixes driven by other environments (e.g. Windows,
-  WSL, other machines' layouts) are handled by the agents working there.
-- Keep shared files cross-platform-safe: do not break other hosts, but do not
-  preempt or port their fixes — let the running environment's needs drive
-  changes here.
+- This checkout runs on macOS. Fixes driven by other environments (Windows, WSL,
+  other machines' layouts) belong to the agents working there.
+- The agent working in an environment adjusts the project for that environment
+  only; keep shared files cross-platform-safe without preempting other hosts.
 
-## Core Rules
-
-- Keep startup minimal and idempotent.
-- Shared config should load once, then be reused by bash and zsh.
-- Detect optional tools; do not install them.
-- Back up existing user files before replacing them.
-- Preserve privacy and permissions for GPG, SSH, and secret-bearing files.
-- Keep changes small and reviewable.
-- See `Mise Configuration` and `No Package Manager Automation` below for the
-  tooling and dependency rules.
-
-## Repo Layout
-
-- `bootstrap.sh` links tracked files into `$HOME` and applies permissions.
-- `.profile` is the shared POSIX base for login shells.
-- `.bash_profile`, `.bashrc`, `.zprofile`, and `.zshrc` are shell entrypoints.
-- `.zshrc.d/` holds zsh-specific prompt/helpers.
-- `.config/env.d/` holds shared environment loaders.
-- `shared/` holds cross-shell functions, aliases, prompt, and secrets.
-- `bin/` holds small executables expected on `PATH`.
-- `scripts/` holds maintenance and verification helpers.
-- `tests/` holds syntax and behavior checks.
-- `templates/` and `examples/` hold user-editable starting points.
-
-## Cross-Platform Guidance
-
-- Prefer POSIX shell patterns where possible.
-- Use OS-specific branches only when behavior truly differs.
-- Keep macOS and Linux paths explicit.
-- Avoid GNU-only assumptions when a BSD-compatible fallback exists.
-- Do not hardcode package-manager workflows or install commands into normal startup.
-- `mise` shims take precedence over system package managers in PATH.
-- Use `mise exec` or `mise run` to invoke project tools; do not hardcode mise paths.
-- Global runtimes (Python via uv, Node via pnpm) managed by `mise use --global`.
-
-## No Package Manager Automation
-
-- Never make bootstrap or startup scripts install software.
-- It is fine to print manual install guidance when a tool is missing.
-- Keep docs honest about prerequisites.
-- If a required tool is absent, fail clearly and early.
-- `mise` is the **only** allowed tool manager for developer runtimes and shims.
-- MacPorts is restricted to system packages (git, gpg, coreutils).
-- All other dependencies fetched via `curl`/`wget` with SHA256 verification.
-- **Exception — git may come from a pinned source build.** Some tooling needs a
-  git newer than the host's system git, and MacPorts is not always usable: it
-  requires sudo, and its support matrix does not cover every macOS release. When
-  that happens, build git from the official tarball into a user-owned prefix with
-  `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
-  - the version and its SHA256 are pinned at the top of the script; that pin is the
-    trust anchor, and the checksum is verified against it
-  - upstream's published manifest is fetched as a cross-check when reachable, but its
-    PGP signature is **not** verified, so a match is corroboration and never independent
-    proof. An unreachable manifest is a warning; a disagreement is always fatal
-  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
-    system and package-managed prefixes are refused outright
-  - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
-    if the install fails, so a failed upgrade never leaves the prefix without git
-  - run `--check` first, so the change in state is known before anything is written
-  - the floor is `2.38.0` (required by the Graphite CLI); never pin below it
-- Never invoke the installer from `bootstrap.sh` or a shell startup file. It is a
-  manual, operator-run step: this repo configures a machine, it does not provision
-  one.
-
-## Mise Configuration
-
-Pin all versions in `.mise.toml` and CI workflows.
-
-### Project Tools (`.mise.toml`)
-- `shellcheck` — linting
-- `shfmt` — formatting
-- `age` / `age-keygen` — secret key generation
-- `sops` — secret encryption
-
-### Global Runtimes (via `mise use --global`)
-- `python` — via `uv` (preferred over system python3)
-- `node` — via `pnpm` (preferred over system node)
-
-### PATH Order (in `shared/platform.sh`)
-1. mise global shims (`~/.local/share/mise/shims`)
-2. User `~/bin`, then `~/.local/bin`
-3. Foundry (if installed)
-4. MacPorts (`/opt/local/bin`, `/opt/local/sbin`)
-5. System paths (`/usr/local/bin`, `/usr/bin`, `/bin`, `/usr/sbin`, `/sbin`, Nix profiles when present)
-
-### Verification
-Run `make verify` after any mise/MacPorts changes.
-
-## Secret Management
-
-- Secrets are managed with SOPS + age, not plaintext files.
-- The encrypted store is `secrets/secrets.enc.yaml`; the decrypted working copy is gitignored.
-- The private age key lives at `~/.config/sops/age/keys.txt` and must never be committed.
-- Access secrets on demand with `secret()`, `with_secret()`, `secret_list()`, `secrets_edit()`, `secrets_encrypt()`, `secrets_decrypt()`.
-- Never export secrets at shell startup; keep secret loading lazy and scoped.
-- Pre-commit blocks plaintext secret files and validates staged `.enc.yaml` files contain SOPS ciphertext markers (fail-closed, no decryption key needed).
-
-## Git Configuration
-
-- Git reads config in this order: system → global (`~/.gitconfig`) → local (`.git/config`).
-- **Local overrides global** for the same key. In this repo, `.git/config` is the authoritative source for `user.email` and `user.name`.
-- The tracked `.gitconfig` should not duplicate repo-local identity if `.git/config` already sets it; keep global config for shared defaults and signing settings only.
-- **Recommendation**: set signing preferences globally or in tracked `.gitconfig`, but set identity (`user.email`, `user.name`) in `.git/config` to avoid accidentally applying one identity to every repo on this machine.
-
-## Git Commit Signing
-
-- Prefer **signed commits** so history is verifiable and shows "Verified" on GitHub/GitLab.
-- The signing preference lives in gitconfig — set per-repo (local) or globally:
-  - local: `git config --local commit.gpgsign true`
-  - global: `git config --global commit.gpgsign true`
-  - also enable `tag.gpgsign true` if tags should be signed.
-- The signing backend and key are configured with `gpg.format` and `user.signingkey`
-  (again, either `--local` or `--global`).
-- Author commits with the email that matches the GPG key's uid,
-  not the forge's private noreply address. A valid signature shows
-  "Unverified" on GitHub/GitLab only when the **public key is not
-  uploaded** to the account — upload it (Settings → SSH and GPG keys) to
-  get the green "Verified" check. The commit email need not be a forge-owned
-  domain as long as the signing key is registered.
-- Some users prefer **SSH signing** over GPG: set `gpg.format = ssh`,
-  point `user.signingkey` at the SSH public key path, and register the key on
-  GitHub/GitLab. SSH signing reuses keys devs already have and avoids the GPG
-  agent/pinentry setup. Verify it locally with `gpg.ssh.allowedSignersFile`
-  pointed at an allowed-signers file that maps the committer email to the SSH
-  public key; without it, `git log --show-signature` cannot check the signature.
-- **If the environment has no working GPG, use SSH signing or ask the user.**
-  Do not leave commits unsigned: sign with an SSH key (`gpg.format = ssh`,
-  `user.signingkey` set to the SSH public key path, with that key registered as a
-  signing key on GitHub/GitLab), or ask the user which signing method to use
-  before committing. Do not silently switch signing methods on a repository whose
-  history is GPG-signed.
-- Verify before pushing: `git log --show-signature -1` or `git verify-commit HEAD`.
-- Do not rewrite or force-push already-published signed history unless coordinated;
-  re-signing rewrites commit hashes and diverges from every clone/remote.
-- **Prefer internal (private, machine-local) config over tracked public config.** Identity
-  and per-machine settings — git `user.name` / `user.email` / `user.signingkey`, GPG pinentry
-  choices, shell `.local` overlays (`.bashrc.local`, `.zshrc.local`, `.profile.local`) — belong
-  in private files that are NOT committed to the public repo (e.g. `.gitconfig.local`, included
-  last by the tracked `.gitconfig`; see `examples/gitconfig-local-example`). Keep the tracked
-  files free of personal identity. Publish such settings to the public repo only when the user
-  explicitly asks.
-
-## Commit Discipline
-
-- Prefix every commit with a scoped type: `type(scope):` (e.g. `fix(secrets):`,
-  `ci:`, `docs(secrets):`). The prefix is the label — keep it specific to the change.
-- One logical change per commit. Do not bundle unrelated fixes into a single commit.
-- Subject: short and direct. The `type(scope):` prefix plus the subject carries the label;
-  do not pad the subject with filler.
-- Body: state what changed and why. No email addresses, no attribution trailers
-  (`Co-authored-by:`, `Signed-off-by:`) unless the credited party explicitly
-  asked for one, and no mechanic narration
-  (do not describe GPG/SSH internals or signing mechanics). Do not claim outcomes you have
-  not verified (e.g. "tests pass") — verify, then report.
-- Sign commits (`commit.gpgsign true`) and author with the GPG key's uid email.
-- Keep messages minimal and reviewable; align docs, tests, and code in the same change set
-  when they are part of the same logical fix.
-
-## Branch Naming
-
-Use kebab-case with a scope prefix (`<scope>/<short-name>`). Branch names
-never use the `type(scope):` form — that shape is reserved for commit subjects.
-
-```
-fix/audit-2026-09
-feat/secrets-sync
-docs/readme-branch-naming
-```
-
-Examples:
-- `feat/secrets-sync`: add multi-machine sync
-- `fix/ci-label-jobs`: migrate from Drone to GitLab CI
-- `docs/readme-branch-naming`: document the branch naming convention
-
-## Branch-Based Workflow
-
-Never push directly to `main`. Always use topic branches:
-
-1. Create a topic branch from `origin/main`
-2. Make focused, single-purpose commits
-3. Push the topic branch
-4. Open an MR
-5. Let CI run
-6. Sync the branch with `origin/main` (recommended — see below)
-7. Merge — GitLab creates a merge commit
-
-This applies to ALL changes — code, docs, CI, everything.
-
-**Merge commits, not fast-forward.** The project merges with the *merge commit*
-method, so the source branch is never rewritten: its signed commits land on
-`main` unchanged. GitLab cannot sign, so the merge commit it creates is unsigned
-— expected, and the reason to judge history integrity by the branch commits.
-Merging a branch that is behind the target still works (nothing is rebased), but
-syncing first keeps the merge small and surfaces conflicts early:
-
-- While the branch is still private, `git rebase origin/main` re-creates each
-  commit and `commit.gpgsign` re-signs it.
-- Once it is published, do not rewrite it (see Git Commit Signing) — merge the
-  target in (`git merge origin/main`) instead, then push.
-- Confirm before merging: `git log --format='%h %G?' origin/main..HEAD` should
-  show `G` for every commit, so nothing unsigned reaches `main` apart from the
-  merge commit GitLab adds.
-
-## Document Callouts
-
-Use GitHub/GitLab alert syntax when writing documentation.
-Alerts also render in MR/issue bodies and commit comments. Never use them in
-commit messages — messages travel as plain text (git log, terminals, emails),
-where the syntax shows up as literal clutter. Keep commits to plain prose.
-
-```markdown
-> [!NOTE]
-> Supplemental information that's not critical to follow.
-
-> [!TIP]
-> Helpful suggestion for a better workflow or outcome.
 ## Secrets
 
 > [!IMPORTANT]
@@ -310,7 +88,28 @@ where the syntax is literal clutter.
 - Never make bootstrap or startup scripts install software. Detect optional
   tools, do not install them. Print manual guidance when one is missing, and fail
   clearly and early when a required one is absent.
+- Keep docs honest about prerequisites: state what must already exist on the host.
+- Every other dependency is fetched with `curl`/`wget` and verified by SHA256.
 - Introduce new dependencies only when strictly necessary.
+- **Exception — git may come from a pinned source build.** Some tooling needs a
+  git newer than the host's system git, and MacPorts is not always usable: it
+  requires sudo, and its support matrix does not cover every macOS release. When
+  that happens, build git from the official tarball into a user-owned prefix with
+  `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
+  - the version and its SHA256 are pinned at the top of the script; that pin is the
+    trust anchor, and the checksum is verified against it
+  - upstream's published manifest is fetched as a cross-check when reachable, but its
+    PGP signature is **not** verified, so a match is corroboration and never independent
+    proof. An unreachable manifest is a warning; a disagreement is always fatal
+  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
+    system and package-managed prefixes are refused outright
+  - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
+    if the install fails, so a failed upgrade never leaves the prefix without git
+  - run `--check` first, so the change in state is known before anything is written
+  - the floor is `2.38.0` (required by the Graphite CLI); never pin below it
+- Never invoke the installer from `bootstrap.sh` or a shell startup file. It is a
+  manual, operator-run step: this repo configures a machine, it does not provision
+  one.
 
 ## Shell and platform
 

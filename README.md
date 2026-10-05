@@ -163,12 +163,6 @@ scripts/install-git-source.sh --dry-run   # build but do not install
 - After installing, open a new login shell (or `hash -r`) so `PATH` resolves the
   new binary. `shared/platform.sh` already orders `~/.local/bin` ahead of
   `/usr/local/bin` and `/usr/bin`.
-- The build refuses to run below the `2.38.0` floor.
-- `make install` overlays git's helpers, so the script removes the previous
-  `bin/git` and `libexec/git-core` first to avoid mixing old and new files.
-- After installing, open a new login shell (or `hash -r`) so `PATH` resolves the
-  new binary. `shared/platform.sh` already orders `~/.local/bin` ahead of
-  `/usr/local/bin` and `/usr/bin`.
 
 To change the pinned version, edit `GIT_VERSION` and `GIT_SHA256` at the top of the
 script and re-run it. Re-derive the checksum from
