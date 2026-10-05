@@ -96,12 +96,13 @@ BAD_SH="$T/badsh"
 mkdir -p "$BAD_SH"
 cat > "$BAD_SH/sha256sum" << 'STUB'
 #!/bin/sh
-# Always report a hash that cannot match the pinned value.
-if [ "${1:-}" = "-a" ]; then
-  echo "0000000000000000000000000000000000000000000000000000000000000000  ${3:-?}"
-  exit 0
-fi
-exec shasum "$@"
+# Always report a hash that cannot match the pinned value, whichever tool name the
+# installer selects. Keyed on the last argument (the file), not on a flag: the
+# installer now passes the algorithm flag only to BSD shasum, because GNU
+# sha256sum rejects `-a`.
+for a in "$@"; do last="$a"; done
+echo "0000000000000000000000000000000000000000000000000000000000000000  ${last:-?}"
+exit 0
 STUB
 chmod +x "$BAD_SH/sha256sum"
 
@@ -318,6 +319,140 @@ if grep -qE '^REQUIRED_MIN_VERSION="2\.38' "$INSTALLER"; then
   ok "REQUIRED_MIN_VERSION records the 2.38 floor"
 else
   bad "REQUIRED_MIN_VERSION does not record the 2.38 floor"
+fi
+
+# --- the checksum tool is invoked with flags its own CLI accepts ----------------
+# Greptile reported that GNU `sha256sum` was handed `-a 256`, a BSD shasum flag it
+# rejects. It was real: the flag was hardcoded at the call site, so the failure only
+# appeared on hosts that ship coreutils rather than Perl's shasum. The function is
+# lifted out of the installer verbatim and driven against stubs for both tools, so a
+# regression in the real code fails here.
+echo "checksum tool gets flags its own CLI accepts:"
+stub_dir="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-shastub.XXXXXX")"
+trap 'rm -rf "$stub_dir"' EXIT
+
+# Lift the real function out of the script rather than restating it, so this case
+# cannot pass while the shipped function is broken.
+sed -n '/^find_sha_tool() {/,/^}/p' "$INSTALLER" > "$stub_dir/fn.sh"
+if [ ! -s "$stub_dir/fn.sh" ]; then
+  bad "could not lift find_sha_tool out of the installer"
+else
+  ok "find_sha_tool lifted verbatim from the installer"
+fi
+
+# GNU coreutils sha256sum: takes no algorithm flag and rejects -a.
+mkdir -p "$stub_dir/gnu" "$stub_dir/bsd"
+
+# GNU coreutils sha256sum: takes no algorithm flag and rejects -a outright.
+cat > "$stub_dir/gnu/sha256sum" << 'STUB'
+#!/usr/bin/env bash
+for a in "$@"; do
+  case "$a" in
+    -a|--algorithm) echo "sha256sum: invalid option -- '$a'" >&2; exit 1 ;;
+  esac
+done
+exec /usr/bin/shasum -a 256 "$@"
+STUB
+
+# BSD shasum: requires -a 256 and fails without it.
+cat > "$stub_dir/bsd/shasum" << 'STUB'
+#!/usr/bin/env bash
+found=0
+for a in "$@"; do [ "$a" = "256" ] && found=1; done
+[ "$found" = 1 ] || { echo "shasum: no -a given" >&2; exit 1; }
+exec /usr/bin/shasum "$@"
+STUB
+chmod +x "$stub_dir/gnu/sha256sum" "$stub_dir/bsd/shasum"
+
+probe="$(mktemp "${TMPDIR:-/tmp}/dotfiles-shaprobe.XXXXXX")"
+printf 'probe content' > "$probe"
+want="$(/usr/bin/shasum -a 256 "$probe" | awk '{print $1}')"
+
+# GNU present: find_sha_tool must select sha256sum with NO algorithm flag.
+if got="$(PATH="$stub_dir/gnu:/usr/bin:/bin" /bin/sh -c '
+  . '"$stub_dir"'/fn.sh
+  cmd="$(find_sha_tool)"
+  case "$cmd" in
+    sha256sum)    exec sha256sum "$0" ;;
+    "sha256sum "*) exec sha256sum "$0" ;;
+    *) echo "selected: $cmd" >&2; exit 3 ;;
+  esac
+' "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
+  ok "GNU sha256sum is called without -a and still digests correctly"
+else
+  bad "GNU sha256sum path broken: $got (want $want)"
+fi
+
+# BSD only: must select shasum AND pass -a 256.
+if got="$(PATH="$stub_dir/bsd:/usr/bin:/bin" /bin/sh -c '
+  . '"$stub_dir"'/fn.sh
+  cmd="$(find_sha_tool)"
+  case "$cmd" in
+    *shasum*) exec $cmd "$0" ;;
+    *) echo "selected: $cmd" >&2; exit 3 ;;
+  esac
+' "$probe" 2>&1 | awk '{print $1}')" && [ "$got" = "$want" ]; then
+  ok "BSD shasum is called with -a 256 and digests correctly"
+else
+  bad "BSD shasum path broken: $got (want $want)"
+fi
+
+# The call site must not reintroduce a hardcoded algorithm flag.
+if grep -qE '\$\{?SHA_CMD\}?"? -a 256|HAVE_SHA" -a' "$INSTALLER"; then
+  bad "installer still hardcodes -a 256 at the checksum call site"
+else
+  ok "checksum call site does not hardcode an algorithm flag"
+fi
+rm -f "$probe"
+
+# --- the documented trust model matches the code --------------------------------
+# Greptile flagged that the docs called the manifest cross-check "corroboration
+# against a published manifest" while the signature is never verified. The wording
+# was corrected, and these assertions exist so it cannot drift back: each soft-fail
+# branch the script actually has must be disclosed, and only the fatal branch may
+# be described as fatal.
+echo "the documented trust model matches the code:"
+for doc in AGENTS.md README.md; do
+  doc_path="$DOTFILES_ROOT/$doc"
+  if [ ! -f "$doc_path" ]; then
+    bad "$doc is missing, cannot check the trust-model wording"
+    continue
+  fi
+  # The claim wraps across lines, so match on the flattened document rather than
+  # a single line: "signature is not verified" or "never independent proof".
+  doc_flat="$(tr '\n' ' ' < "$doc_path" | tr -s ' ')"
+  if printf '%s' "$doc_flat" | grep -qi 'signature is not verified\|not verified here\|signature is \*\*not\*\* verified'; then
+    ok "$doc says the manifest signature is not verified"
+  else
+    bad "$doc does not disclose that the manifest signature is unverified"
+  fi
+  if printf '%s' "$doc_flat" | grep -qi 'never independent proof\|never as independent proof'; then
+    ok "$doc says a match is not independent proof"
+  else
+    bad "$doc does not say a match is never independent proof"
+  fi
+  # both soft-fail branches: fetch failure, and a manifest with no entry
+  if grep -qi 'unreachable\|could not be fetched' "$doc_path"; then
+    ok "$doc discloses that an unreachable manifest only warns"
+  else
+    bad "$doc omits the unreachable-manifest warning branch"
+  fi
+  if grep -qi 'no entry' "$doc_path"; then
+    ok "$doc discloses that a missing manifest entry only warns"
+  else
+    bad "$doc omits the missing-entry warning branch"
+  fi
+  if grep -qi 'trust anchor' "$doc_path"; then
+    ok "$doc names the pinned SHA256 as the trust anchor"
+  else
+    bad "$doc does not say the pin is the trust anchor"
+  fi
+done
+# The script must not claim to verify the signature it does not verify.
+if grep -qE 'gpg --verify|gpgv .*sha256sums|verify.*signature' "$INSTALLER"; then
+  bad "installer claims signature verification it does not perform"
+else
+  ok "installer does not claim to verify the manifest signature"
 fi
 
 echo

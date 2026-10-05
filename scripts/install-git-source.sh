@@ -120,12 +120,18 @@ current_git_version() {
   git --version 2> /dev/null | awk '{print $3}'
 }
 
-# Locate a SHA256 tool; shasum and sha256sum are the same utility under two names.
+# Locate a SHA256 tool. These are the same utility under two names, but they do not
+# share a CLI: BSD `shasum` takes `-a 256`, while GNU `sha256sum` takes no algorithm
+# flag at all and rejects `-a` outright. So report the tool together with the flag it
+# needs, and never pass BSD's flag to GNU's binary.
 find_sha_tool() {
   local c
   for c in sha256sum shasum; do
     if command -v "$c" > /dev/null 2>&1; then
-      printf '%s' "$c"
+      case "$c" in
+        sha256sum) printf '%s' "$c" ;;     # no algorithm flag
+        shasum) printf '%s -a 256' "$c" ;; # BSD-style flag
+      esac
       return 0
     fi
   done
@@ -284,8 +290,11 @@ fi
 
 # --- Prerequisites -----------------------------------------------------------
 
-HAVE_SHA="$(find_sha_tool || true)"
-[ -n "$HAVE_SHA" ] || die "need sha256sum or shasum to verify the download"
+# "sha256sum" or "shasum -a 256"; empty when neither is on PATH.
+SHA_CMD="$(find_sha_tool || true)"
+[ -n "$SHA_CMD" ] || die "need sha256sum or shasum to verify the download"
+# Intentional word splitting: SHA_CMD is a command plus its own required flags.
+# shellcheck disable=SC2086
 
 # Escape hatch for the test suite: skip only the *build-tool* prerequisite gate
 # so the checksum gate can be exercised on an image that has no compiler (the
@@ -316,7 +325,8 @@ curl -fsSL --retry 3 --retry-delay 2 -o "$DOWNLOAD_DIR/$TARBALL" "$TARBALL_URL" 
 
 # Verify against the pinned checksum first. This is the value reviewed in the
 # commit, so it is the trust anchor; the manifest check below is a cross-check.
-ACTUAL_SHA="$("$HAVE_SHA" -a 256 "$DOWNLOAD_DIR/$TARBALL" | awk '{print $1}')"
+# shellcheck disable=SC2086
+ACTUAL_SHA="$($SHA_CMD "$DOWNLOAD_DIR/$TARBALL" | awk '{print $1}')"
 if [ "$ACTUAL_SHA" != "$GIT_SHA256" ]; then
   die "checksum mismatch for $TARBALL
   pinned: $GIT_SHA256

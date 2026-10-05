@@ -100,7 +100,9 @@ where the syntax is literal clutter.
     trust anchor, and the checksum is verified against it
   - upstream's published manifest is fetched as a cross-check when reachable, but its
     PGP signature is **not** verified, so a match is corroboration and never independent
-    proof. An unreachable manifest is a warning; a disagreement is always fatal
+    proof. Both soft-fail branches are disclosed: an unreachable manifest is a warning,
+    and so is a reachable manifest with no entry for this tarball. Only a disagreement
+    between the entry and the pin is fatal
   - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
     system and package-managed prefixes are refused outright
   - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them

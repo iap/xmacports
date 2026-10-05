@@ -151,9 +151,11 @@ scripts/install-git-source.sh --dry-run   # build but do not install
 
 - The version and its SHA256 are pinned at the top of the script. The checksum is
   verified against that pin, then corroborated against upstream's published
-  manifest; a mismatch is always fatal. The pin is the trust anchor — the
-  manifest fetch is corroboration, not independent proof, because its PGP
-  signature is not verified here.
+  manifest. The pin is the trust anchor. The manifest fetch is corroboration and
+  never independent proof, because its PGP signature is not verified here. Two
+  cases therefore only warn and continue: the manifest could not be fetched, or it
+  was fetched but has no entry for this tarball. A disagreement between the entry
+  and the pin is always fatal.
 - System and package-managed prefixes (`/usr`, `/opt/homebrew`, `/opt/local`, …)
   are refused outright: the installer replaces `bin/git` and `libexec/git-core`.
 - The build refuses to run below the `2.38.0` floor.
