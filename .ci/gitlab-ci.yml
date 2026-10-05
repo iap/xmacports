@@ -147,6 +147,15 @@ attribution-check:
 # merge, which is the free-tier equivalent of an external status check.
 signature-check:
   stage: signature
+  # Full-history checkout. The runner default depth (20) leaves a shallow
+  # root in the checkout, and a shallow root can cut ancestry the
+  # base-to-head range needs; fetching the target in full below cannot
+  # remove a boundary an earlier shallow fetch recorded. Make the checkout
+  # complete up front instead: with no shallow root at all, the range is
+  # exact by construction. The repository is small; the full checkout is
+  # cheap.
+  variables:
+    GIT_DEPTH: "0"
   before_script:
     - apk add --no-cache bash git gnupg
     # Import the SIGNING key's public half, or %G? reports E for every commit.
