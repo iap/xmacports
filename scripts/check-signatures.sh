@@ -33,7 +33,9 @@
 # gpg.ssh.allowedSignersFile: a key listed there reports G, and a signature
 # whose key is NOT listed reports U. That U is a good signature from a key this
 # repository does not recognise, and accepting it would pass any ssh key. The
-# signature's first armour line tells the two apart; this script reads it for U.
+# rule for U is therefore OpenPGP-only: the first armour line must be the
+# OpenPGP marker. An ssh signature from an unlisted key, an X.509 signed
+# message, an unreadable header - each fails closed.
 #
 # Without that import the runner reports E for EVERY commit, correctly signed or
 # not, and this gate rejects all of them. The job therefore imports the key; do
@@ -123,17 +125,16 @@ for sha in $COMMITS; do
     exit 2
   fi
 
-  # U is acceptable for OpenPGP and fatal for ssh (see the header). The
-  # signature's first armour line tells them apart; it is only read for U. An
-  # unreadable armour line for a U commit fails closed.
+  # U is accepted only with OpenPGP armour (see the header); the first armour
+  # line is read for U, and every other marker fails closed.
   reject=0
   case "$status" in
     G) : ;;
     U)
       sig_first="$(git cat-file commit "$sha" 2> /dev/null | sed -n 's/^gpgsig \(.*\)$/\1/p' | head -n 1)"
       case "$sig_first" in
-        "-----BEGIN SSH SIGNATURE"*) reject=1 ;;
-        "") reject=1 ;;
+        "-----BEGIN PGP SIGNATURE-----") : ;;
+        *) reject=1 ;;
       esac
       ;;
     *) reject=1 ;;
@@ -147,7 +148,10 @@ for sha in $COMMITS; do
     fi
     printf '  [%s] %s\n' "$status" "$desc" >&2
     if [ "$status" = "U" ]; then
-      echo "       (ssh signer not listed in gpg.ssh.allowedSignersFile)" >&2
+      case "$sig_first" in
+        "-----BEGIN SSH SIGNATURE"*) echo "       (ssh signer not listed in gpg.ssh.allowedSignersFile)" >&2 ;;
+        *) echo "       (unknown-validity signature with non-OpenPGP armour)" >&2 ;;
+      esac
     fi
   fi
 done
