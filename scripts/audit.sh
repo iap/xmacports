@@ -28,8 +28,10 @@ _stat_perm() {
 
 # Resolve a symlink hop by hop and make the result physical with pwd -P.
 # Neither a chain of links nor text like /mnt/../home can fool the checks
-# below. Prints the resolved path. Resolved by hand because macOS readlink
-# has no -f.
+# below. Prints the resolved path, or returns 1 when the chain is still a
+# symlink at the hop limit - callers fail closed on that instead of
+# classifying a link as its own target. Resolved by hand because macOS
+# readlink has no -f.
 _resolve_link() {
   [ -L "$1" ] || {
     printf '%s' "$1"
@@ -45,6 +47,9 @@ _resolve_link() {
       *) target="$(dirname "$target")/$link" ;;
     esac
   done
+  if [ -L "$target" ]; then
+    return 1
+  fi
   if parent=$(cd "$(dirname "$target")" 2> /dev/null && pwd -P); then
     target="$parent/$(basename "$target")"
   fi
@@ -58,7 +63,9 @@ _resolve_link() {
 # report it instead of failing a mode the kernel cannot change.
 _external_target() {
   [ -L "$1" ] || return 1
-  target=$(_resolve_link "$1")
+  if ! target=$(_resolve_link "$1"); then
+    return 1
+  fi
   case "$target" in
     /mnt/*) printf '%s' "$target" ;;
     *) return 1 ;;
@@ -289,10 +296,16 @@ if [ -d "$ssh_dir" ]; then
       echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
       continue
     fi
-    # A symlink reads 777 by nature; judge the file it points at instead.
+    # A symlink reads 777 by nature; judge the file it points at instead,
+    # and fail closed when the chain does not resolve: cannot verify is not
+    # a pass.
     subject=$f
     if [ -L "$f" ]; then
-      subject=$(_resolve_link "$f")
+      if ! subject=$(_resolve_link "$f"); then
+        echo "⚠️  $f (symlink chain does not resolve; cannot verify permissions)"
+        _audit_fail=$((_audit_fail + 1))
+        continue
+      fi
     fi
     p=$(_stat_perm "$subject")
     if [ "$p" = "644" ] || [ "$p" = "600" ]; then
@@ -313,10 +326,16 @@ if [ -d "$ssh_dir" ]; then
       echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
       continue
     fi
-    # A symlink reads 777 by nature; judge the file it points at instead.
+    # A symlink reads 777 by nature; judge the file it points at instead,
+    # and fail closed when the chain does not resolve: cannot verify is not
+    # a pass.
     subject=$f
     if [ -L "$f" ]; then
-      subject=$(_resolve_link "$f")
+      if ! subject=$(_resolve_link "$f"); then
+        echo "⚠️  $f (symlink chain does not resolve; cannot verify permissions)"
+        _audit_fail=$((_audit_fail + 1))
+        continue
+      fi
     fi
     p=$(_stat_perm "$subject")
     if [ "$p" = "600" ]; then
