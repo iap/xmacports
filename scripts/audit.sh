@@ -26,18 +26,15 @@ _stat_perm() {
   fi
 }
 
-# Print the resolved target of a symlink when it lives outside the Linux
-# filesystem (a WSL key kept in /mnt/c so both OSes share it). Such a file
-# cannot carry Unix modes: 9p synthesises 777 and chmod from Linux is
-# meaningless; the owning OS's ACL is the real control. The key checks below
-# report it instead of failing a mode the kernel cannot change.
-#
-# The link is followed hop by hop and the result made physical with pwd -P
-# before the /mnt decision, so neither a chain of links nor raw text like
-# /mnt/../home can make a Linux-resident key read as external and skip its
-# mode check. Resolved by hand because macOS readlink has no -f.
-_external_target() {
-  [ -L "$1" ] || return 1
+# Resolve a symlink hop by hop and make the result physical with pwd -P.
+# Neither a chain of links nor text like /mnt/../home can fool the checks
+# below. Prints the resolved path. Resolved by hand because macOS readlink
+# has no -f.
+_resolve_link() {
+  [ -L "$1" ] || {
+    printf '%s' "$1"
+    return 0
+  }
   target=$1
   hops=0
   while [ -L "$target" ] && [ "$hops" -lt 10 ]; do
@@ -51,6 +48,17 @@ _external_target() {
   if parent=$(cd "$(dirname "$target")" 2> /dev/null && pwd -P); then
     target="$parent/$(basename "$target")"
   fi
+  printf '%s' "$target"
+}
+
+# Print the resolved target of a symlink when it lives outside the Linux
+# filesystem (a WSL key kept in /mnt/c so both OSes share it). Such a file
+# cannot carry Unix modes: 9p synthesises 777 and chmod from Linux is
+# meaningless; the owning OS's ACL is the real control. The key checks below
+# report it instead of failing a mode the kernel cannot change.
+_external_target() {
+  [ -L "$1" ] || return 1
+  target=$(_resolve_link "$1")
   case "$target" in
     /mnt/*) printf '%s' "$target" ;;
     *) return 1 ;;
@@ -281,7 +289,12 @@ if [ -d "$ssh_dir" ]; then
       echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
       continue
     fi
-    p=$(_stat_perm "$f")
+    # A symlink reads 777 by nature; judge the file it points at instead.
+    subject=$f
+    if [ -L "$f" ]; then
+      subject=$(_resolve_link "$f")
+    fi
+    p=$(_stat_perm "$subject")
     if [ "$p" = "644" ] || [ "$p" = "600" ]; then
       echo "✅ $f $p"
     else
@@ -300,7 +313,12 @@ if [ -d "$ssh_dir" ]; then
       echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
       continue
     fi
-    p=$(_stat_perm "$f")
+    # A symlink reads 777 by nature; judge the file it points at instead.
+    subject=$f
+    if [ -L "$f" ]; then
+      subject=$(_resolve_link "$f")
+    fi
+    p=$(_stat_perm "$subject")
     if [ "$p" = "600" ]; then
       echo "✅ $f 600"
     else
