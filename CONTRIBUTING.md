@@ -518,6 +518,23 @@ root, or find its checker, it exits non-zero rather than silently passing.
 > runs before git writes `.git/COMMIT_EDITMSG`, so it would read the previous
 > attempt's message.
 
+### Where the push guard is verified
+
+The guard (`scripts/guard-default-branch`, POSIX `sh`) leans on
+`git merge-base --is-ancestor` and `case` globbing. It and its suite were written
+and exercised on **Linux (WSL nixos)** and in GitLab CI, which also runs Linux
+runners. It has **not** been run on macOS.
+
+That matters because macOS ships bash 3.2 with a BSD userland. Before relying on
+it there, run this on the macOS checkout:
+
+```bash
+bash tests/test-pre-push-hook.sh    # a few seconds; prints its own totals
+```
+
+If a case fails, the guard needs a fix on that host before it is trusted there.
+Do not work around it with `--no-verify` as a habit.
+
 ## CI
 
 GitLab CI is authoritative. `.gitlab-ci.yml` includes `.ci/gitlab-ci.yml`.

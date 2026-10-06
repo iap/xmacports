@@ -192,11 +192,92 @@ if [ "$signed_ok" -eq 1 ]; then
       # than rejecting every range it is shown.
       expect_rc 1 "rejects a range mixing signed and unsigned commits" \
         check_in_repo "$BASE" HEAD
+
+      # The pubkey-only ring is the CI shape: the runner imports the public
+      # half and has no ownertrust, so a good signature reports U. The gate
+      # must keep accepting the OpenPGP U - that acceptance is what makes the
+      # check possible without private keys on the runner - while an ssh U is
+      # rejected (see the ssh cases below).
+      mkdir -p "$TMP/gnupg-pub"
+      chmod 700 "$TMP/gnupg-pub"
+      if gpg --export "$KEY" > "$TMP/pub.gpg" 2> /dev/null &&
+        GNUPGHOME="$TMP/gnupg-pub" gpg --batch --quiet --import "$TMP/pub.gpg" > /dev/null 2>&1; then
+        # check_pubring <args...>
+        check_pubring() {
+          (cd "$REPO" && GNUPGHOME="$TMP/gnupg-pub" sh "$CHECK" "$@")
+        }
+        STATUS_PUB="$(GNUPGHOME="$TMP/gnupg-pub" git -C "$REPO" log -1 --format='%G?' "$SIGNED")"
+        if [ "$STATUS_PUB" = "U" ]; then
+          ok "pubkey-only ring reports U (status ${STATUS_PUB})"
+        else
+          no "pubkey-only ring reports U (status ${STATUS_PUB})"
+        fi
+        expect_rc 0 "accepts an OpenPGP U with a pubkey-only ring" \
+          check_pubring "$SIGNED^" "$SIGNED"
+      else
+        no "can build a pubkey-only ring"
+      fi
     else
       no "can create a signed commit with the throwaway key"
     fi
   else
     no "throwaway key has a fingerprint"
+  fi
+fi
+
+# --- ssh signatures: listed key accepted, unlisted key rejected ----------
+# For an ssh signature git consults gpg.ssh.allowedSignersFile: a key listed
+# there reports G, and a good signature from a key that is NOT listed reports
+# U. That U must be rejected - it is any ssh key - while the OpenPGP U above
+# stays accepted. Like the OpenPGP block, this needs a real key and is skipped
+# with a visible note when ssh-keygen cannot make one.
+ssh_ok=0
+if command -v ssh-keygen > /dev/null 2>&1 &&
+  ssh-keygen -q -t ed25519 -N '' -f "$TMP/ssh-key" > /dev/null 2>&1; then
+  ssh_ok=1
+else
+  echo "  note ssh-keygen unavailable or key generation failed - ssh-commit cases skipped"
+fi
+
+if [ "$ssh_ok" -eq 1 ]; then
+  if git -C "$REPO" -c gpg.format=ssh -c user.signingkey="$TMP/ssh-key.pub" \
+    -c commit.gpgsign=true commit -q --allow-empty -m "ssh work" 2> /dev/null; then
+    SSH="$(git -C "$REPO" rev-parse HEAD)"
+
+    # The key is listed: a good signature, and the gate must accept it.
+    printf 'sig-test@example.com %s\n' "$(cut -d' ' -f1,2 "$TMP/ssh-key.pub")" > "$TMP/allowed_signers"
+    git -C "$REPO" config gpg.ssh.allowedSignersFile "$TMP/allowed_signers"
+    STATUS="$(git -C "$REPO" log -1 --format='%G?' "$SSH")"
+    if [ "$STATUS" = "G" ]; then
+      ok "listed ssh key reports G (status ${STATUS})"
+    else
+      no "listed ssh key reports G (status ${STATUS})"
+    fi
+    # SSH^..SSH: only the ssh commit, or the older unsigned commits in the
+    # range would make the rejection case below pass for the wrong reason.
+    expect_rc 0 "accepts an ssh commit from a listed key" \
+      check_in_repo "$SSH^" "$SSH"
+
+    # The key is not listed: good signature, unknown validity. This U must be
+    # rejected - accepting it would pass a commit signed by any ssh key.
+    : > "$TMP/allowed_signers"
+    STATUS="$(git -C "$REPO" log -1 --format='%G?' "$SSH")"
+    if [ "$STATUS" = "U" ]; then
+      ok "unlisted ssh key reports U (status ${STATUS})"
+    else
+      no "unlisted ssh key reports U (status ${STATUS})"
+    fi
+    expect_rc 1 "rejects an ssh commit whose key is not listed" \
+      check_in_repo "$SSH^" "$SSH"
+
+    # The rejection must say why the U was fatal, not just report a status.
+    OUT="$(check_in_repo "$SSH^" "$SSH" 2>&1 || true)"
+    case "$OUT" in
+      *"not listed in gpg.ssh.allowedSignersFile"*) ok "rejection names the unlisted ssh key" ;;
+      *) no "rejection names the unlisted ssh key" ;;
+    esac
+  else
+    no "can create an ssh-signed commit with the throwaway key"
   fi
 fi
 
