@@ -577,13 +577,18 @@ if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_
     # backup dir, so an -e/-d-only test would skip the backup entirely and cleanup
     # would delete the symlink with the work dir.
     if [ -d "$BACKUP_DIR/git-core" ] || [ -L "$BACKUP_DIR/git-core" ]; then
-      mkdir -p "$PREFIX/libexec"
-      rm -rf "$PREFIX/libexec/git-core"
+      mkdir -p "$PREFIX/libexec" || RESTORE_FAILED=1
+      # rm -rf, not rm -f: a failed install can leave a DIRECTORY where the binary
+      # goes, and rm -f on a directory fails. That failure would abort the function
+      # under `set -e`, and on the cleanup retry the following `mv` would then treat
+      # the directory as a destination and bury the backup inside it, stranding the
+      # old binary under a path git cannot execute.
+      rm -rf "$PREFIX/libexec/git-core" || RESTORE_FAILED=1
       log "restoring previous $PREFIX/libexec/git-core"
       mv "$BACKUP_DIR/git-core" "$PREFIX/libexec/git-core" || RESTORE_FAILED=1
     fi
     if [ -e "$BACKUP_DIR/git" ] || [ -L "$BACKUP_DIR/git" ]; then
-      rm -f "$TARGET_GIT"
+      rm -rf "$TARGET_GIT" || RESTORE_FAILED=1
       log "restoring previous $TARGET_GIT"
       mv "$BACKUP_DIR/git" "$TARGET_GIT" || RESTORE_FAILED=1
     fi

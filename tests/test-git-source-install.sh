@@ -601,7 +601,7 @@ if printf '%s' "$restore_body" | grep -q '! -e "\$TARGET_GIT"' ||
 else
   ok "the restore replaces a destination left by a failed install"
 fi
-if printf '%s' "$restore_body" | grep -q 'rm -f "\$TARGET_GIT"'; then
+if printf '%s' "$restore_body" | grep -q 'rm -r[a-z]* "\$TARGET_GIT"'; then
   ok "a failed replacement binary is removed before the backup is restored"
 else
   bad "the restore does not remove the failed replacement at \$TARGET_GIT"
@@ -635,10 +635,28 @@ else
   bad "a failed restore does not set RESTORE_FAILED"
 fi
 cleanup_body2="$(sed -n '/^cleanup() {/,/^}$/p' "$INSTALLER")"
-if printf '%s' "$cleanup_body2" | grep -q 'RESTORE_FAILED\|if ! restore_previous_git'; then
-  ok "cleanup keeps the work dir when the restore failed"
+# Assert the ORDER, not merely that the call is present: a grep for the call passes
+# even when cleanup deletes the backup anyway, which is the thing that must not
+# happen. The early return on a failed restore has to come BEFORE the rm -rf.
+cleanup_restore_line="$(printf '%s\n' "$cleanup_body2" | grep -n 'restore_previous_git' | head -1 | cut -d: -f1)"
+cleanup_return_line="$(printf '%s\n' "$cleanup_body2" | grep -n 'return 0' | head -1 | cut -d: -f1)"
+cleanup_rm_line="$(printf '%s\n' "$cleanup_body2" | grep -n 'rm -rf "\$WORK_DIR"' | head -1 | cut -d: -f1)"
+cleanup_restore_line="${cleanup_restore_line:-0}"
+cleanup_return_line="${cleanup_return_line:-999}"
+cleanup_rm_line="${cleanup_rm_line:-0}"
+if [ "$cleanup_return_line" -gt "$cleanup_restore_line" ] && [ "$cleanup_return_line" -lt "$cleanup_rm_line" ]; then
+  ok "cleanup returns on a failed restore BEFORE deleting the work dir"
 else
-  bad "cleanup deletes the work dir even when the restore failed"
+  bad "cleanup can delete the work dir after a failed restore (restore=$cleanup_restore_line return=$cleanup_return_line rm=$cleanup_rm_line)"
+fi
+
+# The removal before each restore mv must tolerate a directory at the destination:
+# rm -f fails on a directory, which under set -e aborts the restore and lets the
+# following mv bury the backup inside the leftover directory.
+if printf '%s' "$restore_body" | grep -q 'rm -f "\$TARGET_GIT"'; then
+  bad "the restore uses rm -f, which fails when a directory occupies the binary path"
+else
+  ok "the restore removes the destination with rm -rf, tolerating a directory"
 fi
 
 # The two prereq entries must stay separate entries: command substitution strips
