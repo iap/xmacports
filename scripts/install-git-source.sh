@@ -553,15 +553,24 @@ restore_previous_git() { :; }
 if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; }; then
   BACKUP_DIR="$WORK_DIR/previous-git"
   # Restore on any failure between here and a successful, verified install.
-  # Each branch restores only a destination that does not exist, so a partial
-  # install is not clobbered by a full restore.
+  #
+  # A destination is replaced, not merely filled in. `make install` can succeed and
+  # still write a binary of the WRONG version; the version check then dies with
+  # RESTORE_ARMED still 1, and the EXIT trap lands here with the bad replacement
+  # sitting on the destination. A guard of the form "restore only when the
+  # destination is absent" would skip that binary and then let cleanup delete its
+  # backup, leaving the prefix on an unverified version with no way back. So when a
+  # backup exists, whatever occupies the destination is known-bad install output and
+  # is removed first. Destinations with no matching backup are left alone.
   restore_previous_git() {
-    if [ -d "$BACKUP_DIR/git-core" ] && [ ! -e "$PREFIX/libexec/git-core" ]; then
+    if [ -d "$BACKUP_DIR/git-core" ]; then
       mkdir -p "$PREFIX/libexec"
+      rm -rf "$PREFIX/libexec/git-core"
       log "restoring previous $PREFIX/libexec/git-core"
       mv "$BACKUP_DIR/git-core" "$PREFIX/libexec/git-core" || true
     fi
-    if [ -e "$BACKUP_DIR/git" ] && [ ! -e "$TARGET_GIT" ]; then
+    if [ -e "$BACKUP_DIR/git" ]; then
+      rm -f "$TARGET_GIT"
       log "restoring previous $TARGET_GIT"
       mv "$BACKUP_DIR/git" "$TARGET_GIT" || true
     fi

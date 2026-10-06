@@ -586,6 +586,27 @@ else
   bad "RESTORE_ARMED is cleared before verification (disarm=$disarm_line verify=$verify_line)"
 fi
 
+# The restore must REPLACE a destination that a failed install left behind, not only
+# fill an absent one. `make install` can succeed and still write the wrong version;
+# the version check then dies with the arm flag still set, and a "restore only when
+# absent" guard would skip the bad binary and let cleanup delete its backup. Anchor
+# on the presence of the removal, not on an absence guard: an absent-destination
+# guard is what makes this unsafe, so assert it is gone.
+restore_body="$(sed -n '/^  restore_previous_git() {/,/^  }$/p' "$INSTALLER")"
+# Single-quoted patterns: a double-quoted one lets the shell expand $TARGET_GIT and
+# $PREFIX, which are unbound here under `set -u`, aborting the suite mid-run.
+if printf '%s' "$restore_body" | grep -q '! -e "\$TARGET_GIT"' ||
+  printf '%s' "$restore_body" | grep -q '! -e "\$PREFIX/libexec/git-core"'; then
+  bad "the restore still skips an existing destination, so failed install output survives"
+else
+  ok "the restore replaces a destination left by a failed install"
+fi
+if printf '%s' "$restore_body" | grep -q 'rm -f "\$TARGET_GIT"'; then
+  ok "a failed replacement binary is removed before the backup is restored"
+else
+  bad "the restore does not remove the failed replacement at \$TARGET_GIT"
+fi
+
 # The two prereq entries must stay separate entries: command substitution strips
 # the trailing newline, so concatenation would report one joined token.
 if printf '%s' "$installer_flat" | grep -q "prereq_gaps:+\$prereq_gaps"; then
