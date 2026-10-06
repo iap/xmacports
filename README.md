@@ -18,8 +18,9 @@ file-based bootstrap, and no package-manager automation.
 - Provides small helper scripts for inspection, cleanup, and verification
 - Supports per-machine override files and an optional private overlay
 
-Nothing here installs software. Bootstrap only links files and applies
-permissions; missing tools are reported, never fetched.
+Nothing here installs software at bootstrap or shell startup: they only
+link files, apply permissions, and report missing tools. The pinned git
+source build is the one manual exception (see "Git source build").
 
 ## Quick start
 
