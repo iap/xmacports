@@ -30,15 +30,27 @@ _stat_perm() {
 # filesystem (a WSL key kept in /mnt/c so both OSes share it). Such a file
 # cannot carry Unix modes: 9p synthesises 777 and chmod from Linux is
 # meaningless; the owning OS's ACL is the real control. The key checks below
-# report it instead of failing a mode the kernel cannot change. Resolved by
-# hand because macOS readlink has no -f.
+# report it instead of failing a mode the kernel cannot change.
+#
+# The link is followed hop by hop and the result made physical with pwd -P
+# before the /mnt decision, so neither a chain of links nor raw text like
+# /mnt/../home can make a Linux-resident key read as external and skip its
+# mode check. Resolved by hand because macOS readlink has no -f.
 _external_target() {
   [ -L "$1" ] || return 1
-  target=$(readlink "$1")
-  case "$target" in
-    /*) ;;
-    *) target="$(cd "$(dirname "$1")" && pwd)/$target" ;;
-  esac
+  target=$1
+  hops=0
+  while [ -L "$target" ] && [ "$hops" -lt 10 ]; do
+    hops=$((hops + 1))
+    link=$(readlink "$target")
+    case "$link" in
+      /*) target="$link" ;;
+      *) target="$(dirname "$target")/$link" ;;
+    esac
+  done
+  if parent=$(cd "$(dirname "$target")" 2> /dev/null && pwd -P); then
+    target="$parent/$(basename "$target")"
+  fi
   case "$target" in
     /mnt/*) printf '%s' "$target" ;;
     *) return 1 ;;
