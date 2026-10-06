@@ -49,6 +49,11 @@ PORT_PREFIX="/opt/local"
 
 SCRIPT_NAME="${0##*/}"
 WORK_DIR=""
+# Set by restore_previous_git when a restore mv fails. Declared up front because
+# cleanup reads it under `set -u` on any exit, including one before the installer
+# has staged a backup at all.
+BACKUP_DIR=""
+RESTORE_FAILED=0
 
 log() { printf '[%s] %s\n' "$(date '+%H:%M:%S')" "$1"; }
 warn() { log "WARNING: $1" >&2; }
@@ -64,7 +69,12 @@ cleanup() {
   # installed version has been verified, which is the window in which the old tree
   # is the operator's only git.
   if [ "${RESTORE_ARMED:-0}" = "1" ]; then
-    restore_previous_git || true
+    if ! restore_previous_git; then
+      # A restore that failed means the backup is the ONLY remaining copy. Keep the
+      # work dir and name it, rather than deleting the last recoverable git.
+      warn "could not fully restore the previous git; keeping it at $BACKUP_DIR"
+      return 0
+    fi
   fi
   if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
@@ -547,7 +557,6 @@ fi
 # otherwise skip a definition placed after them, leaving the EXIT trap with no way
 # to put the previous git back — the exact case the guarantee in AGENTS.md promises
 # cannot happen. No-op until a backup dir is set, so it is safe to call early.
-BACKUP_DIR=""
 restore_previous_git() { :; }
 
 if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; }; then
@@ -563,17 +572,22 @@ if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_
   # backup exists, whatever occupies the destination is known-bad install output and
   # is removed first. Destinations with no matching backup are left alone.
   restore_previous_git() {
-    if [ -d "$BACKUP_DIR/git-core" ]; then
+    # -L is accepted alongside -e/-d so a symlinked git or git-core is still
+    # recognised. A relative symlink stops resolving once it is moved into the
+    # backup dir, so an -e/-d-only test would skip the backup entirely and cleanup
+    # would delete the symlink with the work dir.
+    if [ -d "$BACKUP_DIR/git-core" ] || [ -L "$BACKUP_DIR/git-core" ]; then
       mkdir -p "$PREFIX/libexec"
       rm -rf "$PREFIX/libexec/git-core"
       log "restoring previous $PREFIX/libexec/git-core"
-      mv "$BACKUP_DIR/git-core" "$PREFIX/libexec/git-core" || true
+      mv "$BACKUP_DIR/git-core" "$PREFIX/libexec/git-core" || RESTORE_FAILED=1
     fi
-    if [ -e "$BACKUP_DIR/git" ]; then
+    if [ -e "$BACKUP_DIR/git" ] || [ -L "$BACKUP_DIR/git" ]; then
       rm -f "$TARGET_GIT"
       log "restoring previous $TARGET_GIT"
-      mv "$BACKUP_DIR/git" "$TARGET_GIT" || true
+      mv "$BACKUP_DIR/git" "$TARGET_GIT" || RESTORE_FAILED=1
     fi
+    return "${RESTORE_FAILED:-0}"
   }
   # Refuse before touching anything: without the backup dir there is nowhere to
   # stage the old tree, and proceeding would delete it with nothing to restore.

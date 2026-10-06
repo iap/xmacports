@@ -607,6 +607,40 @@ else
   bad "the restore does not remove the failed replacement at \$TARGET_GIT"
 fi
 
+# A symlinked git or git-core must still be recognised as a backup. A relative
+# symlink stops resolving once it is moved into the backup dir, so an -e/-d-only
+# test would skip it and cleanup would delete it with the work dir.
+if printf '%s' "$restore_body" | grep -q '\[ -L "\$BACKUP_DIR/git" \]'; then
+  ok "a symlinked backup git is recognised (-L is accepted)"
+else
+  bad "the restore skips a symlinked backup git, so it is deleted with the work dir"
+fi
+if printf '%s' "$restore_body" | grep -q '\[ -L "\$BACKUP_DIR/git-core" \]'; then
+  ok "a symlinked backup git-core is recognised (-L is accepted)"
+else
+  bad "the restore skips a symlinked backup git-core"
+fi
+
+# A failed restore must be visible, and the backup kept: it is the only remaining
+# copy of the previous git. Suppressing the mv failure with `|| true` and then
+# deleting the work dir destroys the last recoverable git.
+if printf '%s' "$restore_body" | grep -qE 'mv .*\|\| true'; then
+  bad "a restore failure is suppressed, so the only backup copy can be deleted"
+else
+  ok "a restore failure is reported rather than suppressed"
+fi
+if printf '%s' "$restore_body" | grep -q 'RESTORE_FAILED=1'; then
+  ok "a failed restore sets RESTORE_FAILED"
+else
+  bad "a failed restore does not set RESTORE_FAILED"
+fi
+cleanup_body2="$(sed -n '/^cleanup() {/,/^}$/p' "$INSTALLER")"
+if printf '%s' "$cleanup_body2" | grep -q 'RESTORE_FAILED\|if ! restore_previous_git'; then
+  ok "cleanup keeps the work dir when the restore failed"
+else
+  bad "cleanup deletes the work dir even when the restore failed"
+fi
+
 # The two prereq entries must stay separate entries: command substitution strips
 # the trailing newline, so concatenation would report one joined token.
 if printf '%s' "$installer_flat" | grep -q "prereq_gaps:+\$prereq_gaps"; then
