@@ -26,6 +26,25 @@ _stat_perm() {
   fi
 }
 
+# Print the resolved target of a symlink when it lives outside the Linux
+# filesystem (a WSL key kept in /mnt/c so both OSes share it). Such a file
+# cannot carry Unix modes: 9p synthesises 777 and chmod from Linux is
+# meaningless; the owning OS's ACL is the real control. The key checks below
+# report it instead of failing a mode the kernel cannot change. Resolved by
+# hand because macOS readlink has no -f.
+_external_target() {
+  [ -L "$1" ] || return 1
+  target=$(readlink "$1")
+  case "$target" in
+    /*) ;;
+    *) target="$(cd "$(dirname "$1")" && pwd)/$target" ;;
+  esac
+  case "$target" in
+    /mnt/*) printf '%s' "$target" ;;
+    *) return 1 ;;
+  esac
+}
+
 log_check() {
   local status="$1" message="$2"
   local timestamp
@@ -36,14 +55,19 @@ log_check() {
 echo "Dotfiles Audit:"
 echo
 
-# Home permissions
+# Home permissions. 700 and 711 both keep the home closed to other users'
+# reads; 700 also denies traverse and is what the NixOS-WSL home ships.
+# Accept both - the check previously knew only 711.
 home_perms=$(_stat_perm "$HOME")
-if [ "$home_perms" = "711" ]; then
-  echo "✅ Home permissions: 711"
-else
-  echo "⚠️  Home permissions: ${home_perms:-unknown} (expected 711)"
-  _flag_fail
-fi
+case "$home_perms" in
+  700 | 711)
+    echo "✅ Home permissions: $home_perms"
+    ;;
+  *)
+    echo "⚠️  Home permissions: ${home_perms:-unknown} (expected 700 or 711)"
+    _flag_fail
+    ;;
+esac
 echo
 
 echo "Directory permissions (expect 755):"
@@ -241,6 +265,10 @@ if [ -d "$ssh_dir" ]; then
   done
   for f in "$ssh_dir"/*.pub; do
     [ -e "$f" ] || continue
+    if target=$(_external_target "$f"); then
+      echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
+      continue
+    fi
     p=$(_stat_perm "$f")
     if [ "$p" = "644" ] || [ "$p" = "600" ]; then
       echo "✅ $f $p"
@@ -249,9 +277,17 @@ if [ -d "$ssh_dir" ]; then
       _audit_fail=$((_audit_fail + 1))
     fi
   done
+  # Dedupe: id_ed25519 matches both id_* and *_ed25519; one file, one finding.
+  _seen_keys=""
   for f in "$ssh_dir"/id_* "$ssh_dir"/*_rsa "$ssh_dir"/*_ed25519 "$ssh_dir"/*_ecdsa; do
     [ -e "$f" ] || continue
     case "$f" in *.pub) continue ;; esac
+    case " $_seen_keys " in *" $f "*) continue ;; esac
+    _seen_keys="$_seen_keys $f"
+    if target=$(_external_target "$f"); then
+      echo "ℹ️  $f -> $target (held outside the Linux filesystem; permissions governed by the owning OS)"
+      continue
+    fi
     p=$(_stat_perm "$f")
     if [ "$p" = "600" ]; then
       echo "✅ $f 600"
@@ -260,6 +296,7 @@ if [ -d "$ssh_dir" ]; then
       _audit_fail=$((_audit_fail + 1))
     fi
   done
+  unset _seen_keys
 else
   echo "⚠️  $ssh_dir missing"
   _flag_fail
