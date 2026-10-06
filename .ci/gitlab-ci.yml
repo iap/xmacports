@@ -147,8 +147,17 @@ attribution-check:
 # merge, which is the free-tier equivalent of an external status check.
 signature-check:
   stage: signature
+  # Full-history checkout. The runner default depth (20) leaves a shallow
+  # root in the checkout, and a shallow root can cut ancestry the
+  # base-to-head range needs; fetching the target in full below cannot
+  # remove a boundary an earlier shallow fetch recorded. Make the checkout
+  # complete up front instead: with no shallow root at all, the range is
+  # exact by construction. The repository is small; the full checkout is
+  # cheap.
+  variables:
+    GIT_DEPTH: "0"
   before_script:
-    - apk add --no-cache bash git gnupg
+    - apk add --no-cache bash git gnupg openssh-client
     # Import the SIGNING key's public half, or %G? reports E for every commit.
     # E means "cannot be checked", which check-signatures.sh rejects by design,
     # so without this the job fails on correctly signed commits. Only the public
@@ -162,8 +171,52 @@ signature-check:
     # reason the attribution allowlist is read from the target side. The key must
     # already exist on the target branch, which is the property that makes it
     # trustworthy; a NEW key cannot be introduced by the MR that needs it.
+    #
+    # The ssh signer list (keys/allowed_signers) follows the same rule:
+    # read from the TARGET branch, never from the checkout, and its absence
+    # on the target is fatal rather than quietly skipped - a list shipped
+    # by the MR would approve the MR's own key. openssh-client is installed
+    # because git shells out to ssh-keygen to verify ssh signatures at
+    # all; without it an ssh-signed commit cannot be checked. A key listed
+    # in the file reports G, while an ssh signature from an unlisted key
+    # reports U - and the check script rejects that U, because accepting
+    # it would accept any ssh key.
     - |
       set -eu
+      # The key and signer list below are read from the target branch of
+      # origin, and origin is the project this pipeline runs in. That is the
+      # merge target only while the pipeline runs in the project the merge
+      # request belongs to. For fork merge requests that project is the
+      # parent - and this repository runs their pipelines there - but the job
+      # should not depend on that arrangement silently staying armed, the
+      # same reason merge-gates reads the forge settings back instead of
+      # trusting them: a pipeline that ran anywhere else would read "the
+      # target branch" from a copy the merge request author can write, and
+      # then import key material chosen by the merge request author. Assert
+      # the precondition instead of assuming it, and fail closed before
+      # anything is read.
+      #
+      # CI_MERGE_REQUEST_PROJECT_ID names the project the merge request
+      # belongs to. It is part of the merge-request variable set, and this
+      # job runs only for merge request pipelines, so its absence is an
+      # anomaly and fails closed - the same rule as an absent base SHA. The
+      # echo keeps the ids the guard evaluated visible in every run.
+      MR_PROJECT_ID="${CI_MERGE_REQUEST_PROJECT_ID:-}"
+      echo "signature-check trust source: project=${CI_PROJECT_ID:-<unset>} mr-project=${MR_PROJECT_ID:-<unset>} source-project=${CI_MERGE_REQUEST_SOURCE_PROJECT_ID:-<unset>}"
+      if [ -z "$MR_PROJECT_ID" ]; then
+        echo "ERROR: CI_MERGE_REQUEST_PROJECT_ID is absent, so this check cannot establish" >&2
+        echo "that the pipeline runs in the project the merge request belongs to. A pipeline" >&2
+        echo "anywhere else would read key material from a copy the merge request author can" >&2
+        echo "write. Failing closed." >&2
+        exit 1
+      fi
+      if [ "${CI_PROJECT_ID:-}" != "$MR_PROJECT_ID" ]; then
+        echo "ERROR: this pipeline runs in project ${CI_PROJECT_ID:-<unset>}, but the merge request" >&2
+        echo "belongs to project ${MR_PROJECT_ID}. The signing key and ssh signer list would" >&2
+        echo "be read from the wrong copy. Fork MRs must run their pipelines in the project" >&2
+        echo "the merge request belongs to." >&2
+        exit 1
+      fi
       KEY_REF="refs/remotes/origin/${CI_MERGE_REQUEST_TARGET_BRANCH_NAME:-main}"
       if ! git rev-parse --verify --quiet "${KEY_REF}^{commit}" > /dev/null; then
         # Full fetch on purpose: a depth-limited fetch records the fetched tip
@@ -182,6 +235,20 @@ signature-check:
       fi
       git show "${KEY_REF}:keys/iap-signing-key.asc" | gpg --batch --import
       echo "Imported signing key from ${KEY_REF}"
+      # The ssh signer list, same trust rule as the key above: it must
+      # exist on the target branch, because a list shipped by the MR would
+      # approve the MR's own key. git consults it for ssh signatures; a
+      # key not listed there reports U, and check-signatures.sh rejects
+      # that U.
+      if ! git cat-file -e "${KEY_REF}:keys/allowed_signers" 2> /dev/null; then
+        echo "ERROR: no ssh signer list at ${KEY_REF}:keys/allowed_signers" >&2
+        echo "Refusing to take one from the MR checkout: the MR chooses its" >&2
+        echo "own validator. Add the list to the target branch first." >&2
+        exit 1
+      fi
+      git show "${KEY_REF}:keys/allowed_signers" > /tmp/allowed-signers
+      git config gpg.ssh.allowedSignersFile /tmp/allowed-signers
+      echo "Configured ssh allowed signers from ${KEY_REF}"
   script:
     - |
       if [ -z "${CI_MERGE_REQUEST_DIFF_BASE_SHA:-}" ]; then
