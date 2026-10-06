@@ -18,8 +18,9 @@ file-based bootstrap, and no package-manager automation.
 - Provides small helper scripts for inspection, cleanup, and verification
 - Supports per-machine override files and an optional private overlay
 
-Nothing here installs software. Bootstrap only links files and applies
-permissions; missing tools are reported, never fetched.
+Nothing here installs software at bootstrap or shell startup: they only
+link files, apply permissions, and report missing tools. The pinned git
+source build is the one manual exception (see "Git source build").
 
 ## Quick start
 
@@ -72,6 +73,7 @@ is restricted to system packages (`git`, `gpg`, `coreutils`).
 | `.config/vim/` | XDG vim runtime and privacy settings |
 | `bin/` | Small helpers expected on `PATH` |
 | `scripts/` | Maintenance and verification helpers |
+| `scripts/install-git-source.sh` | Manual, pinned git source build (no sudo) |
 | `tests/` | Syntax and behavior checks |
 | `templates/`, `examples/` | Starting points for local overrides |
 | `secrets/` | SOPS + age encrypted store |
@@ -129,6 +131,45 @@ linked, so your tokens stay local.
 - GPG and SSH config files are permission-checked by `make audit`.
 - The `pre-commit` hook blocks plaintext secret files and validates that staged
   `.enc.yaml` files really contain SOPS ciphertext.
+
+## Git source build
+
+Some tools require a git newer than the one macOS ships — the Graphite CLI needs
+`2.38.0` or newer, and the system git on this host is `2.37.1`. When MacPorts is
+not an option (it needs sudo, and its support matrix does not cover every macOS
+release), `scripts/install-git-source.sh` builds a pinned git from the official
+tarball into `~/.local` — no sudo, no system directories touched.
+
+This is a **manual, operator-run step**. It is deliberately not wired into
+`make bootstrap` or any shell startup file, per the "No Package Manager
+Automation" rule in `AGENTS.md`.
+
+```bash
+scripts/install-git-source.sh --check     # report current state, change nothing
+scripts/install-git-source.sh             # download, verify, build, install
+scripts/install-git-source.sh --dry-run   # build but do not install
+```
+
+- The version and its SHA256 are pinned at the top of the script. The checksum is
+  verified against that pin, then corroborated against upstream's published
+  manifest. The pin is the trust anchor. The manifest fetch is corroboration and
+  never independent proof, because its PGP signature is not verified here. Two
+  cases therefore only warn and continue: the manifest could not be fetched, or it
+  was fetched but has no entry for this tarball. A disagreement between the entry
+  and the pin is always fatal.
+- System and package-managed prefixes (`/usr`, `/opt/homebrew`, `/opt/local`, …)
+  are refused outright: the installer replaces `bin/git` and `libexec/git-core`.
+- The build refuses to run below the `2.38.0` floor.
+- An upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
+  if `make install` fails, so a failed upgrade never leaves the prefix without a
+  working git.
+- After installing, open a new login shell (or `hash -r`) so `PATH` resolves the
+  new binary. `shared/platform.sh` already orders `~/.local/bin` ahead of
+  `/usr/local/bin` and `/usr/bin`.
+
+To change the pinned version, edit `GIT_VERSION` and `GIT_SHA256` at the top of the
+script and re-run it. Re-derive the checksum from
+<https://mirrors.edge.kernel.org/pub/software/scm/git/sha256sums.asc>.
 
 ## Documentation
 

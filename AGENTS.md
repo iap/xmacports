@@ -13,6 +13,13 @@ is correct — fix this file in the same change set.
 2. Treat this file as the repo-wide default policy.
 3. Prefer more specific repo docs only when they do not conflict here.
 
+## Environment Scope
+
+- This checkout runs on macOS. Fixes driven by other environments (Windows, WSL,
+  other machines' layouts) belong to the agents working there.
+- The agent working in an environment adjusts the project for that environment
+  only; keep shared files cross-platform-safe without preempting other hosts.
+
 ## Secrets
 
 > [!IMPORTANT]
@@ -81,7 +88,30 @@ where the syntax is literal clutter.
 - Never make bootstrap or startup scripts install software. Detect optional
   tools, do not install them. Print manual guidance when one is missing, and fail
   clearly and early when a required one is absent.
+- Keep docs honest about prerequisites: state what must already exist on the host.
+- Every other dependency is fetched with `curl`/`wget` and verified by SHA256.
 - Introduce new dependencies only when strictly necessary.
+- **Exception — git may come from a pinned source build.** Some tooling needs a
+  git newer than the host's system git, and MacPorts is not always usable: it
+  requires sudo, and its support matrix does not cover every macOS release. When
+  that happens, build git from the official tarball into a user-owned prefix with
+  `scripts/install-git-source.sh` instead of installing software ad hoc. The rules:
+  - the version and its SHA256 are pinned at the top of the script; that pin is the
+    trust anchor, and the checksum is verified against it
+  - upstream's published manifest is fetched as a cross-check when reachable, but its
+    PGP signature is **not** verified, so a match is corroboration and never independent
+    proof. Both soft-fail branches are disclosed: an unreachable manifest is a warning,
+    and so is a reachable manifest with no entry for this tarball. Only a disagreement
+    between the entry and the pin is fatal
+  - the build installs into `$HOME/.local`, never a system directory, and needs no sudo;
+    system and package-managed prefixes are refused outright
+  - an upgrade moves the old `bin/git` and `libexec/git-core` aside and restores them
+    if the install fails, so a failed upgrade never leaves the prefix without git
+  - run `--check` first, so the change in state is known before anything is written
+  - the floor is `2.38.0` (required by the Graphite CLI); never pin below it
+- Never invoke the installer from `bootstrap.sh` or a shell startup file. It is a
+  manual, operator-run step: this repo configures a machine, it does not provision
+  one.
 
 ## Shell and platform
 
