@@ -15,7 +15,7 @@
 #
 # The %G? values, and what this accepts:
 #   G  good signature, valid                     accept
-#   U  good signature, unknown validity          accept
+#   U  good signature, unknown validity          accept for OpenPGP only
 #   N  no signature                              reject
 #   B  bad signature                             reject
 #   X  good signature, expired                   reject
@@ -23,11 +23,19 @@
 #   R  good signature made by a revoked key      reject
 #   E  cannot be checked                         reject
 #
-# U is the normal result in CI: the runner imports the signing key's PUBLIC
-# half from keys/iap-signing-key.asc, so it can confirm a signature is good but
-# cannot reach a trust anchor. Accepting U is what makes the check possible
-# without distributing private keys to CI. Requiring G - which does verify trust
-# - stays a local check, because that is where the trust anchor is.
+# U is the normal OpenPGP result in CI: the runner imports the signing key's
+# PUBLIC half from keys/iap-signing-key.asc, so it can confirm a signature is
+# good but cannot reach a trust anchor. Accepting U is what makes the check
+# possible without distributing private keys to CI. Requiring G - which does
+# verify trust - stays a local check, because that is where the trust anchor is.
+#
+# U is NOT acceptable for ssh signatures. For an ssh signature git consults
+# gpg.ssh.allowedSignersFile: a key listed there reports G, and a signature
+# whose key is NOT listed reports U. That U is a good signature from a key this
+# repository does not recognise, and accepting it would pass any ssh key. The
+# rule for U is therefore OpenPGP-only: the first armour line must be the
+# OpenPGP marker. An ssh signature from an unlisted key, an X.509 signed
+# message, an unreadable header - each fails closed.
 #
 # Without that import the runner reports E for EVERY commit, correctly signed or
 # not, and this gate rejects all of them. The job therefore imports the key; do
@@ -117,17 +125,35 @@ for sha in $COMMITS; do
     exit 2
   fi
 
+  # U is accepted only with OpenPGP armour (see the header); the first armour
+  # line is read for U, and every other marker fails closed.
+  reject=0
   case "$status" in
-    G | U) : ;;
-    *)
-      bad=$((bad + 1))
-      # %s is a folded single-line subject, so this stays one line per commit.
-      if ! desc="$(git log -1 --format='%h %an <%ae> %s' "$sha" 2> /dev/null)"; then
-        desc="$sha"
-      fi
-      printf '  [%s] %s\n' "$status" "$desc" >&2
+    G) : ;;
+    U)
+      sig_first="$(git cat-file commit "$sha" 2> /dev/null | sed -n 's/^gpgsig \(.*\)$/\1/p' | head -n 1)"
+      case "$sig_first" in
+        "-----BEGIN PGP SIGNATURE-----") : ;;
+        *) reject=1 ;;
+      esac
       ;;
+    *) reject=1 ;;
   esac
+
+  if [ "$reject" -eq 1 ]; then
+    bad=$((bad + 1))
+    # %s is a folded single-line subject, so this stays one line per commit.
+    if ! desc="$(git log -1 --format='%h %an <%ae> %s' "$sha" 2> /dev/null)"; then
+      desc="$sha"
+    fi
+    printf '  [%s] %s\n' "$status" "$desc" >&2
+    if [ "$status" = "U" ]; then
+      case "$sig_first" in
+        "-----BEGIN SSH SIGNATURE"*) echo "       (ssh signer not listed in gpg.ssh.allowedSignersFile)" >&2 ;;
+        *) echo "       (unknown-validity signature with non-OpenPGP armour)" >&2 ;;
+      esac
+    fi
+  fi
 done
 
 if [ "$total" -eq 0 ]; then

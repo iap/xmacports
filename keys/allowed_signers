@@ -1,0 +1,4 @@
+# SSH signers whose commits the signature check accepts.
+# Read from the TARGET branch, never from the MR checkout - the same trust
+# rule as keys/iap-signing-key.asc.
+iap@disroot.org namespaces="git" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIASoKPLU02q5fcSB2kNvD0pTwqVjTS60weoVjKoHM3Cw iap@tilde.club

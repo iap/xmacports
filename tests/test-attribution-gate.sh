@@ -220,7 +220,32 @@ fi
 if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
   MREPO="$TMP/mrrepo"
   git clone -q --no-hardlinks --depth 1 "file://$ROOT" "$MREPO" > /dev/null 2>&1
+  # Isolate from the host signing config, for the same reason as the fixture
+  # below: this clone inherits the tracked .gitconfig, which includes
+  # .gitconfig.local where `gpgsign = true` can be set. With no usable key in
+  # a non-interactive run the two fixture commits would fail with exit 128
+  # and write nothing, leaving refs/remotes/origin/main on a commit that never
+  # carried the allowlist. The gate would then fail closed for a reason that
+  # has nothing to do with the gate.
+  git -C "$MREPO" config commit.gpgsign false
   if [ -d "$MREPO/.git" ]; then
+    # Normalise the clone to the layout a GitLab MR runner produces. The
+    # runner checks out the MR head detached, so its clone carries no local
+    # branch; a clone made from a developer checkout that sits on main gets a
+    # local main, and the target-resolution assertions below would then test
+    # a different layout than the job they stand in for - or pass for the
+    # wrong reason. Move off whatever the clone produced, and drop a local
+    # main if one exists.
+    git -C "$MREPO" checkout -q -b mr-fixture-source > /dev/null 2>&1 || {
+      echo "ERROR: cannot branch off the fixture clone's HEAD" >&2
+      exit 1
+    }
+    if git -C "$MREPO" show-ref --verify --quiet refs/heads/main; then
+      git -C "$MREPO" branch -D main > /dev/null 2>&1 || {
+        echo "ERROR: cannot drop the fixture clone's local main" >&2
+        exit 1
+      }
+    fi
     base=$(git -C "$MREPO" rev-parse HEAD)
     # Two commits on the MR's source branch: the first establishes a target-side
     # allowlist, the second WIDENS it. origin/main is pinned to the first, so
@@ -229,12 +254,18 @@ if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
     printf 'mr-allowlisted@example.invalid\n' > "$MREPO/.attribution-allow"
     git -C "$MREPO" add -A > /dev/null 2>&1
     git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
-      commit -qm "target branch carries the allowlist" > /dev/null 2>&1
+      commit -qm "target branch carries the allowlist" > /dev/null 2>&1 || {
+      echo "ERROR: fixture commit failed (target)" >&2
+      exit 1
+    }
     target=$(git -C "$MREPO" rev-parse HEAD)
     printf 'mr-widened@example.invalid\n' >> "$MREPO/.attribution-allow"
     git -C "$MREPO" add -A > /dev/null 2>&1
     git -C "$MREPO" -c user.email=t@example.invalid -c user.name=t \
-      commit -qm "mr widens the allowlist" > /dev/null 2>&1
+      commit -qm "mr widens the allowlist" > /dev/null 2>&1 || {
+      echo "ERROR: fixture commit failed (widen)" >&2
+      exit 1
+    }
     # Now point origin/main at the narrower commit: it stands in for the target
     # branch, which the MR cannot change.
     git -C "$MREPO" update-ref "refs/remotes/origin/main" "$target"
@@ -248,25 +279,21 @@ if git -C "$ROOT" rev-parse --verify --quiet HEAD > /dev/null 2>&1; then
     printf 'x\n\nCo-authored-by: M <mr-widened@example.invalid>\n' > "$TMP/mr-no.md"
     printf 'x\n\nCo-authored-by: W <worktree-allowlisted@example.invalid>\n' > "$TMP/mr-wt.md"
 
-    if git -C "$MREPO" rev-parse --verify --quiet 'refs/heads/main' > /dev/null 2>&1; then
-      echo "note clone has a local main; skipping the shallow-layout case"
-    else
-      expect_rc 0 "resolves the MR target via refs/remotes/origin/<name>" \
-        env CI_MERGE_REQUEST_IID=42 \
-        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
-        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
-        sh "$MREPO" "$TMP/mr-ok.md"
-      expect_rc 1 "does not trust the MR branch's own allowlist entry" \
-        env CI_MERGE_REQUEST_IID=42 \
-        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
-        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
-        sh "$MREPO" "$TMP/mr-no.md"
-      expect_rc 1 "does not read an allowlist sitting in the worktree" \
-        env CI_MERGE_REQUEST_IID=42 \
-        CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
-        sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
-        sh "$MREPO" "$TMP/mr-wt.md"
-    fi
+    expect_rc 0 "resolves the MR target via refs/remotes/origin/<name>" \
+      env CI_MERGE_REQUEST_IID=42 \
+      CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+      sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+      sh "$MREPO" "$TMP/mr-ok.md"
+    expect_rc 1 "does not trust the MR branch's own allowlist entry" \
+      env CI_MERGE_REQUEST_IID=42 \
+      CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+      sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+      sh "$MREPO" "$TMP/mr-no.md"
+    expect_rc 1 "does not read an allowlist sitting in the worktree" \
+      env CI_MERGE_REQUEST_IID=42 \
+      CI_MERGE_REQUEST_TARGET_BRANCH_NAME=main \
+      sh -c 'cd "$1" && sh scripts/check-attribution.sh --message-file "$2"' \
+      sh "$MREPO" "$TMP/mr-wt.md"
   fi
 fi
 
