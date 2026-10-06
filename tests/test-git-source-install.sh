@@ -565,7 +565,7 @@ fi
 
 # The function and the arming must both precede the first move, so an abort during
 # the moves cannot skip them.
-def_line="$(grep -n '^restore_previous_git() {' "$INSTALLER" | head -1 | cut -d: -f1)"
+def_line="$(grep -n '^  restore_previous_git() {' "$INSTALLER" | head -1 | cut -d: -f1)"
 arm_line="$(grep -n '^  RESTORE_ARMED=1' "$INSTALLER" | head -1 | cut -d: -f1)"
 first_move="$(grep -n 'BACKUP_DIR/git-core"$\|BACKUP_DIR/git"$' "$INSTALLER" | head -1 | cut -d: -f1)"
 disarm_line="$(grep -n '^RESTORE_ARMED=0' "$INSTALLER" | head -1 | cut -d: -f1)"
