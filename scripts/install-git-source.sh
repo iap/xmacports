@@ -58,6 +58,14 @@ die() {
 }
 
 cleanup() {
+  # Restore the previous git BEFORE the work dir is removed. The backup lives in
+  # $WORK_DIR/previous-git, so deleting it first would destroy the only copy of a
+  # working git. RESTORE_ARMED stays 1 from just before the first move until the
+  # installed version has been verified, which is the window in which the old tree
+  # is the operator's only git.
+  if [ "${RESTORE_ARMED:-0}" = "1" ]; then
+    restore_previous_git || true
+  fi
   if [ -n "$WORK_DIR" ] && [ -d "$WORK_DIR" ]; then
     rm -rf "$WORK_DIR"
   fi
@@ -267,7 +275,10 @@ if [ "$CHECK_ONLY" -eq 1 ]; then
   prereq_gaps="$(missing_prereq make cc perl tar xz curl)"
   sha_tool="$(find_sha_tool || true)"
   if [ -z "$sha_tool" ]; then
-    prereq_gaps="${prereq_gaps}sha256sum-or-shasum"
+    # $'\n' joins the two entries. Command substitution strips the trailing newline
+    # missing_prereq emitted, so plain concatenation would report one joined token
+    # ("ccsha256sum-or-shasum") instead of two separate gaps.
+    prereq_gaps="${prereq_gaps:+$prereq_gaps$'\n'}sha256sum-or-shasum"
   fi
 
   if [ "$FORCE" -eq 0 ] && [ "$PREFIX_VERSION" = "$GIT_VERSION" ]; then
@@ -525,22 +536,25 @@ fi
 # wholesale. A bare `make install` overlays the new tree and leaves stale
 # helpers behind, so remove the git-owned paths first.
 #
-# The removal is staged: the old tree is moved aside, not deleted, and restored
-# if `make install` fails. Deleting first would leave the prefix with no git at
-# all when the install errors out (full disk, unwritable prefix), which is worse
-# than the stale-helper problem this cleanup exists to prevent.
+# The removal is staged: the old tree is moved aside, not deleted, and restored if
+# anything at all goes wrong before the new git is verified. Deleting first would
+# leave the prefix with no git when the install errors out (full disk, unwritable
+# prefix), which is worse than the stale-helper problem this cleanup exists to
+# prevent.
+#
+# The function and the arming flag are established BEFORE the first move. Under
+# `set -e` an abort during the moves (a failed second `mv`, a full disk) would
+# otherwise skip a definition placed after them, leaving the EXIT trap with no way
+# to put the previous git back — the exact case the guarantee in AGENTS.md promises
+# cannot happen. No-op until a backup dir is set, so it is safe to call early.
+BACKUP_DIR=""
+restore_previous_git() { :; }
+
 if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; }; then
   BACKUP_DIR="$WORK_DIR/previous-git"
-  mkdir -p "$BACKUP_DIR"
-  if [ -d "$PREFIX/libexec/git-core" ]; then
-    log "moving previous $PREFIX/libexec/git-core aside"
-    mv "$PREFIX/libexec/git-core" "$BACKUP_DIR/git-core"
-  fi
-  if [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; then
-    log "moving previous $TARGET_GIT aside"
-    mv "$TARGET_GIT" "$BACKUP_DIR/git"
-  fi
-  # Restore on any failure between here and a successful install.
+  # Restore on any failure between here and a successful, verified install.
+  # Each branch restores only a destination that does not exist, so a partial
+  # install is not clobbered by a full restore.
   restore_previous_git() {
     if [ -d "$BACKUP_DIR/git-core" ] && [ ! -e "$PREFIX/libexec/git-core" ]; then
       mkdir -p "$PREFIX/libexec"
@@ -552,9 +566,20 @@ if [ -d "$PREFIX/libexec/git-core" ] || { [ -e "$TARGET_GIT" ] || [ -L "$TARGET_
       mv "$BACKUP_DIR/git" "$TARGET_GIT" || true
     fi
   }
-else
-  BACKUP_DIR=""
-  restore_previous_git() { :; }
+  # Refuse before touching anything: without the backup dir there is nowhere to
+  # stage the old tree, and proceeding would delete it with nothing to restore.
+  if ! mkdir -p "$BACKUP_DIR"; then
+    die "could not create backup dir $BACKUP_DIR; refusing to remove the existing git"
+  fi
+  RESTORE_ARMED=1
+  if [ -d "$PREFIX/libexec/git-core" ]; then
+    log "moving previous $PREFIX/libexec/git-core aside"
+    mv "$PREFIX/libexec/git-core" "$BACKUP_DIR/git-core"
+  fi
+  if [ -e "$TARGET_GIT" ] || [ -L "$TARGET_GIT" ]; then
+    log "moving previous $TARGET_GIT aside"
+    mv "$TARGET_GIT" "$BACKUP_DIR/git"
+  fi
 fi
 
 log "installing to $PREFIX"
@@ -575,6 +600,11 @@ tail -n 3 "$WORK_DIR/install.log" | sed 's/^/  [install] /'
 INSTALLED_NOW="$("$TARGET_GIT" --version 2> /dev/null | awk '{print $3}')"
 [ "$INSTALLED_NOW" = "$GIT_VERSION" ] ||
   die "expected git $GIT_VERSION after install, found $INSTALLED_NOW"
+
+# The new git is installed and reports the pinned version, so the previous tree is
+# no longer the operator's only git. Disarm the restore: from here on a failure must
+# NOT put the old binary back, or the install would silently roll itself back.
+RESTORE_ARMED=0
 
 log "installed git $INSTALLED_NOW -> $TARGET_GIT"
 

@@ -365,7 +365,10 @@ fi
 # regression in the real code fails here.
 echo "checksum tool gets flags its own CLI accepts:"
 stub_dir="$(mktemp -d "${TMPDIR:-/tmp}/dotfiles-shastub.XXXXXX")"
-trap 'rm -rf "$stub_dir"' EXIT
+# Name BOTH paths in the trap. Installing a new trap REPLACES the earlier
+# 'rm -rf "$T"', so $T would otherwise leak every run. The probe is created further
+# down, so it is added to the trap there rather than named here before it exists.
+trap 'rm -rf "$T" "$stub_dir"' EXIT
 
 # Lift the real function out of the script rather than restating it, so this case
 # cannot pass while the shipped function is broken.
@@ -406,6 +409,10 @@ STUB
 chmod +x "$stub_dir/gnu/sha256sum" "$stub_dir/bsd/shasum"
 
 probe="$(mktemp "${TMPDIR:-/tmp}/dotfiles-shaprobe.XXXXXX")"
+# Re-install the trap naming all three paths. The probe is created after the trap
+# above, so it must be added here; an early exit between the two would otherwise
+# leak it, and the suite recycles $TMPDIR across runs.
+trap 'rm -rf "$T" "$stub_dir"; rm -f "$probe"' EXIT
 printf 'probe content' > "$probe"
 # The reference digest must be computable on whatever host runs this suite, so
 # use the same fallback the installer's own find_sha_tool would: sha256sum, then
@@ -474,7 +481,8 @@ if grep -qE '\$\{?SHA_CMD\}?"? -a 256|HAVE_SHA" -a' "$INSTALLER"; then
 else
   ok "checksum call site does not hardcode an algorithm flag"
 fi
-rm -f "$probe"
+
+# $probe, $stub_dir and $T are all removed by the EXIT trap.
 
 # --- the documented trust model matches the code --------------------------------
 # Greptile flagged that the docs called the manifest cross-check "corroboration
@@ -524,6 +532,66 @@ if grep -qE 'gpg --verify|gpgv .*sha256sums|verify.*signature' "$INSTALLER"; the
   bad "installer claims signature verification it does not perform"
 else
   ok "installer does not claim to verify the manifest signature"
+fi
+
+# --- the upgrade guarantee is structurally enforced ----------------------------
+# AGENTS.md promises "a failed upgrade never leaves the prefix without git". That
+# promise only holds if the restore is reachable from EVERY exit, not just from a
+# `make install` failure. These are ordering assertions rather than a simulated
+# build: a real build is far too slow for this suite, and the ordering IS the bug.
+# A previous version defined restore_previous_git AFTER the moves, so under `set -e`
+# an abort during the second mv left the function undefined and the EXIT trap
+# deleted the backup. Grep-based order checks catch that shape directly.
+echo "a failed upgrade can always be rolled back:"
+installer_flat="$(tr '\n' ' ' < "$INSTALLER" | tr -s ' ')"
+
+# cleanup must consult the arm flag before it removes the work dir.
+cleanup_body="$(sed -n '/^cleanup() {/,/^}/p' "$INSTALLER")"
+if printf '%s' "$cleanup_body" | grep -q 'RESTORE_ARMED' &&
+  printf '%s' "$cleanup_body" | grep -q 'restore_previous_git'; then
+  ok "the EXIT trap calls restore_previous_git when restoration is armed"
+else
+  bad "cleanup does not restore before removing the work dir"
+fi
+restore_line_in_cleanup="$(printf '%s\n' "$cleanup_body" | grep -n 'rm -rf "\$WORK_DIR"' | head -1 | cut -d: -f1)"
+restore_line_in_cleanup="${restore_line_in_cleanup:-999}"
+call_line_in_cleanup="$(printf '%s\n' "$cleanup_body" | grep -n 'restore_previous_git' | head -1 | cut -d: -f1)"
+call_line_in_cleanup="${call_line_in_cleanup:-0}"
+if [ "$call_line_in_cleanup" -lt "$restore_line_in_cleanup" ]; then
+  ok "restore runs before the work dir is deleted"
+else
+  bad "the work dir is deleted before the restore (line $call_line_in_cleanup vs $restore_line_in_cleanup)"
+fi
+
+# The function and the arming must both precede the first move, so an abort during
+# the moves cannot skip them.
+def_line="$(grep -n '^restore_previous_git() {' "$INSTALLER" | head -1 | cut -d: -f1)"
+arm_line="$(grep -n '^  RESTORE_ARMED=1' "$INSTALLER" | head -1 | cut -d: -f1)"
+first_move="$(grep -n 'BACKUP_DIR/git-core"$\|BACKUP_DIR/git"$' "$INSTALLER" | head -1 | cut -d: -f1)"
+disarm_line="$(grep -n '^RESTORE_ARMED=0' "$INSTALLER" | head -1 | cut -d: -f1)"
+if [ -n "$def_line" ] && [ -n "$arm_line" ] && [ -n "$first_move" ] &&
+  [ "$def_line" -lt "$first_move" ] && [ "$arm_line" -lt "$first_move" ]; then
+  ok "restore_previous_git is defined and armed before the first move"
+else
+  bad "the restore is not established before the moves (def=$def_line arm=$arm_line move=$first_move)"
+fi
+
+# And it must be disarmed only once the new git is verified, so a verified install
+# is never silently rolled back by a later failure. The comparison is split across
+# two lines (`[ ... ] ||` then `die ...`), so match the start of it, not the whole.
+verify_line="$(grep -n '\[ "\$INSTALLED_NOW" = "\$GIT_VERSION" \] ||' "$INSTALLER" | head -1 | cut -d: -f1)"
+if [ -n "$disarm_line" ] && [ -n "$verify_line" ] && [ "$disarm_line" -gt "$verify_line" ]; then
+  ok "RESTORE_ARMED is cleared only after the version is verified"
+else
+  bad "RESTORE_ARMED is cleared before verification (disarm=$disarm_line verify=$verify_line)"
+fi
+
+# The two prereq entries must stay separate entries: command substitution strips
+# the trailing newline, so concatenation would report one joined token.
+if printf '%s' "$installer_flat" | grep -q "prereq_gaps:+\$prereq_gaps"; then
+  ok "the sha-tool gap is joined with a newline, not glued onto the previous entry"
+else
+  bad "the sha-tool gap is concatenated directly onto prereq_gaps"
 fi
 
 echo
