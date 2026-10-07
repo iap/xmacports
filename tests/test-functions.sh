@@ -129,16 +129,23 @@ check "an already-present PATH dir is moved to the front" bash -c '
 check "the local bin dir outranks the system dirs on a macOS-style PATH" bash -c '
   unset DOTFILES_PLATFORM_LOADED
   source "$D/shared/platform.sh"
-  local_bin="$HOME/.local/bin"; mkdir -p "$local_bin"
+  # Use a throwaway HOME rather than the operator'"'"'s. This block creates the
+  # local bin dir to give the prepend something real to move, and pointing that at
+  # $HOME would litter the operator'"'"'s account with ~/.local/bin (and fail outright
+  # on a read-only home).
+  fake_home="$(mktemp -d)"
+  local_bin="$fake_home/.local/bin"
+  mkdir -p "$local_bin"
   # The real shape on this host: EVERY dir the platform loop lists is already in
-  # the inherited PATH, and ~/.local/bin sits behind the system dirs. Under the old
-  # early-return each entry was therefore a no-op and none were reordered.
+  # the inherited PATH, and the local bin dir sits behind the system dirs. Under the
+  # old early-return each entry was therefore a no-op and none were reordered.
   result="$(PATH="/usr/local/bin:/usr/bin:/bin:$local_bin"
     export PATH
     for dir in /usr/local/bin /usr/bin /bin "$local_bin"; do
       path_prepend_if_present "$dir"
     done
     printf "%s" "$PATH")"
+  rm -rf "$fake_home"
   local_pos=$(printf "%s" "$result" | tr ":" "\n" | grep -n -x "$local_bin" | cut -d: -f1)
   usr_pos=$(printf "%s" "$result" | tr ":" "\n" | grep -n -x "/usr/bin" | cut -d: -f1)
   [ -n "$local_pos" ] && [ -n "$usr_pos" ] && [ "$local_pos" -lt "$usr_pos" ]
