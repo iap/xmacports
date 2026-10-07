@@ -192,8 +192,13 @@ grep -q 'CHECK_COVERAGE' "$gv" && grep -q 'HEAD_SHA' "$gv" &&
 # whose newest pipeline is green but stale relative to HEAD.
 MT=$(mktemp -d)
 mkdir -p "$MT/bin"
+# The fixture records every call in $MT/calls.log. Without that, the assertions
+# below could be satisfied by some other `glab` on PATH reporting a stale success,
+# and the control would no longer prove the coverage check is what rejected it — a
+# negative control that cannot fail is worse than none, because it reads as proof.
 cat > "$MT/bin/glab" << 'EOFAKE'
 #!/usr/bin/env bash
+printf 'called args=[%s]\n' "$*" >> "${FIXTURE_LOG:?}"
 # Fake glab API that returns a stale pipeline
 printf '[{"id":99,"status":"success","sha":"%s"}]\n' "${FAKE_SHA:?}"
 EOFAKE
@@ -202,7 +207,7 @@ chmod +x "$MT/bin/glab"
 HEAD_SHA="$(git -C "$DOTFILES_ROOT" rev-parse --verify HEAD 2> /dev/null)"
 OLD_SHA="$(git -C "$DOTFILES_ROOT" rev-list --max-parents=0 "$HEAD_SHA" | head -1)"
 [ -n "$OLD_SHA" ] || OLD_SHA="$HEAD_SHA"
-env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" DOTFILES_ROOT="$DOTFILES_ROOT" \
+env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" FIXTURE_LOG="$MT/calls.log" DOTFILES_ROOT="$DOTFILES_ROOT" \
   bash "$gv" > "$MT/out.txt" 2>&1
 mrc=$?
 if [ "$mrc" -ne 0 ] && grep -q 'does not match HEAD' "$MT/out.txt"; then
@@ -210,14 +215,26 @@ if [ "$mrc" -ne 0 ] && grep -q 'does not match HEAD' "$MT/out.txt"; then
 else
   bad "stale pipeline did not fail the gate (rc=$mrc)"
 fi
+# The fixture must be the thing under test, not some other glab on PATH.
+if [ -s "$MT/calls.log" ]; then
+  ok "the coverage control exercised the stubbed glab"
+else
+  bad "the coverage control never called the stubbed glab, so it proved nothing"
+fi
 # Opt-out path still passes on the same stale input.
-env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" DOTFILES_ROOT="$DOTFILES_ROOT" \
+: > "$MT/calls.log"
+env PATH="$MT/bin:$PATH" FAKE_SHA="$OLD_SHA" FIXTURE_LOG="$MT/calls.log" DOTFILES_ROOT="$DOTFILES_ROOT" \
   bash "$gv" --no-coverage > "$MT/out.txt" 2>&1
 nrc=$?
 if [ "$nrc" -eq 0 ]; then
   ok "--no-coverage skips the coverage check (rc=0)"
 else
   bad "--no-coverage unexpectedly failed (rc=$nrc)"
+fi
+if [ -s "$MT/calls.log" ]; then
+  ok "the --no-coverage case also exercised the stubbed glab"
+else
+  bad "--no-coverage passed without reaching the stubbed glab"
 fi
 rm -rf "$MT"
 

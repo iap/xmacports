@@ -142,15 +142,51 @@ path_dedupe() {
   PATH="$normalized"
 }
 
-path_prepend_if_present() {
-  local dir="$1"
+# Move a directory to the FRONT of PATH, ahead of everything already there.
+#
+# The old guard returned early when the dir was already present, which meant a
+# directory that PATH inherited from /etc/paths or the parent environment (e.g.
+# /usr/local/bin, /usr/bin) kept its ORIGINAL position forever. The loop below
+# builds PATH by prepending each entry in order, so an already-present system dir
+# absorbed every dir listed after it — ~/.local/bin was prepended only relative to
+# what was left, and in practice landed BEHIND /usr/local/bin and /usr/bin. On
+# macOS PATH_D put /usr/local/bin first, so a git installed to ~/.local/bin was
+# never the one `git` resolved to.
+#
+# So: remove the entry everywhere, then prepend. Idempotent, and correct whether the
+# dir was already present or newly added.
+path_prepend() {
+  local dir="${1:-}"
   [[ -n "$dir" ]] || return 0
   [[ -d "$dir" ]] || return 0
   case ":$PATH:" in
-    *":$dir:"*) return 0 ;;
+    *":$dir:"*)
+      # Rebuild PATH without this dir. A parameter-expansion substitution cannot
+      # do this reliably: matching ":/dir:" needs a colon on BOTH sides, which the
+      # FIRST and LAST entries do not have, so a leading or trailing occurrence
+      # silently survived and left a duplicate behind the prepended one. Walk the
+      # segments instead — the same POSIX shape path_dedupe already uses, so it
+      # behaves identically under bash, zsh and dash (zsh does not word-split an
+      # unquoted parameter, which is why the loop form is required here).
+      local remaining="${PATH:-}" rebuilt=""
+      while [ -n "$remaining" ]; do
+        local segment="${remaining%%:*}"
+        case "$remaining" in
+          *:*) remaining="${remaining#*:}" ;;
+          *) remaining="" ;;
+        esac
+        [ "$segment" = "$dir" ] && continue
+        rebuilt="${rebuilt:+$rebuilt:}$segment"
+      done
+      PATH="$rebuilt"
+      ;;
   esac
   PATH="$dir${PATH:+:$PATH}"
 }
+
+# Backwards-compatible alias: same semantics as path_prepend. Kept because other
+# dotfiles call path_prepend_if_present and expect it to actually take effect.
+path_prepend_if_present() { path_prepend "$1"; }
 
 # --- Build PATH ---
 # Order below is intentionally lowest-priority first; final PATH has

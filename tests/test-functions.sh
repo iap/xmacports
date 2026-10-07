@@ -103,6 +103,65 @@ check "platform loader dedupes PATH under zsh" zsh -c '
   dupes=$(printf "%s" "$PATH" | tr ":" "\n" | sort | uniq -d | wc -l | tr -d " ")
   [ "$dupes" -eq 0 ]
 '
+# Regression: path_prepend_if_present used to return early when a dir was ALREADY in
+# PATH, so any dir inherited from /etc/paths or the parent environment kept its
+# original position. ~/.local/bin therefore stayed behind /usr/local/bin and /usr/bin
+# on macOS, and a git installed there was never the one `git` resolved to. An
+# already-present dir must still be MOVED to the front.
+#
+# PATH must be read through a subshell (command substitution), not as a variable:
+# these blocks run under `bash -c`, which is itself a child, so a PATH assignment made
+# by the function can never be seen by a direct [ "$PATH" = ... ] test here. That
+# would assert nothing and pass for the wrong reason.
+D="$DOTFILES"
+export D
+check "an already-present PATH dir is moved to the front" bash -c '
+  unset DOTFILES_PLATFORM_LOADED
+  source "$D/shared/platform.sh"
+  A="$(mktemp -d)"; B="$(mktemp -d)"; C="$(mktemp -d)"
+  result="$(PATH="$A:$B:$C"
+    path_prepend_if_present "$C"
+    path_prepend_if_present "$C"   # idempotent
+    printf "%s" "$PATH")"
+  rm -rf "$A" "$B" "$C"
+  [ "$result" = "$C:$A:$B" ]
+'
+check "the local bin dir outranks the system dirs on a macOS-style PATH" bash -c '
+  unset DOTFILES_PLATFORM_LOADED
+  source "$D/shared/platform.sh"
+  # Use a throwaway HOME rather than the operator'"'"'s. This block creates the
+  # local bin dir to give the prepend something real to move, and pointing that at
+  # $HOME would litter the operator'"'"'s account with ~/.local/bin (and fail outright
+  # on a read-only home).
+  fake_home="$(mktemp -d)"
+  local_bin="$fake_home/.local/bin"
+  mkdir -p "$local_bin"
+  # The real shape on this host: EVERY dir the platform loop lists is already in
+  # the inherited PATH, and the local bin dir sits behind the system dirs. Under the
+  # old early-return each entry was therefore a no-op and none were reordered.
+  result="$(PATH="/usr/local/bin:/usr/bin:/bin:$local_bin"
+    export PATH
+    for dir in /usr/local/bin /usr/bin /bin "$local_bin"; do
+      path_prepend_if_present "$dir"
+    done
+    printf "%s" "$PATH")"
+  rm -rf "$fake_home"
+  local_pos=$(printf "%s" "$result" | tr ":" "\n" | grep -n -x "$local_bin" | cut -d: -f1)
+  usr_pos=$(printf "%s" "$result" | tr ":" "\n" | grep -n -x "/usr/bin" | cut -d: -f1)
+  [ -n "$local_pos" ] && [ -n "$usr_pos" ] && [ "$local_pos" -lt "$usr_pos" ]
+'
+# Regression: the same fix must hold under zsh, where unquoted parameter expansion
+# does not word-split.
+check "PATH prepend reorders an existing dir under zsh" zsh -c '
+  unset DOTFILES_PLATFORM_LOADED
+  source "$D/shared/platform.sh"
+  A="$(mktemp -d)"; B="$(mktemp -d)"; C="$(mktemp -d)"
+  result="$(PATH="$A:$B:$C"
+    path_prepend_if_present "$C"
+    printf "%s" "$PATH")"
+  rm -rf "$A" "$B" "$C"
+  [ "$result" = "$C:$A:$B" ]
+'
 # Regression: sourced modules must NOT leak shell options into the caller.
 # A top-level `set -u` in a sourced file turns on nounset for the user's
 # interactive shell, which breaks Apple /etc/zshrc and any unset-var read.
