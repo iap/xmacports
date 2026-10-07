@@ -55,6 +55,11 @@ into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
   necessity and is not covered; see the merge policy in CONTRIBUTING.md.
 - An author may always close their own MR; no review is needed to close one.
 - `--no-verify` bypasses the hooks. State it in the MR; never use it quietly.
+- Stage files explicitly. Never use `git add .` — it sweeps in untracked
+  files that were never meant to be committed (local overrides, scratch
+  files, secrets). Stage specific paths: `git add <file>`, or use
+  `git add -p` to review hunks interactively. The pre-commit hook catches
+  plaintext secrets, but explicit staging is the first line of defense.
 
 Before any merge, confirm nothing unsigned is queued:
 

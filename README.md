@@ -173,7 +173,13 @@ script and re-run it. Re-derive the checksum from
 
 ## Documentation
 
-| Document | Read it for |
-|----------|-------------|
-| [CONTRIBUTING.md](CONTRIBUTING.md) | The full guideline: architecture, git workflow, secrets, hooks, CI, troubleshooting |
+| Document | Audience | Read it for |
+|----------|----------|-------------|
+| [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors | Architecture, git workflow, secrets, hooks, CI, troubleshooting |
+| [AGENTS.md](AGENTS.md) | AI agents | Critical rules: environment scope, secrets, git safety, commit style |
+| [docs/style-guide.md](docs/style-guide.md) | Anyone editing docs | Alert syntax, formatting, link conventions |
+
+If you are new to the repository, read CONTRIBUTING.md first. It is the
+single source of truth; AGENTS.md holds only the rules whose violation
+breaks something.
 | [AGENTS.md](AGENTS.md) | The short list of critical rules for agentic edits |
