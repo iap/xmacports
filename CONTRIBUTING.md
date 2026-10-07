@@ -514,7 +514,11 @@ If you do rotate:
 3. Update `keys/iap-signing-key.asc` and `keys/allowed_signers` on the
    target branch so CI verifies the new key.
 4. Update `.sops.yaml` with the new age public key.
-5. Re-encrypt the secret store: `make secrets-encrypt`.
+5. **Rotate every secret value** that the old key could reveal. Published
+   `secrets.enc.yaml` blobs in Git history remain decryptable with the
+   old key; re-encrypting the current store does not protect them.
+   Generate new values for each secret, update the plaintext store, then
+   re-encrypt: `make secrets-encrypt`.
 6. Commit the new encrypted store and the updated key material in
    separate, clearly-scoped commits.
 
@@ -522,7 +526,8 @@ Do not rewrite published history to re-sign it. The merge policy
 forbids force-pushing signed commits. A key rotation creates a clean
 break: old commits verify under the old key, new commits under the new
 one. Add the new key to `allowed_signers` alongside the old one during
-the transition.
+the transition, then remove the old key after the transition is
+complete — especially if it may have been exposed.
 
 ## Git hooks
 
@@ -603,20 +608,17 @@ coverage check is what catches a stalled webhook. Pass `--no-coverage` to
 
 ### Running CI locally
 
-`make ci-local` runs the pipeline locally using either `act` (GitLab CI
-runner emulator) or `glab` (GitLab CLI). Use it to validate changes
-before pushing:
+`make ci-local` runs the pipeline locally using `act` (GitLab CI runner
+emulator). It requires Docker and does not accept a job argument — it
+always runs all jobs. Use it to validate changes before pushing:
 
 ```bash
 make ci-local              # run all jobs
-make ci-local shellcheck   # run a single job
 ```
 
-`act` requires Docker and is closer to the real runner environment.
-`glab` requires a GitLab token and runs jobs on the real infrastructure
-but only on the current branch. Both are slower than running the
-underlying scripts directly; use them for final validation, not for
-iteration.
+`glab` does not run pipelines locally; it can only trigger them on the
+remote. For single-job iteration, run the underlying script directly
+(e.g. `sh scripts/check-signatures.sh origin/main HEAD`).
 
 ## Cross-platform notes
 

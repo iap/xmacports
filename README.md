@@ -182,4 +182,3 @@ script and re-run it. Re-derive the checksum from
 If you are new to the repository, read CONTRIBUTING.md first. It is the
 single source of truth; AGENTS.md holds only the rules whose violation
 breaks something.
-| [AGENTS.md](AGENTS.md) | The short list of critical rules for agentic edits |
