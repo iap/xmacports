@@ -154,6 +154,15 @@ feat/secrets-sync
 docs/readme-branch-naming
 ```
 
+### Staging
+
+Stage files explicitly. Never use `git add .` — it sweeps in untracked files
+that were never meant to be committed (local overrides, scratch files,
+secrets). Stage specific paths with `git add <file>`, or use `git add -p` to
+review hunks interactively. The pre-commit hook checks selected secret
+filenames and known key/token patterns. It cannot detect every plaintext
+secret, so explicit staging remains essential.
+
 ### Commits
 
 Prefix every commit with a scoped type: `type(scope):` — for example
@@ -616,12 +625,16 @@ coverage check is what catches a stalled webhook. Pass `--no-coverage` to
 GitHub Actions workflows — not GitLab CI. The target passes
 `.gitlab-ci.yml` to `act`, which does not natively support GitLab CI
 syntax. Use it as a smoke test for shell syntax and basic structure,
-not as validation of the GitLab pipeline. It requires Docker and does
-not accept a job argument — it always runs all jobs.
+not as validation of the GitLab pipeline. It requires Docker.
 
 ```bash
 make ci-local              # run all jobs
 ```
+
+`act` itself supports `--job` / `-j` to run a single job, but the
+Makefile target does not pass that through. For single-job iteration,
+invoke `act` directly (e.g. `act --rm --workflows .gitlab-ci.yml -j test`)
+or run the underlying script directly.
 
 `glab` does not run pipelines locally; it can only trigger them on the
 remote. For single-job iteration, run the underlying script directly
