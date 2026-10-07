@@ -58,8 +58,9 @@ into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
 - Stage files explicitly. Never use `git add .` — it sweeps in untracked
   files that were never meant to be committed (local overrides, scratch
   files, secrets). Stage specific paths: `git add <file>`, or use
-  `git add -p` to review hunks interactively. The pre-commit hook catches
-  plaintext secrets, but explicit staging is the first line of defense.
+  `git add -p` to review hunks interactively. The pre-commit hook checks
+  selected secret filenames and known key/token patterns. It cannot detect
+  every plaintext secret, so explicit staging remains essential.
 
 Before any merge, confirm nothing unsigned is queued:
 

@@ -509,10 +509,14 @@ directory configuration has near-zero impact.
 If you do rotate:
 
 1. Generate the new key (`gpg --full-gen-key` or `age-keygen`).
-2. Update `user.signingkey` in git config and `gpg.ssh.allowedSignersFile`
+2. Update `keys/iap-signing-key.asc` and `keys/allowed_signers` on the
+   target branch in a commit signed by a signer already trusted by that
+   branch. Merge this change before signing commits with the new key. If
+   the existing signer may be exposed, define a separate trusted CI
+   bootstrap path first.
+3. After the new key material reaches the target branch, update
+   `user.signingkey` in git config and `gpg.ssh.allowedSignersFile`
    (or the GPG keyring) on every machine.
-3. Update `keys/iap-signing-key.asc` and `keys/allowed_signers` on the
-   target branch so CI verifies the new key.
 4. Update `.sops.yaml` with the new age public key.
 5. **Rotate every secret value** that the old key could reveal. Published
    `secrets.enc.yaml` blobs in Git history remain decryptable with the
@@ -608,9 +612,12 @@ coverage check is what catches a stalled webhook. Pass `--no-coverage` to
 
 ### Running CI locally
 
-`make ci-local` runs the pipeline locally using `act` (GitLab CI runner
-emulator). It requires Docker and does not accept a job argument — it
-always runs all jobs. Use it to validate changes before pushing:
+`make ci-local` runs the pipeline locally using `act`, which emulates
+GitHub Actions workflows — not GitLab CI. The target passes
+`.gitlab-ci.yml` to `act`, which does not natively support GitLab CI
+syntax. Use it as a smoke test for shell syntax and basic structure,
+not as validation of the GitLab pipeline. It requires Docker and does
+not accept a job argument — it always runs all jobs.
 
 ```bash
 make ci-local              # run all jobs
@@ -640,12 +647,16 @@ package-manager assumptions differ from macOS.
 - Networking is NAT-based; mirrored mode is not supported on this host.
 - Prefer WSL-native CLI installs over Windows-side binaries for anything invoked
   from shell startup.
-- **Key sharing:** SSH and GPG keys can be symlinked from `/mnt/c/...`
-  so both Windows and WSL use the same key. The 9p filesystem reports
-  mode `777` for these files and `chmod` from Linux is meaningless —
-  the NTFS ACL is the real control. The audit script recognizes this
-  and reports such keys as "held outside the Linux filesystem" instead
-  of failing on a mode the kernel cannot change.
+- **Key sharing:** GPG keys can be symlinked from `/mnt/c/...` for
+  sharing between Windows and WSL. The 9p filesystem reports mode
+  `777` for these files and `chmod` from Linux is meaningless — the
+  NTFS ACL is the real control. The audit script recognizes this and
+  reports such keys as "held outside the Linux filesystem" instead of
+  failing on a mode the kernel cannot change. **Do not use an SSH
+  private-key symlink there as an OpenSSH identity file** — OpenSSH
+  checks the mode of the key file itself and will ignore a key with
+  mode `777`. Use a WSL-native SSH key with mode `600`, or an
+  agent-held identity exposed to WSL.
 - **Filesystem performance:** Operations on `/mnt/c` are significantly
   slower than on the native Linux filesystem (`/home`, `/tmp`). Keep
   the dotfiles checkout and any build artifacts on the native side.
