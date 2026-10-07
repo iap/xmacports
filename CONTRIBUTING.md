@@ -154,6 +154,15 @@ feat/secrets-sync
 docs/readme-branch-naming
 ```
 
+### Staging
+
+Stage files explicitly. Never use `git add .` — it sweeps in untracked files
+that were never meant to be committed (local overrides, scratch files,
+secrets). Stage specific paths with `git add <file>`, or use `git add -p` to
+review hunks interactively. The pre-commit hook checks selected secret
+filenames and known key/token patterns. It cannot detect every plaintext
+secret, so explicit staging remains essential.
+
 ### Commits
 
 Prefix every commit with a scoped type: `type(scope):` — for example
@@ -492,6 +501,47 @@ you run `make secrets-decrypt`.
 2. Run `make secrets-encrypt` to sync the committed encrypted file
 3. The new machine can now decrypt `secrets.enc.yaml`
 
+## Key rotation
+
+The GPG signing key and the age encryption key are long-lived. Rotate
+them when:
+
+- The private key may have been copied, exposed, or stored on a
+  decommissioned machine.
+- You are migrating away from a key management tool (e.g. Keybase) to
+  locally-generated keys for practical reasons.
+
+Rotation is **not** required for a personal dotfiles repo under normal
+circumstances. The threat model is low: a forged commit to a home
+directory configuration has near-zero impact.
+
+If you do rotate:
+
+1. Generate the new key (`gpg --full-gen-key` or `age-keygen`).
+2. Update `keys/iap-signing-key.asc` and `keys/allowed_signers` on the
+   target branch in a commit signed by a signer already trusted by that
+   branch. Merge this change before signing commits with the new key. If
+   the existing signer may be exposed, define a separate trusted CI
+   bootstrap path first.
+3. After the new key material reaches the target branch, update
+   `user.signingkey` in git config and `gpg.ssh.allowedSignersFile`
+   (or the GPG keyring) on every machine.
+4. Update `.sops.yaml` with the new age public key.
+5. **Rotate every secret value** that the old key could reveal. Published
+   `secrets.enc.yaml` blobs in Git history remain decryptable with the
+   old key; re-encrypting the current store does not protect them.
+   Generate new values for each secret, update the plaintext store, then
+   re-encrypt: `make secrets-encrypt`.
+6. Commit the new encrypted store and the updated key material in
+   separate, clearly-scoped commits.
+
+Do not rewrite published history to re-sign it. The merge policy
+forbids force-pushing signed commits. A key rotation creates a clean
+break: old commits verify under the old key, new commits under the new
+one. Add the new key to `allowed_signers` alongside the old one during
+the transition, then remove the old key after the transition is
+complete — especially if it may have been exposed.
+
 ## Git hooks
 
 `bootstrap.sh` points `core.hooksPath` at `.githooks/`.
@@ -569,6 +619,27 @@ and exits non-zero unless it is green **and** was built for `HEAD` — the
 coverage check is what catches a stalled webhook. Pass `--no-coverage` to
 `.ci/scripts/gitlab-ci-verify.sh` to check status only.
 
+### Running CI locally
+
+`make ci-local` runs the pipeline locally using `act`, which emulates
+GitHub Actions workflows — not GitLab CI. The target passes
+`.gitlab-ci.yml` to `act`, which does not natively support GitLab CI
+syntax. Use it as a smoke test for shell syntax and basic structure,
+not as validation of the GitLab pipeline. It requires Docker.
+
+```bash
+make ci-local              # run all jobs
+```
+
+`act` itself supports `--job` / `-j` to run a single job, but the
+Makefile target does not pass that through. For single-job iteration,
+invoke `act` directly (e.g. `act --rm --workflows .gitlab-ci.yml -j test`)
+or run the underlying script directly.
+
+`glab` does not run pipelines locally; it can only trigger them on the
+remote. For single-job iteration, run the underlying script directly
+(e.g. `sh scripts/check-signatures.sh origin/main HEAD`).
+
 ## Cross-platform notes
 
 The repo is shell- and file-based, so it works on NixOS and WSL, but
@@ -589,6 +660,23 @@ package-manager assumptions differ from macOS.
 - Networking is NAT-based; mirrored mode is not supported on this host.
 - Prefer WSL-native CLI installs over Windows-side binaries for anything invoked
   from shell startup.
+- **Key sharing:** GPG keys can be symlinked from `/mnt/c/...` for
+  sharing between Windows and WSL. The 9p filesystem reports mode
+  `777` for these files and `chmod` from Linux is meaningless — the
+  NTFS ACL is the real control. The audit script recognizes this and
+  reports such keys as "held outside the Linux filesystem" instead of
+  failing on a mode the kernel cannot change. **Do not use an SSH
+  private-key symlink there as an OpenSSH identity file** — OpenSSH
+  checks the mode of the key file itself and will ignore a key with
+  mode `777`. Use a WSL-native SSH key with mode `600`, or an
+  agent-held identity exposed to WSL.
+- **Filesystem performance:** Operations on `/mnt/c` are significantly
+  slower than on the native Linux filesystem (`/home`, `/tmp`). Keep
+  the dotfiles checkout and any build artifacts on the native side.
+- **Line endings:** Files on `/mnt/c` may have CRLF line endings
+  depending on Windows tooling. The repo's `.gitattributes` and hooks
+  enforce LF; do not edit tracked files from Windows-side editors
+  without checking line endings.
 
 MacPorts is macOS-only and ignored automatically elsewhere. `mise` stays
 optional — if absent, the shell continues without shims.
@@ -646,35 +734,6 @@ user.email`, `.attribution-allow`, or `ATTRIBUTION_ALLOWLIST`.
 
 ## Documentation style
 
-Use GitHub/GitLab alert syntax. Alerts also render in MR and issue bodies, but
-**never** in commit messages — messages travel as plain text (git log,
-terminals, email), where the syntax shows up as literal clutter.
-
-```markdown
-> [!NOTE]
-> Supplemental information that's not critical to follow.
-
-> [!TIP]
-> Helpful suggestion for a better workflow or outcome.
-
-> [!IMPORTANT]
-> Critical information the reader must follow to avoid breakage.
-
-> [!WARNING]
-> Potential risk — data loss, security issue, or irreversible action.
-
-> [!CAUTION]
-> Stronger than WARNING — destructive or dangerous if ignored.
-```
-
-Keep docs, tests, and code in sync. When file names, paths, or startup order
-change, update every document that mentions them in the same change set.
-
-These conventions are the ones this repository already follows consistently:
-
-- Wrap prose at roughly 80 columns. Tables are exempt: a cell wide enough to read
-  beats a column narrow enough to abbreviate.
-- Tag every fenced code block with its language. An untagged fence is a defect.
-- Use ATX headings (`#`), never setext underlines.
-- Prefer relative links between documents in this repository so they survive a
-  rename or a move.
+See [docs/style-guide.md](docs/style-guide.md) for the conventions this
+repository follows: alert syntax, formatting, link format, and the
+rule that docs, tests, and code stay in sync.
