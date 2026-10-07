@@ -26,20 +26,37 @@ if [ ! -x "$INSTALLER" ]; then
   exit 1
 fi
 
+T="$(mktemp -d)"
+trap 'rm -rf "$T"' EXIT
+
+# Point the installer's DEFAULT prefix at an empty sandbox for every test that
+# does not pass --prefix explicitly.
+#
+# The installer defaults PREFIX to $HOME/.local, so an unmocked invocation reads the
+# operator's real installation. Once a real git exists there, tests like "accepts
+# exactly 2.38.0" fail on live host state -- the installer correctly reports
+# "would rebuild 2.56.0 -> 2.38.0" because the prefix really does hold 2.56.0. That
+# is a latent isolation bug, not a behaviour change: the suite only ever passed
+# because nobody had run the installer yet. Fake HOME keeps these tests a pure
+# function of the installer's logic, and lets the real prefix exist.
+FAKE_HOME="$T/home"
+mkdir -p "$FAKE_HOME"
+
 # Run the installer with a given set of stubbed commands on PATH.
 # Usage: run_installer <stub-dir|none> <args...>
+#
+# HOME is forced to $FAKE_HOME so an invocation that omits --prefix resolves the
+# installer's default $HOME/.local inside the sandbox instead of reading whatever
+# the operator has really installed.
 run_installer() {
   local stubs="$1"
   shift
   if [ "$stubs" = "none" ]; then
-    bash "$INSTALLER" "$@" 2>&1
+    HOME="$FAKE_HOME" bash "$INSTALLER" "$@" 2>&1
   else
-    PATH="$stubs:$PATH" bash "$INSTALLER" "$@" 2>&1
+    HOME="$FAKE_HOME" PATH="$stubs:$PATH" bash "$INSTALLER" "$@" 2>&1
   fi
 }
-
-T="$(mktemp -d)"
-trap 'rm -rf "$T"' EXIT
 
 # --- version comparison ------------------------------------------------------
 # Sourced straight out of the installer so the tests cannot drift from it.
@@ -137,6 +154,7 @@ printf '%s  git-2.56.0.tar.xz\n' \
 # GIT_SOURCE_SKIP_PREREQ lets the run reach the checksum gate on an image with
 # no compiler. Everything the checksum gate itself depends on is still real.
 out="$(cd "$T" && PATH="$PREREQ_SH" \
+  HOME="$FAKE_HOME" \
   GIT_SOURCE_SKIP_PREREQ=1 \
   GIT_SOURCE_DOWNLOAD_BASE="file://$SERVE_DIR" \
   bash "$INSTALLER" --dry-run 2>&1)"
@@ -231,7 +249,7 @@ link_tools
 
 # Whichever of the withheld tools this host actually provides are now absent, so
 # `--check` must still name at least one of them and fail.
-out="$(cd "$T" && PATH="$STUB_SH" bash "$INSTALLER" --check 2>&1)"
+out="$(cd "$T" && PATH="$STUB_SH" HOME="$FAKE_HOME" bash "$INSTALLER" --check 2>&1)"
 rc=$?
 if [ "$rc" -ne 0 ]; then ok "check fails without build tools (rc=$rc)"; else bad "check passed with make/cc withheld"; fi
 if printf '%s' "$out" | grep -qE '(^|[[:space:]])(make|cc)$'; then
