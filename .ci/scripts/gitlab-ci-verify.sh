@@ -18,10 +18,17 @@ set -eu
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
-# Source platform helpers
-# shellcheck disable=SC1091
-. "$DOTFILES_ROOT/shared/platform.sh"
-
+# Deliberately does NOT source shared/platform.sh.
+#
+# This script needs nothing from it — none of is_macos, has_cmd, safe_mkdir,
+# path_dedupe or the PATH helpers are referenced below. Sourcing it was actively
+# harmful here: platform.sh REBUILDS PATH by prepending its own known directories
+# (including /opt/local/bin), which demotes any directory the caller put in front
+# to serve a stubbed command. So a test that prepended a directory holding a fake
+# `glab` still got the real /opt/local/bin/glab, and the test silently exercised
+# live host state instead of its own fixture — a negative control that could never
+# fail. It also mutated the caller's PATH for no benefit.
+#
 # --- argument parsing ---
 BRANCH=""
 STATUS="success"
