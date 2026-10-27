@@ -22,7 +22,7 @@
 # One address per line. Blank lines and #-comments are ignored. Changing this
 # file is an attribution-policy change: review it like one.
 
-# The GitHub noreply address the .gitmessage template offers. GitHub also accepts
-# an ID-keyed spelling (6572003+iap@) which survives a username rename and is the
-# more durable form; it is deliberately absent, so this repo credits the bare name.
+# The GitHub noreply address. GitHub also accepts an ID-keyed spelling
+# (6572003+iap@) which survives a username rename and is the more durable form;
+# it is deliberately absent, so this repo credits the bare name.
 iap@users.noreply.github.com
