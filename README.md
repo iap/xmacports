@@ -97,8 +97,11 @@ tracked config:
 # Required for most users
 cp templates/profile-local.example    "$HOME/.profile.local"
 
-# Optional (copy from examples/)
+# Required: git identity and signing key. The tracked .gitconfig sets neither, so
+# without this every commit fails with "Please tell me who you are".
 cp examples/gitconfig-local-example   "$HOME/.gitconfig.local"
+
+# Optional (copy from examples/)
 cp examples/forward-local-example     "$HOME/.forward.local"
 cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 cp examples/allowed-signers-example   "$HOME/.ssh/allowed_signers"
