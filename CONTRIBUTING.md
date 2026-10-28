@@ -191,8 +191,9 @@ git config --global tag.gpgsign true
 git config --global user.signingkey 9166D30F6FE70F56
 ```
 
-Author commits with the email matching the signing key's uid, not a forge
-noreply address. A valid signature shows as *unverified* on the forge only when
+Author commits with an identity the signing key represents — a uid on a GPG key,
+or the principal listed for the SSH key; a forge noreply address is fine once it
+is that identity. A valid signature shows as *unverified* on the forge only when
 the **public** key is not uploaded to the account — upload it under
 Settings → SSH and GPG keys.
 
@@ -218,15 +219,20 @@ named by `gpg.ssh.allowedSignersFile` in the tracked `.gitconfig`.
 
 ```bash
 cp examples/allowed-signers-example ~/.ssh/allowed_signers
-$EDITOR ~/.ssh/allowed_signers      # your email + PUBLIC key on one line
-git log -1 --format='%G? %GS'       # want: G you@example.com
+$EDITOR ~/.ssh/allowed_signers      # your principal + PUBLIC key on one line
+git log -1 --format='%G? %GS'       # want: G <the principal in that file>
 ```
 
 - The key is the **public** one. Publishing it is safe: a public key can only
   verify a signature, never create one. Never write the private key into this
   file or any tracked file.
-- The principal is the email you author commits with, not the key's file comment.
-- One line per identity. To rotate a key, keep the old line so history signed
+- The principal is a **label, not a check**. Git matches the signature to the key
+  on the line; it never compares the principal to the commit's author or
+  committer email, so a listed key reports `G` under any identity. `%GS` prints
+  the principal back verbatim — it confirms what the file says, not that the
+  commit identity matches it. Set it to the email you author with so the label
+  stays honest.
+- One line per key. To rotate a key, keep the old line so history signed
   with it continues to verify.
 - Bootstrap creates `~/.ssh` but deliberately does **not** create this file: it
   cannot know your email or key, and a wrong entry is worse than a missing one.

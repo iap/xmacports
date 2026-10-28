@@ -39,8 +39,10 @@ into your context. `make secrets-encrypt` and commit only the `.enc.yaml`.
 > route. Every change reaches `main` through a merge request, so the forge
 > authors the merge and history stays auditable.
 
-- Sign commits (`commit.gpgsign true`) and author with the signing key's uid
-  email, not a forge noreply address.
+- Sign commits (`commit.gpgsign true`) and author with an identity the signing
+  key actually represents: a uid on a GPG key, or the principal listed for an
+  SSH key. A forge noreply address is fine once it is that identity — an address
+  the key does not represent misattributes the signature.
 - Do not rewrite or force-push already-published signed history without
   coordinating — re-signing changes commit hashes and diverges from every clone.
 - Once a branch is pushed it is published. Rebase only before first push; after
@@ -131,8 +133,25 @@ where the syntax is literal clutter.
 - Resolve paths through `DOTFILES_ROOT`. Never hardcode `~/xmacports`. The forge
   repo is `xmacports`; the checkout is `~/.dotfiles` — never rename either to
   match the other.
+- **Never hardcode an absolute home path in tracked files** — no `/Users/<name>`,
+  no `/home/<name>`, no `C:\Users\<name>`. Use `$HOME`, `~/`, or `DOTFILES_ROOT`.
+  A path naming a machine, an OS, or an install prefix (e.g. a `darwin-x64` tool
+  directory) belongs in the private overlay, never here.
+- **No real email address or personal identity in tracked config.** `user.name`,
+  `user.email`, and `user.signingkey` live in `~/.gitconfig.local` (private
+  overlay); the tracked `.gitconfig` carries shared defaults only. This repo is
+  public — treat every tracked byte as world-readable.
 - Prefer internal, private, machine-local config over tracked public config:
-  identity, signing keys, and `.local` overlays stay untracked.
+  identity, signing keys, and `.local` overlays stay untracked, in
+  `~/.dotfiles-private` (keybase-encrypted) symlinked into `$HOME`.
+
+> [!WARNING]
+> This is a **cross-platform dotfiles configuration; each platform has its own
+> treatment needs — do not mix them.** OS-, architecture-, or machine-specific
+> settings (a `darwin-x64` tool prefix, Windows paths, distro packages) go in the
+> private overlay's `.local` files. Shared tracked files stay portable: a fix
+> verified on one host is not a fix for another, and a shared file that only works
+> on the author's machine is a defect.
 
 - **Checkouts exist on more than one host, and an agent must know which one it
   is editing.** The canonical path `~/.dotfiles` resolves on each of them:

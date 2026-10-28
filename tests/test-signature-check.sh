@@ -175,7 +175,7 @@ if [ "$signed_ok" -eq 1 ]; then
   if [ -n "$KEY" ]; then
     # Commit signed with the throwaway key. %G? is expected to be G here
     # because the test keyring is the only keyring in play.
-    if git -C "$REPO" -c user.signingkey="$KEY" commit -q --allow-empty \
+    if git -C "$REPO" -c gpg.format=openpgp -c user.signingkey="$KEY" commit -q --allow-empty \
       -S"$KEY" -m "signed work" 2> /dev/null; then
       SIGNED="$(git -C "$REPO" rev-parse HEAD)"
       STATUS="$(git -C "$REPO" log -1 --format='%G?' "$SIGNED" 2> /dev/null)"

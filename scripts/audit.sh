@@ -122,7 +122,7 @@ done
 echo
 
 echo "Non-executable configs (should not be +x):"
-for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .gitmessage "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
+for f in .bash_profile .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
   # $DOTFILES_ROOT-prefixed globs expand against the repo root, so the check
   # runs correctly regardless of where the audit is invoked from (CI workdir,
   # DOTFILES_ROOT override, direct invocation). Non-prefixed entries are
@@ -148,7 +148,7 @@ done < <(_find_config_files)
 echo
 
 echo "Config file permissions (expect 644):"
-for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward .gitmessage AGENTS.md CONTRIBUTING.md README.md "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
+for f in .bashrc .profile .zprofile .zshrc .vimrc .gitconfig .gitignore_global .forward AGENTS.md CONTRIBUTING.md README.md "$DOTFILES_ROOT"/.zshrc.d/*.sh "$DOTFILES_ROOT"/shared/*.sh; do
   case "$f" in
     "$DOTFILES_ROOT"/*) f="${f#"$DOTFILES_ROOT"/}" ;;
   esac

@@ -61,9 +61,13 @@
 [gpg "ssh"]
 	allowedSignersFile = ~/.ssh/allowed_signers
 [credential "https://github.com"]
-	helper = !gh auth git-credential
+	# ~/bin/gh, not bare gh: GUI git clients run helpers with a minimal PATH.
+	# If gh lives elsewhere on your host, point this at it or drop the override.
+	helper = 
+	helper = !~/bin/gh auth git-credential
 [credential "https://gist.github.com"]
-	helper = !gh auth git-credential
+	helper = 
+	helper = !~/bin/gh auth git-credential
 
 # Personal overrides - included last so local settings take precedence.
 [include]

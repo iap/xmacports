@@ -194,7 +194,7 @@ echo
 
 echo "4. Symlinks (requires make bootstrap)"
 if [[ -L "$HOME/.zshrc" ]]; then
-  for f in .zshrc .zprofile .bashrc .profile .gitconfig .vimrc .gitmessage; do
+  for f in .zshrc .zprofile .bashrc .profile .gitconfig .vimrc; do
     check "symlink: ~/$f" test -L "$HOME/$f"
   done
 else
