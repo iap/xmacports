@@ -217,6 +217,8 @@ script and re-run it. Re-derive the checksum from
 |----------|----------|-------------|
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors | Architecture, git workflow, secrets, hooks, CI, troubleshooting |
 | [AGENTS.md](AGENTS.md) | AI agents | Critical rules: environment scope, secrets, git safety, commit style |
+| [docs/architecture.md](docs/architecture.md) | Developers | System architecture, load chains, component ownership |
+| [docs/onboarding.md](docs/onboarding.md) | New contributors | Step-by-step setup and common tasks |
 | [docs/style-guide.md](docs/style-guide.md) | Anyone editing docs | Alert syntax, formatting, link conventions |
 
 If you are new to the repository, read CONTRIBUTING.md first. It is the
