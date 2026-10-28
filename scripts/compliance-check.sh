@@ -1,7 +1,7 @@
 #!/bin/bash
 # Compliance checker
 
-set -eu
+set -euo pipefail
 
 LOG_ROOT="${XDG_CACHE_HOME:-$HOME/.cache}/logs"
 COMPLIANCE_LOG="$LOG_ROOT/compliance-$(date +%Y-%m-%d).log"

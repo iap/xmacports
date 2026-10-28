@@ -34,7 +34,15 @@ fi
 # .asc/.gpg/.pgp/.ppk/.der are all blocked. The SOPS age master key
 # (~/.config/sops/age/keys.txt) decrypts the entire secret store and must
 # never be committed.
+# EXCEPTION: keys/iap-signing-key.asc is a tracked public key export (GPG),
+# not a secret. It is read by CI for signature verification.
 while IFS= read -r f; do
+  # Allow the tracked public GPG key export
+  case "$f" in
+    keys/iap-signing-key.asc)
+      continue
+      ;;
+  esac
   case "$f" in
     *.key | *.pem | *.p12 | *.pfx | *.kdb | *.keystore | *.jks | \
       *.asc | *.gpg | *.pgp | *.ppk | *.der | \

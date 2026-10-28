@@ -183,3 +183,11 @@ where the syntax is literal clutter.
 Kebab-case with a scope prefix: `<scope>/<short-name>` — `fix/audit-2026-09`,
 `feat/secrets-sync`. Branch names never use the `type(scope):` form; that shape
 is reserved for commit subjects.
+
+## Related documents
+
+- [CONTRIBUTING.md](CONTRIBUTING.md) — single source of truth
+- [docs/architecture.md](docs/architecture.md) — system architecture and load chains
+- [docs/onboarding.md](docs/onboarding.md) — onboarding for contributors and agents
+- [docs/style-guide.md](docs/style-guide.md) — documentation formatting
+- [CLAUDE.md](CLAUDE.md) — Claude Code context

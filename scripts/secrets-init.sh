@@ -3,7 +3,7 @@
 # Generates an age keypair, configures .sops.yaml, and bootstraps the encrypted store.
 # shellcheck disable=SC2015
 
-set -eu
+set -euo pipefail
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 SOPS_YAML="$DOTFILES_ROOT/.sops.yaml"

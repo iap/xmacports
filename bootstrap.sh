@@ -73,6 +73,14 @@ backup_and_link() {
         return 0
       fi
     fi
+    # Guard: target must be under $HOME (or we cannot safely compute _rel)
+    case "$target" in
+      "$HOME"/*) ;;
+      *)
+        echo "ERROR: target $target not under \$HOME, cannot safely backup" >&2
+        exit 1
+        ;;
+    esac
     [[ $_backup_used -eq 0 ]] && mkdir -p "$BACKUP_DIR"
     _backup_used=1
     # Preserve the target's path under the backup dir instead of flattening to

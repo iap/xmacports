@@ -15,7 +15,7 @@ Include ~/.ssh/config.local
 # so the GPG-agent key (which needs a TTY unlock) is never tried here.
 # These are defaults only: a machine-local overlay may relax IdentitiesOnly via
 # the Include above.
-# For INTERACTIVE GPG-agent SSH, see `bin/gpg-ssh-headless` (and MANUAL.md), then
+# For INTERACTIVE GPG-agent SSH, see `bin/gpg-ssh-headless` (see CONTRIBUTING.md), then
 # use `ssh -o IdentitiesOnly=no git@gitlab.com` after a TTY passphrase unlock.
 # Specific host directives MUST come BEFORE the Host * wildcard.
 Host gitlab.com git@gitlab.com

@@ -31,7 +31,7 @@ if [[ -d "${XDG_CONFIG_HOME:-$HOME/.config}/env.d" ]]; then
   unset _config_file
 fi
 
-# Load zsh-specific drop-ins. Documented in AGENTS.md/MANUAL.md as the zsh
+# Load zsh-specific drop-ins. Documented in AGENTS.md as the zsh
 # extension point, but nothing sourced it — .zshrc.d/prompt.sh was dead code.
 # Modules carry their own load guards, so this stays idempotent.
 if [[ -d "$DOTFILES_ROOT/.zshrc.d" ]]; then

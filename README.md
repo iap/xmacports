@@ -107,7 +107,27 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 cp examples/allowed-signers-example   "$HOME/.ssh/allowed_signers"
 ```
 
-## Opt-in app configs
+## bin/ helpers
+
+Small utilities expected on `PATH` (linked by bootstrap when `DOTFILES_ENABLE_*` is set):
+
+| Helper | Purpose |
+|--------|---------|
+| `gpg-ssh-headless` | GPG agent SSH auth in headless (no TTY) environments |
+| `pinentry-fallback` | Fallback pinentry for GPG when primary is unavailable |
+| `system-info` | Print OS, shell, and toolchain versions |
+| `timeout` | Polyfill for `timeout` command (macOS lacks it) |
+| `update` | Check for dotfiles updates from upstream |
+
+## Opt-in env modules
+
+Files in `.config/env.d/` are sourced by `shared/platform.sh` when present:
+
+| Module | Purpose |
+|--------|---------|
+| `foundry.sh` | Foundry (Solidity toolchain) environment |
+| `proxy.sh` | HTTP/HTTPS proxy settings |
+| `user-local-bin.sh` | Add `~/.local/bin` and `~/bin` to PATH |
 
 Two app configs are tracked but linked only when you opt in. Bootstrap backs up
 anything it replaces and never links secret-bearing files.
@@ -119,6 +139,23 @@ anything it replaces and never links secret-bearing files.
 
 `gh`'s `hosts.yml` holds OAuth tokens and is intentionally never tracked or
 linked, so your tokens stay local.
+
+## Templates and examples
+
+- **`templates/`** — Starting points for local override files. Copy and customize:
+  - `profile-local.example` → `~/.profile.local`
+  - `server-profile.example` → server-specific profile
+
+- **`examples/`** — Reference implementations and copy-paste snippets:
+  - `gitconfig-local-example` — Git identity and signing config
+  - `allowed-signers-example` — SSH allowed signers format
+  - `zshrc-local-example` — ZSH local overrides
+  - `ssh-config-example` — SSH host configuration
+  - `gpg-agent-conf-example` — GPG agent settings
+  - `forward-local-example` — Mail forwarding addresses
+  - `vimrc-local-example` — Vim local overrides
+  - `prompt-demo.sh` — Prompt customization demo
+  - `timeout-prompt-usage.sh` — Timeout prompt usage
 
 ## Security
 
@@ -144,8 +181,8 @@ release), `scripts/install-git-source.sh` builds a pinned git from the official
 tarball into `~/.local` — no sudo, no system directories touched.
 
 This is a **manual, operator-run step**. It is deliberately not wired into
-`make bootstrap` or any shell startup file, per the "No Package Manager
-Automation" rule in `AGENTS.md`.
+`make bootstrap` or any shell startup file, per the "Tooling" section in
+`AGENTS.md`.
 
 ```bash
 scripts/install-git-source.sh --check     # report current state, change nothing
@@ -180,6 +217,8 @@ script and re-run it. Re-derive the checksum from
 |----------|----------|-------------|
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Contributors | Architecture, git workflow, secrets, hooks, CI, troubleshooting |
 | [AGENTS.md](AGENTS.md) | AI agents | Critical rules: environment scope, secrets, git safety, commit style |
+| [docs/architecture.md](docs/architecture.md) | Developers | System architecture, load chains, component ownership |
+| [docs/onboarding.md](docs/onboarding.md) | New contributors | Step-by-step setup and common tasks |
 | [docs/style-guide.md](docs/style-guide.md) | Anyone editing docs | Alert syntax, formatting, link conventions |
 
 If you are new to the repository, read CONTRIBUTING.md first. It is the
