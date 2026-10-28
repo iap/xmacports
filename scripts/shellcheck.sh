@@ -6,7 +6,7 @@
 #   --staged   lint only staged (added/copied/modified) shell files — used by
 #              the pre-commit hook so a commit doesn't pay for a full-repo scan
 
-set -eu
+set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"

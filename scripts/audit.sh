@@ -2,7 +2,7 @@
 # Dotfiles audit - check file permissions and compliance
 # Extracted from Makefile for maintainability
 
-set -eu
+set -euo pipefail
 
 DOTFILES_ROOT="${DOTFILES_ROOT:-$HOME/.dotfiles}"
 
