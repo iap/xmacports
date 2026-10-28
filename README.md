@@ -107,7 +107,27 @@ cp examples/zshrc-local-example       "$HOME/.zshrc.local"
 cp examples/allowed-signers-example   "$HOME/.ssh/allowed_signers"
 ```
 
-## Opt-in app configs
+## bin/ helpers
+
+Small utilities expected on `PATH` (linked by bootstrap when `DOTFILES_ENABLE_*` is set):
+
+| Helper | Purpose |
+|--------|---------|
+| `gpg-ssh-headless` | GPG agent SSH auth in headless (no TTY) environments |
+| `pinentry-fallback` | Fallback pinentry for GPG when primary is unavailable |
+| `system-info` | Print OS, shell, and toolchain versions |
+| `timeout` | Polyfill for `timeout` command (macOS lacks it) |
+| `update` | Check for dotfiles updates from upstream |
+
+## Opt-in env modules
+
+Files in `.config/env.d/` are sourced by `shared/platform.sh` when present:
+
+| Module | Purpose |
+|--------|---------|
+| `foundry.sh` | Foundry (Solidity toolchain) environment |
+| `proxy.sh` | HTTP/HTTPS proxy settings |
+| `user-local-bin.sh` | Add `~/.local/bin` and `~/bin` to PATH |
 
 Two app configs are tracked but linked only when you opt in. Bootstrap backs up
 anything it replaces and never links secret-bearing files.
@@ -119,6 +139,23 @@ anything it replaces and never links secret-bearing files.
 
 `gh`'s `hosts.yml` holds OAuth tokens and is intentionally never tracked or
 linked, so your tokens stay local.
+
+## Templates and examples
+
+- **`templates/`** — Starting points for local override files. Copy and customize:
+  - `profile-local.example` → `~/.profile.local`
+  - `server-profile.example` → server-specific profile
+
+- **`examples/`** — Reference implementations and copy-paste snippets:
+  - `gitconfig-local-example` — Git identity and signing config
+  - `allowed-signers-example` — SSH allowed signers format
+  - `zshrc-local-example` — ZSH local overrides
+  - `ssh-config-example` — SSH host configuration
+  - `gpg-agent-conf-example` — GPG agent settings
+  - `forward-local-example` — Mail forwarding addresses
+  - `vimrc-local-example` — Vim local overrides
+  - `prompt-demo.sh` — Prompt customization demo
+  - `timeout-prompt-usage.sh` — Timeout prompt usage
 
 ## Security
 

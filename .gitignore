@@ -46,6 +46,9 @@ result
 # (email, GPG key ids, absolute $HOME paths) and machine-specific findings,
 # which must never be published from this repo. Keep them local.
 reviews/
+docs/gpg-ssh-*.md
+docs/*-report.md
+docs/*-investigation*.md
 
 # Tool caches
 .ruff_cache/
