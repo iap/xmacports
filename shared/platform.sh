@@ -1,7 +1,7 @@
 #!/bin/bash
 # Unified platform detection and environment setup — single source of truth.
 # Sources from .profile (login), .bashrc/.zshrc (interactive), and scripts.
-# Replaces: .config/env.d/platform.sh
+# Platform detection and environment setup (single source of truth)
 
 # NOTE: no top-level `set -u` — this file is *sourced* into interactive shells,
 # so shell options set here leak into the user's session (see shared/README rule).
