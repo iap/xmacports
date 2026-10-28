@@ -144,8 +144,8 @@ release), `scripts/install-git-source.sh` builds a pinned git from the official
 tarball into `~/.local` — no sudo, no system directories touched.
 
 This is a **manual, operator-run step**. It is deliberately not wired into
-`make bootstrap` or any shell startup file, per the "No Package Manager
-Automation" rule in `AGENTS.md`.
+`make bootstrap` or any shell startup file, per the "Tooling" section in
+`AGENTS.md`.
 
 ```bash
 scripts/install-git-source.sh --check     # report current state, change nothing

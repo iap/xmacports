@@ -13,7 +13,7 @@ connect_server() {
     ssh <username>@<server-ip> "$@"
 }
 
-# MacBook Air 2017 specific optimizations
+# Machine-specific optimizations
 # Uncomment and customize as needed:
 
 # Battery optimization

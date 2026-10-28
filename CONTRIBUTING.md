@@ -188,7 +188,7 @@ Set the signing preference and backend globally or in tracked `.gitconfig`:
 ```bash
 git config --global commit.gpgsign true
 git config --global tag.gpgsign true
-git config --global user.signingkey 9166D30F6FE70F56
+git config --global user.signingkey <YOUR-KEY-ID>
 ```
 
 Author commits with an identity the signing key represents — a uid on a GPG key,
