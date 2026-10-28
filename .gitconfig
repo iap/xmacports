@@ -6,9 +6,7 @@
 #    gpgsign = true
 
 [core]
-    editor = nano
     excludesfile = ~/.gitignore_global
-    pager = cat
 
 [color]
     ui = auto
@@ -36,6 +34,7 @@
 
 [push]
     default = simple
+    autoSetupRemote = true
 
 [alias]
     s = status --porcelain
@@ -49,7 +48,7 @@
     files = diff --name-only
     changes = status --porcelain
 
-    unstage = reset HEAD
+    unstage = restore --staged
     undo = reset --soft HEAD~1
 [gpg]
 	program = gpg
